@@ -1,0 +1,23 @@
+---
+import SiteLayout from '../../layouts/SiteLayout.astro';
+import Icon from '../../components/Icon.astro';
+import Photo from '../../components/Photo.astro';
+import { stories } from '../../data/club';
+import type { Story } from '../../data/club';
+import { asset, page } from '../../lib/urls';
+export function getStaticPaths() {
+  return stories.map(story => ({ params: { slug: story.id }, props: { story } }));
+}
+interface Props { story: Story }
+const { story } = Astro.props;
+---
+<SiteLayout title={`${story.title} | 関西ユナイテッドFC`} description={story.summary}>
+  <article class="shell story-page">
+    <nav class="breadcrumbs" aria-label="パンくず"><a href={page()}>HOME</a><Icon name="chevron" size={13} /><a href={page('news/')}>NEWS</a><Icon name="chevron" size={13} /><span>{story.category === 'training' ? 'TRAINING' : 'CLUB'}</span></nav>
+    <div class="story-page-heading"><p class="eyebrow">{story.label} <span>/</span> {story.published}</p><h1>{story.title}</h1><p>{story.summary}</p></div>
+    <Photo src={story.image} alt={story.alt} class="article-hero" eager />
+    <div class="article-body"><p class="article-credit">写真：関西ユナイテッドFC 公式Instagram</p>{story.activityDate && <p class="activity-date"><Icon name="calendar" size={17} /> 活動日：{story.activityDate}</p>}{story.paragraphs.map(paragraph => <p>{paragraph}</p>)}<a class="source-button" href={story.source} target="_blank" rel="noopener noreferrer"><Icon name="instagram" size={21} /> 公式Instagramで原文を見る <Icon name="external" size={17} /></a><p class="article-source-note">この記事は、公式Instagramの投稿をもとに編集したデザインプレビューです。</p></div>
+    {story.gallery.length > 1 && <section class="article-gallery" aria-labelledby="gallery-title"><div class="section-heading"><div><p class="eyebrow">トレーニングの風景</p><h2 class="display" id="gallery-title">IN PICTURES<span class="text-blue">.</span></h2></div></div><div class="article-gallery-grid">{story.gallery.map((image, index) => <button type="button" class="gallery-button" data-lightbox data-image={asset(image)} data-alt={story.alt} data-caption={`${story.activityDate} / PHOTO ${index + 1}`} data-source={story.source} aria-label={`活動写真 ${index + 1} を拡大`}><Photo src={image} alt={`${story.alt}（写真 ${index + 1}）`} /><span class="media-expand"><Icon name="external" size={18} /></span></button>)}</div></section>}
+    <a class="back-link" href={page('news/')}><span>←</span> ニュース一覧へ戻る</a>
+  </article>
+</SiteLayout>
