@@ -1,0 +1,25 @@
+{
+  "retrievedAt": "2026-10-12",
+  "account": "kansai_united_fc",
+  "useContext": "Design preview in the GitHub repository supplied by the user, under their stated photo permission premise. Not an approved official production launch.",
+  "logo": {
+    "file": "club-profile.jpg",
+    "source": "https://www.instagram.com/kansai_united_fc/",
+    "description": "Official account profile avatar, 150px; temporary until the original attached logo is available."
+  },
+  "posts": [
+    {
+      "source": "https://www.instagram.com/p/DeTFBjBD0ab/",
+      "activityDate": "2026-10-03",
+      "publishedDate": "2026-10-09",
+      "images": ["training-october-01.jpg", "training-october-02.jpg"]
+    },
+    {
+      "source": "https://www.instagram.com/p/Dd8ytlHjx75/",
+      "activityDate": "2026-09-26",
+      "publishedDate": "2026-10-01",
+      "images": ["training-september-01.jpg", "training-september-02.jpg"]
+    }
+  ],
+  "imageTreatment": "Original exports preserved. CSS clips embedded black bars and adds text legibility overlays. No AI edits."
+}
