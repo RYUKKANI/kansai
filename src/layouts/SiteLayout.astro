@@ -1,0 +1,43 @@
+---
+import Header from '../components/Header.astro';
+import Footer from '../components/Footer.astro';
+import Icon from '../components/Icon.astro';
+import { stories } from '../data/club';
+import { asset, page } from '../lib/urls';
+import '../styles/global.css';
+interface Props { title?: string; description?: string }
+const { title = '関西ユナイテッドFC | KANSAI UNITED FC', description = '関西ユナイテッドFCのニュース、活動の様子、チーム情報。日本語公式サイトのデザインプレビュー。' } = Astro.props;
+---
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content={description} />
+    <meta name="robots" content="noindex, nofollow" />
+    <meta name="theme-color" content="#1168BC" />
+    <title>{title}</title>
+    <link rel="icon" href={asset('assets/club-profile.jpg')} type="image/jpeg" />
+  </head>
+  <body>
+    <a class="skip-link" href="#main">メインコンテンツへ移動</a>
+    <Header />
+    <main id="main"><slot /></main>
+    <Footer />
+    <dialog class="search-dialog" aria-labelledby="search-title">
+      <div class="dialog-top"><span class="eyebrow">SEARCH UNITED</span><button type="button" class="icon-button" data-close-dialog aria-label="検索を閉じる"><Icon name="close" /></button></div>
+      <h2 id="search-title">ニュースを検索</h2>
+      <label class="search-field"><Icon name="search" /><input type="search" id="news-search" placeholder="キーワードを入力" aria-label="ニュース検索キーワード" autocomplete="off" /></label>
+      <div class="search-results" aria-live="polite">
+        {stories.map(story => <a href={page(`news/${story.id}/`)} data-search-text={`${story.title} ${story.summary} ${story.label} ${story.category === 'training' ? 'トレーニング 練習' : 'クラブ 参加 募集'}`}><small>{story.label} / {story.published}</small><span>{story.title}<Icon name="arrow" /></span></a>)}
+      </div>
+      <p class="search-empty" hidden>一致するニュースはありません。</p>
+    </dialog>
+    <dialog class="photo-dialog" aria-label="活動写真">
+      <div class="dialog-top"><span class="eyebrow">UNITED IN PICTURES</span><button type="button" class="icon-button" data-close-dialog aria-label="写真を閉じる"><Icon name="close" /></button></div>
+      <div class="photo dialog-photo"><img id="lightbox-image" src={asset('assets/training-october-01.jpg')} alt="" width="1170" height="1560" /></div>
+      <div class="lightbox-bottom"><p id="lightbox-caption"></p><a id="lightbox-source" href="https://www.instagram.com/p/DeTFBjBD0ab/" target="_blank" rel="noopener noreferrer">Instagramの原文を見る <Icon name="external" size={15} /></a></div>
+    </dialog>
+    <script src="../scripts/site.ts"></script>
+  </body>
+</html>
