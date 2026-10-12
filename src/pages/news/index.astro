@@ -1,0 +1,17 @@
+---
+import SiteLayout from '../../layouts/SiteLayout.astro';
+import Icon from '../../components/Icon.astro';
+import Photo from '../../components/Photo.astro';
+import { stories } from '../../data/club';
+import { page } from '../../lib/urls';
+---
+<SiteLayout title="ニュース | 関西ユナイテッドFC">
+  <section class="shell news-archive" data-filter-group>
+    <nav class="breadcrumbs" aria-label="パンくず"><a href={page()}>HOME</a><Icon name="chevron" size={13} /><span>NEWS</span></nav>
+    <p class="eyebrow">関西ユナイテッドFCのニュース</p><h1 class="display archive-title">NEWS & STORIES<span class="text-blue">.</span></h1>
+    <p class="archive-intro">トレーニングの様子から、クラブのお知らせまで。</p>
+    <div class="news-filters" aria-label="ニュースのカテゴリ"><button type="button" data-filter="all" aria-pressed="true">すべて</button><button type="button" data-filter="training" aria-pressed="false">トレーニング</button><button type="button" data-filter="club" aria-pressed="false">クラブ</button><span data-news-count aria-live="polite">3 STORIES</span></div>
+    <div class="news-grid">{stories.map(story => <article class="news-card" data-category={story.category}><a href={page(`news/${story.id}/`)}><div class="news-card-image"><Photo src={story.image} alt={story.alt} /><span class="image-category">{story.category === 'training' ? 'TRAINING' : 'CLUB'}</span></div><div class="news-card-copy"><p class="news-meta"><time datetime={story.published.replaceAll('.', '-')}>{story.published}</time><span> / {story.category === 'training' ? 'トレーニング' : 'クラブ情報'}</span></p><h2>{story.title}</h2><p class="card-summary">{story.summary}</p><span class="card-read">記事を読む <Icon name="arrow" size={19} /></span></div></a></article>)}</div>
+    <p class="source-note">公式Instagramの投稿をもとに編集しています。各記事から原文をご覧いただけます。</p>
+  </section>
+</SiteLayout>
