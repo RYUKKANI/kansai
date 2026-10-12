@@ -1,0 +1,8 @@
+node_modules/
+dist/
+preview/
+.astro/
+.env*
+!.env.example
+.DS_Store
+Thumbs.db
