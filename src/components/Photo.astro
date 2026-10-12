@@ -1,0 +1,8 @@
+---
+import { asset } from '../lib/urls';
+interface Props { src: string; alt: string; class?: string; eager?: boolean }
+const { src, alt, class: className = '', eager = false } = Astro.props;
+---
+<div class:list={['photo', className]}>
+  <img src={asset(src)} alt={alt} width="1170" height="1560" loading={eager ? 'eager' : 'lazy'} fetchpriority={eager ? 'high' : 'auto'} decoding="async" />
+</div>
