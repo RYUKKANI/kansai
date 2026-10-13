@@ -1,8 +1,9 @@
 ---
-import { forLocale, localeFromUrl } from "../lib/i18n";
+import { forLocale, localeFromUrl, formatForLocale } from "../lib/i18n";
 // 화면 언어는 URL에서 결정합니다. 일본어 원문과 저장 데이터는 유지합니다.
 const locale = localeFromUrl(Astro.url);
 const t = forLocale(locale);
+const format = formatForLocale(locale);
 import { storyCategories } from "../data/club";
 
 interface Props {
@@ -22,6 +23,6 @@ const { total } = Astro.props;
     </button>
   ))}
   <span data-news-count aria-live="polite">
-    {total} {total === 1 ? "STORY" : "STORIES"}
+    {format(total === 1 ? "{0} STORY" : "{0} STORIES", total)}
   </span>
 </div>

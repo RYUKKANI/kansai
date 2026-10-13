@@ -1,8 +1,14 @@
 ---
-import { forLocale, localeFromUrl, localizedPage } from "../../lib/i18n";
+import {
+  forLocale,
+  localeFromUrl,
+  localizedPage,
+  formatForLocale,
+} from "../../lib/i18n";
 // 화면 언어는 URL에서 결정합니다. 일본어 원문과 저장 데이터는 유지합니다.
 const locale = localeFromUrl(Astro.url);
 const t = forLocale(locale);
+const format = formatForLocale(locale);
 const page = (path = "") => localizedPage(path, locale);
 import Icon from "../Icon.astro";
 import Photo from "../Photo.astro";
@@ -31,8 +37,10 @@ const secondary = stories
       </span>
       <span class="photo-count">
         <Icon name="photo" size={15} />
-        {String(feature.gallery.length).padStart(2, "0")}{" "}
-        {feature.gallery.length === 1 ? "PHOTO" : "PHOTOS"}
+        {format(
+          feature.gallery.length === 1 ? "{0} PHOTO" : "{0} PHOTOS",
+          String(feature.gallery.length).padStart(2, "0"),
+        )}
       </span>
       <div class="lead-content">
         <p class="story-meta">
