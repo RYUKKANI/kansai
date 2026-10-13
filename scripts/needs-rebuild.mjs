@@ -24,6 +24,8 @@ if (process.env.EVENT_NAME === "schedule") {
       const deployed = await live.json();
       changed =
         !deployed.fromCms || Number(deployed.version) !== Number(state.version);
+      // 다가오는 일정은 시각에 따라 달라집니다. 일정 기능 사용 시 예약 빌드마다 갱신합니다.
+      if (process.env.PUBLIC_SCHEDULE_ENABLED === "true") changed = true;
     }
   }
 }

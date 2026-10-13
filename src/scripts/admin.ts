@@ -24,6 +24,12 @@ import {
 } from "../lib/admin-ui";
 import { buildDashboard } from "./admin-dashboard";
 import { createList, type ListController } from "./admin-list";
+import { createSchedule, recurrenceControls } from "./admin-schedule";
+import {
+  configureOffice,
+  resourceAvailable,
+  scheduleEnabled,
+} from "../lib/office-features";
 
 // [편집 안내] 로그인 → 역할 확인 → 목록/대시보드 → 양식 저장 순서입니다.
 // 화면을 숨기는 것과 별개로 모든 데이터 작업은 Supabase RLS로 다시 제한됩니다.
@@ -243,6 +249,14 @@ async function authenticate() {
   syncSidebar();
   // 토큰 갱신 때 진행 중인 검색·달력·편집 화면을 덮어쓰지 않습니다.
   if (unchanged) return;
+  const capabilities = await client.rpc("office_capabilities");
+  configureOffice(
+    !capabilities.error &&
+      capabilities.data &&
+      !Array.isArray(capabilities.data)
+      ? capabilities.data
+      : {},
+  );
   navigation();
   await show("dashboard");
 }
@@ -254,17 +268,26 @@ function navigation() {
     section.append(node("p", group));
     for (const name of [
       "dashboard",
+      ...(scheduleEnabled ? ["schedule"] : []),
       ...Object.keys(resources),
     ] as OfficePage[]) {
       const info = officePages[name];
       if (
         info.group !== group ||
-        (name !== "dashboard" &&
-          (!role || !resources[name].roles.includes(role)))
+        (name === "schedule"
+          ? !role || !["owner", "administrator", "coach"].includes(role)
+          : name !== "dashboard" &&
+            (!role ||
+              !resourceAvailable(name) ||
+              !resources[name].roles.includes(role)))
       )
         continue;
       const label =
-        name === "dashboard" ? "ダッシュボード" : resources[name].label;
+        name === "dashboard"
+          ? "ダッシュボード"
+          : name === "schedule"
+            ? "統合カレンダー"
+            : resources[name].label;
       const button = action(
         label,
         "",
@@ -331,7 +354,11 @@ async function show(
   if (
     !client ||
     !role ||
-    (resource !== "dashboard" && !resources[resource].roles.includes(role))
+    (resource === "schedule"
+      ? !scheduleEnabled || !["owner", "administrator", "coach"].includes(role)
+      : resource !== "dashboard" &&
+        (!resourceAvailable(resource) ||
+          !resources[resource].roles.includes(role)))
   )
     return;
   if (!resetPage && resource === current && currentList) {
@@ -344,13 +371,17 @@ async function show(
   const version = ++requestId;
   const info = officePages[resource];
   const title =
-    resource === "dashboard" ? "ダッシュボード" : resources[resource].label;
+    resource === "dashboard"
+      ? "ダッシュボード"
+      : resource === "schedule"
+        ? "統合カレンダー"
+        : resources[resource].label;
   $("#resource-title").textContent = title;
   $("#header-page-title").textContent = title;
   $("#page-eyebrow").textContent = info.group + " / " + info.english;
   $("#page-description").textContent = info.description;
   const newButton = $("#new-button");
-  newButton.hidden = resource === "dashboard";
+  newButton.hidden = resource === "dashboard" || resource === "schedule";
   newButton.replaceChildren(
     icon("plus"),
     node(
@@ -397,6 +428,23 @@ async function show(
     });
     if (version !== requestId || !role) return;
     $("#admin-content").replaceChildren(content);
+  } else if (resource === "schedule") {
+    const calendar = createSchedule({
+      client,
+      isCurrent: () => version === requestId && Boolean(role),
+      create: (next) => {
+        void run(() => createResource(next));
+      },
+      open: (next, row) => {
+        void run(async () => {
+          await show(next);
+          await openEditor(row);
+        });
+      },
+    });
+    currentList = calendar;
+    $("#admin-content").replaceChildren(calendar.element);
+    await calendar.refresh();
   } else {
     const list = createList({
       client,
@@ -478,7 +526,8 @@ async function choices(field: Field) {
   return field.options ?? [];
 }
 async function openEditor(row: Row | null) {
-  if (!client || !role || current === "dashboard") return;
+  if (!client || !role || current === "dashboard" || current === "schedule")
+    return;
   const resource = current;
   const config = resources[resource];
   editor.dataset.resource = resource;
@@ -515,6 +564,12 @@ async function openEditor(row: Row | null) {
   const groupByField = new Map<string, HTMLElement>();
   const orderedFields: Field[] = [];
   for (const group of editorGroups[resource]) {
+    if (
+      !group.fields.some((name) =>
+        config.fields.some((field) => field.name === name),
+      )
+    )
+      continue;
     const section = node("section", "", "office-field-group");
     section.append(node("h3", group.label));
     if (group.hint) section.append(node("p", group.hint, "admin-help"));
@@ -644,6 +699,8 @@ async function openEditor(row: Row | null) {
     (groupByField.get(field.name) ?? fields).append(container);
   }
   const meta = $("#editor-meta");
+  if (scheduleEnabled && resource === "training_sessions")
+    fields.append(recurrenceControls(row));
   meta.replaceChildren(
     node(
       "h3",
@@ -835,7 +892,29 @@ async function save(event: SubmitEvent) {
       if (payload.storage_path) payload.legacy_path = null;
     }
   }
-  if (editing)
+  if (
+    scheduleEnabled &&
+    resource === "training_sessions" &&
+    !editing &&
+    Number(data.get("_repeat_count")) > 1
+  ) {
+    await result(
+      client.rpc("create_training_series", {
+        p_template: payload,
+        p_interval_weeks: Number(data.get("_repeat_weeks")),
+        p_occurrences: Number(data.get("_repeat_count")),
+      }),
+    );
+  } else if (scheduleEnabled && resource === "training_sessions" && editing) {
+    await result(
+      client.rpc("update_training_occurrences", {
+        p_id: editing.id,
+        p_expected: editing.updated_at,
+        p_patch: payload,
+        p_scope: String(data.get("_repeat_scope") || "single"),
+      }),
+    );
+  } else if (editing)
     await result(
       client
         .from(resource)

@@ -1,9 +1,10 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { resources, type Resource } from "./admin-config";
+import { scheduleEnabled } from "./office-features";
 
 // [편집 안내] 공통 DOM, 아이콘, 상태, 메뉴·양식 그룹입니다. DB에 저장할 필드와 화면 표시를 분리합니다.
 export type Row = Record<string, unknown>;
-export type OfficePage = Resource | "dashboard";
+export type OfficePage = Resource | "dashboard" | "schedule";
 export type ListFilter = {
   search?: string;
   status?: string;
@@ -29,6 +30,18 @@ export const officePages: Record<
     english: "DASHBOARD",
     icon: "grid",
     description: "クラブの公開状況と、今日の運営業務を確認できます。",
+  },
+  schedule: {
+    group: "OPERATIONS",
+    english: "CLUB CALENDAR",
+    icon: "calendar",
+    description: "試合・練習・クラブ行事を日本時間でまとめて確認します。",
+  },
+  club_events: {
+    group: "OPERATIONS",
+    english: "CLUB EVENTS",
+    icon: "calendar",
+    description: "クラブ行事の日程、公開案内、内部メモを管理します。",
   },
   articles: {
     group: "CONTENT",
@@ -276,10 +289,13 @@ export function selectFields(resource: Resource): string {
       "updated_at",
       ...(resource === "players" || resource === "admin_roles"
         ? ["created_at"]
-        : resource === "training_sessions"
+        : resource === "training_sessions" || resource === "club_events"
           ? []
           : ["status", "published_at"]),
       ...(resource === "media_assets" ? ["legacy_path"] : []),
+      ...(resource === "training_sessions" && scheduleEnabled
+        ? ["series_id"]
+        : []),
     ]),
   ].join(",");
 }
@@ -380,6 +396,19 @@ export const editorGroups: Record<
   training_sessions: [
     { label: "練習内容", fields: ["title", "session_status"] },
     { label: "日時・場所", fields: ["starts_at", "ends_at", "venue"] },
+    { label: "内部の運営メモ", fields: ["notes"] },
+    {
+      label: "公式サイトへの案内",
+      fields: ["is_public", "public_description"],
+    },
+  ],
+  club_events: [
+    { label: "行事内容", fields: ["title", "session_status"] },
+    { label: "日時・場所", fields: ["starts_at", "ends_at", "venue"] },
+    {
+      label: "公式サイトへの案内",
+      fields: ["is_public", "public_description"],
+    },
     { label: "内部の運営メモ", fields: ["notes"] },
   ],
   media_albums: [

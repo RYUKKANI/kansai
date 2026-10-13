@@ -1529,3 +1529,74 @@
     font-size: 24px;
   }
 }
+/* 통합 일정: 넓은 화면은 7열, 작은 화면은 날짜별 카드로 표시합니다. */
+.office-schedule-body {
+  padding: 0 20px 20px;
+}
+.office-panel > h3 {
+  margin: 12px 20px;
+}
+.office-integrated-calendar {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  border-top: 1px solid var(--office-border, #e1e8f0);
+  border-left: 1px solid var(--office-border, #e1e8f0);
+}
+.office-schedule-day {
+  padding: 8px;
+  min-height: 115px;
+  border-right: 1px solid #e1e8f0;
+  border-bottom: 1px solid #e1e8f0;
+  min-width: 0;
+}
+.office-schedule-day h4 {
+  margin: 0 0 8px;
+  font-size: 12px;
+}
+.office-schedule-day [aria-current="date"] {
+  color: #1168bc;
+  font-weight: 900;
+}
+.office-schedule-day[data-outside="true"] {
+  background: #f3f6fa;
+}
+.office-schedule-event {
+  width: 100%;
+  text-align: left;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 10px;
+  margin: 4px 0;
+  background: #f3f6fa;
+  border: 1px solid #e1e8f0;
+  border-left: 3px solid #1168bc;
+  border-radius: 6px;
+  overflow-wrap: anywhere;
+}
+.office-schedule-event[data-kind="fixtures"] {
+  border-left-color: #0b2447;
+}
+.office-schedule-event[data-kind="club_events"] {
+  border-left-color: #60748b;
+}
+.office-schedule-event span:not(.office-badge),
+.office-schedule-event small {
+  width: 100%;
+}
+.office-schedule-event small {
+  font-size: 11px;
+}
+@media (max-width: 1000px) {
+  .office-integrated-calendar {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 600px) {
+  .office-integrated-calendar {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .office-schedule-day[data-outside="true"] {
+    display: none;
+  }
+}
