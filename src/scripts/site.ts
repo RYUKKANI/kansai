@@ -89,6 +89,20 @@ function initTabs() {
       });
     }
 
+    // 홈의 경기 카드에서 결과·리포트로 이동하면 해당 탭과 접힌 리포트를 바로 엽니다.
+    function selectLinkedPanel() {
+      const target = document.getElementById(window.location.hash.slice(1));
+      if (!target) return;
+      const index = panels.findIndex((panel) => panel?.contains(target));
+      if (index < 0 || !tabs[index]) return;
+      selectTab(tabs[index]);
+      const report = target.closest<HTMLDetailsElement>("details");
+      if (report) report.open = true;
+      requestAnimationFrame(() => target.scrollIntoView?.({ block: "start" }));
+    }
+    selectLinkedPanel();
+    window.addEventListener("hashchange", selectLinkedPanel);
+
     tabs.forEach((tab, index) => {
       tab.addEventListener("click", () => selectTab(tab));
       // 마우스 없이도 좌우 방향키·Home·End로 이동할 수 있게 유지합니다.

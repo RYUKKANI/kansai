@@ -15,10 +15,10 @@ function dialogSupport(window) {
   };
   window.matchMedia = () => ({ matches: false, addEventListener() {} });
 }
-async function interactive(name) {
+async function interactive(name, url = "https://ryukkani.github.io/kansai/") {
   const html = await file(name);
   const dom = new JSDOM(html, {
-    url: "https://ryukkani.github.io/kansai/",
+    url,
     runScripts: "outside-only",
     pretendToBeVisual: true,
   });
@@ -115,13 +115,13 @@ test("menu, normalized search, filters, keyboard tabs and photo expansion work t
     1,
   );
   document
-    .querySelector("#next-tab")
+    .querySelector("#photo-tab")
     .dispatchEvent(
       new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true }),
     );
-  assert.equal(document.querySelector("#next-panel").hidden, true);
-  assert.equal(document.querySelector("#result-panel").hidden, false);
-  assert.equal(document.querySelector("#photo-panel").hidden, false);
+  assert.equal(document.querySelector("#photo-panel").hidden, true);
+  assert.equal(document.querySelector("#video-panel").hidden, false);
+  document.querySelector("#photo-tab").click();
   const photo = document.querySelector("[data-lightbox]");
   photo.click();
   assert.equal(document.querySelector(".photo-dialog").open, true);
@@ -138,6 +138,50 @@ test("menu, normalized search, filters, keyboard tabs and photo expansion work t
   document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
   assert.equal(document.querySelector("#mobile-navigation").hidden, true);
   dom.window.close();
+});
+
+test("home keeps all three match cards visible and announces undetermined fixtures", async () => {
+  const dom = new JSDOM(await file("index.html"));
+  try {
+    const section = dom.window.document.querySelector("#matches");
+    assert.equal(section.querySelectorAll(".match-summary").length, 3);
+    assert.equal(section.querySelectorAll('[role="tabpanel"]').length, 0);
+    for (const kind of ["next", "upcoming"]) {
+      const card = section.querySelector('[data-match-slot="' + kind + '"]');
+      assert.ok(card.textContent.includes("試合はまだ未定です"));
+      assert.equal(card.querySelector("time"), null);
+      assert.ok(
+        card.querySelector('a[href="/kansai/matches/#schedule-panel"]'),
+      );
+    }
+    assert.ok(
+      section
+        .querySelector('[data-match-slot="last"]')
+        .textContent.includes("試合結果は未発表です"),
+    );
+  } finally {
+    dom.window.close();
+  }
+});
+
+test("result links open the results tab without changing unrelated tabs", async () => {
+  const dom = await interactive(
+    "matches/index.html",
+    "https://ryukkani.github.io/kansai/matches/#results-panel",
+  );
+  try {
+    const document = dom.window.document;
+    assert.equal(
+      document.querySelector("#results-tab").getAttribute("aria-selected"),
+      "true",
+    );
+    assert.equal(document.querySelector("#results-panel").hidden, false);
+    assert.equal(document.querySelector("#schedule-panel").hidden, true);
+    document.querySelector("#schedule-tab").click();
+    assert.equal(document.querySelector("#schedule-panel").hidden, false);
+  } finally {
+    dom.window.close();
+  }
 });
 test("offline export contains local images, styles and independent page links", async () => {
   const html = await readFile(path.join(root, "preview", "index.html"), "utf8");

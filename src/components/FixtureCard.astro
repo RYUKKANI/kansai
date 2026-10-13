@@ -15,7 +15,7 @@ const labels = {
 };
 ---
 
-<article class="fixture-card">
+<article class="fixture-card" id={"fixture-" + fixture.id}>
   <div class="fixture-card-meta">
     <span class="eyebrow">{fixture.competition || "大会名 未発表"}</span>
     <span class="fixture-status">
@@ -50,7 +50,7 @@ const labels = {
   </div>
   <p class="fixture-venue">{fixture.venue || "会場 未発表"}</p>
   {fixture.report.length > 0 && (
-    <details class="fixture-report">
+    <details class="fixture-report" id={"report-" + fixture.id}>
       <summary>試合レポートを読む</summary>
       {fixture.report.map((p) => (
         <p>{p}</p>
