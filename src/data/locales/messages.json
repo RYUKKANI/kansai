@@ -1,4 +1,8 @@
 {
+  "{0} PHOTO": { "ko": "사진 {0}장", "en": "{0} PHOTO" },
+  "{0} PHOTOS": { "ko": "사진 {0}장", "en": "{0} PHOTOS" },
+  "{0} STORY": { "ko": "기사 {0}개", "en": "{0} STORY" },
+  "{0} STORIES": { "ko": "기사 {0}개", "en": "{0} STORIES" },
   "開催予定": {
     "ko": "개최 예정",
     "en": "Scheduled"

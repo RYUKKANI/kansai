@@ -35,7 +35,10 @@ const emptyMessage =
 <article class="match-summary" data-match-slot={kind}>
   <h3 class="match-summary-heading">
     <span class="display">{title}</span>
-    <small>{japanese}</small>
+    <!-- 한국어·영어에서 제목과 부제가 같아지면 같은 문구를 두 번 표시하지 않습니다. -->
+    {title.toLocaleLowerCase() !== japanese.toLocaleLowerCase() && (
+      <small>{japanese}</small>
+    )}
   </h3>
   <div class="match-summary-body">
     <p class="match-summary-date">
