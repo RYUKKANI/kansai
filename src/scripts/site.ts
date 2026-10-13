@@ -1,3 +1,5 @@
+import { text as t } from "../lib/i18n";
+import { initLanguageSwitcher } from "./languages";
 // [편집 안내] 메뉴 → 뉴스 필터 → 탭 → 검색 → 사진 확대 → 대화상자 순서입니다.
 // 화면 문구는 Astro 파일에서, 버튼·패널을 연결하는 동작은 이 파일에서 편집합니다.
 
@@ -11,7 +13,7 @@ function initMobileMenu() {
     button?.setAttribute("aria-expanded", String(open));
     button?.setAttribute(
       "aria-label",
-      open ? "メニューを閉じる" : "メニューを開く",
+      open ? t("メニューを閉じる") : t("メニューを開く"),
     );
     if (navigation) navigation.hidden = !open;
   }
@@ -59,7 +61,7 @@ function initNewsFilters() {
             item.setAttribute("aria-pressed", String(item === button)),
           );
           if (counter)
-            counter.textContent = `${count} ${count === 1 ? "STORY" : "STORIES"}`;
+            counter.textContent = `${count} ${t(count === 1 ? "STORY" : "STORIES")}`;
         }),
       );
     });
@@ -184,7 +186,7 @@ function initLightbox() {
           "photo-natural",
           button.dataset.natural === "true",
         );
-        image.alt = button.dataset.alt ?? "関西ユナイテッドFCの活動写真";
+        image.alt = button.dataset.alt ?? t("関西ユナイテッドFCの活動写真");
         if (caption) caption.textContent = button.dataset.caption ?? "";
         if (source) {
           source.hidden = !button.dataset.source;
@@ -228,7 +230,7 @@ function initVideos() {
         if (!container || !/^[A-Za-z0-9_-]{11}$/.test(id)) return;
         const frame = document.createElement("iframe");
         frame.src = "https://www.youtube-nocookie.com/embed/" + id;
-        frame.title = button.dataset.videoTitle ?? "公式動画";
+        frame.title = button.dataset.videoTitle ?? t("公式動画");
         frame.allowFullscreen = true;
         frame.allow = "encrypted-media; picture-in-picture";
         frame.referrerPolicy = "strict-origin-when-cross-origin";
@@ -240,6 +242,7 @@ function initVideos() {
 }
 
 // 정적 페이지마다 한 번 실행합니다. 기능별 초기화가 있어 필요한 부분만 찾아 수정할 수 있습니다.
+initLanguageSwitcher();
 const closeMenu = initMobileMenu();
 initNewsFilters();
 initTabs();

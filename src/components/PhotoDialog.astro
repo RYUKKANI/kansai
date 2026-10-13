@@ -1,19 +1,24 @@
 ---
+import { forLocale, localeFromUrl } from "../lib/i18n";
+// 화면 언어는 URL에서 결정합니다. 일본어 원문과 저장 데이터는 유지합니다.
+const locale = localeFromUrl(Astro.url);
+const t = forLocale(locale);
+import { clubForLocale } from "../data/locales/content";
+const club = clubForLocale(locale);
 import Icon from "./Icon.astro";
-import { club } from "../data/club";
 
 // 사진 주소·대체 텍스트·출처는 클릭한 갤러리 버튼에서 scripts/site.ts가 가져옵니다.
 // 초기 src를 두지 않아, 사진을 확대하지 않은 페이지에서 원본을 미리 내려받지 않습니다.
 ---
 
-<dialog class="photo-dialog" aria-label="活動写真">
+<dialog class="photo-dialog" aria-label={t("活動写真")}>
   <div class="dialog-top">
     <span class="eyebrow">UNITED IN PICTURES</span>
     <button
       type="button"
       class="icon-button"
       data-close-dialog
-      aria-label="写真を閉じる"
+      aria-label={t("写真を閉じる")}
     >
       <Icon name="close" />
     </button>
@@ -29,7 +34,8 @@ import { club } from "../data/club";
       target="_blank"
       rel="noopener noreferrer"
     >
-      関連する公式情報 <Icon name="external" size={15} />
+      {t("関連する公式情報")}
+      <Icon name="external" size={15} />
     </a>
   </div>
 </dialog>

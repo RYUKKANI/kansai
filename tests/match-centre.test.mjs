@@ -1,12 +1,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { japanPublicationDate } from "../src/lib/dates.ts";
-import {
-  selectMatchCentre,
-  matchSides,
-  matchDate,
-  matchTime,
-} from "../src/lib/match-centre.ts";
+import { typescriptModule } from "./helpers/typescript-module.mjs";
+const { japanPublicationDate } = await typescriptModule("src/lib/dates.ts");
+const { selectMatchCentre, matchSides, matchDate, matchTime } =
+  await typescriptModule("src/lib/match-centre.ts");
 
 // 순서가 다른 API 응답과 미정 일정을 함께 검사합니다. 실제 구단 데이터에는 테스트 경기를 넣지 않습니다.
 const fixture = (id, kickoff, status = "scheduled") => ({

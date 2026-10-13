@@ -1,11 +1,16 @@
 ---
+import { forLocale, localeFromUrl, localizedPage } from "../../lib/i18n";
+// 화면 언어는 URL에서 결정합니다. 일본어 원문과 저장 데이터는 유지합니다.
+const locale = localeFromUrl(Astro.url);
+const t = forLocale(locale);
+const page = (path = "") => localizedPage(path, locale);
 import { loadPublicContent } from "../../data/cms";
 import { positions } from "../../lib/content-types";
-import { page } from "../../lib/urls";
+
 import PlayerCard from "../PlayerCard.astro";
 import Icon from "../Icon.astro";
 // [편집 안내] 공개 승인을 받은 활동 선수만 홈에 표시합니다. 미등록 포지션은 안내 카드로 남깁니다.
-const { players } = await loadPublicContent();
+const { players } = await loadPublicContent(locale);
 const featured = players
   .filter((p) => p.activityStatus === "active")
   .slice(0, 4);
@@ -18,13 +23,14 @@ const featured = players
 >
   <div class="shell squad-home">
     <div class="team-copy">
-      <p class="eyebrow">選手・スタッフ</p>
+      <p class="eyebrow">{t("選手・スタッフ")}</p>
       <h2 id="team-title" class="display">
         OUR SQUAD<span>.</span>
       </h2>
-      <p>ピッチでプレーする人。チームを支える人。</p>
+      <p>{t("ピッチでプレーする人。チームを支える人。")}</p>
       <a class="squad-all-link" href={page("team/")}>
-        選手プロフィールを見る <Icon name="arrow" size={20} />
+        {t("選手プロフィールを見る")}
+        <Icon name="arrow" size={20} />
       </a>
     </div>
     {featured.length ? (
@@ -39,7 +45,7 @@ const featured = players
           <a class="position-preview" href={page("team/#" + position.id)}>
             <span class="display">{position.id}</span>
             <strong>{position.english}</strong>
-            <small>プロフィール掲載準備中</small>
+            <small>{t("プロフィール掲載準備中")}</small>
             <Icon name="arrow" size={18} />
           </a>
         ))}

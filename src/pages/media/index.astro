@@ -1,22 +1,30 @@
 ---
+import { forLocale, localeFromUrl } from "../../lib/i18n";
+// 화면 언어는 URL에서 결정합니다. 일본어 원문과 저장 데이터는 유지합니다.
+const locale = localeFromUrl(Astro.url);
+const t = forLocale(locale);
+import { clubForLocale } from "../../data/locales/content";
+const club = clubForLocale(locale);
 import SiteLayout from "../../layouts/SiteLayout.astro";
 import PageHero from "../../components/PageHero.astro";
 import MediaGrid from "../../components/MediaGrid.astro";
 import { loadPublicContent } from "../../data/cms";
-import { club } from "../../data/club";
-const { media, albums } = await loadPublicContent();
+
+const { media, albums } = await loadPublicContent(locale);
 const ungrouped = media.filter((m) => m.kind === "photo" && !m.albumId);
 const videos = media.filter((m) => m.kind === "video");
 ---
 
-<SiteLayout title={"写真・動画 | " + club.name}>
+<SiteLayout title={t("写真・動画 | ") + club.name}>
   <PageHero
     title="UNITED MEDIA"
-    japanese="写真・動画"
-    description="ピッチの表情、チームの時間。関西ユナイテッドFCの活動を写真と映像で。"
+    japanese={t("写真・動画")}
+    description={t(
+      "ピッチの表情、チームの時間。関西ユナイテッドFCの活動を写真と映像で。",
+    )}
   />
   <div class="shell subpage-content" data-tabs>
-    <div class="media-tabs" role="tablist" aria-label="メディアの種類">
+    <div class="media-tabs" role="tablist" aria-label={t("メディアの種類")}>
       <button
         type="button"
         id="albums-tab"
@@ -25,7 +33,7 @@ const videos = media.filter((m) => m.kind === "video");
         aria-selected="true"
         tabindex="0"
       >
-        フォトアルバム
+        {t("フォトアルバム")}
       </button>
       <button
         type="button"
@@ -35,7 +43,7 @@ const videos = media.filter((m) => m.kind === "video");
         aria-selected="false"
         tabindex="-1"
       >
-        動画
+        {t("動画")}
       </button>
     </div>
     <div id="albums-panel" role="tabpanel" aria-labelledby="albums-tab">
@@ -60,7 +68,7 @@ const videos = media.filter((m) => m.kind === "video");
         </section>
       )}
       {!albums.length && !ungrouped.length && (
-        <p class="content-empty">写真は、公開準備中です。</p>
+        <p class="content-empty">{t("写真は、公開準備中です。")}</p>
       )}
     </div>
     <div id="movies-panel" role="tabpanel" aria-labelledby="movies-tab" hidden>
@@ -70,7 +78,7 @@ const videos = media.filter((m) => m.kind === "video");
       {videos.length ? (
         <MediaGrid items={videos} />
       ) : (
-        <p class="content-empty">公式動画は、公開準備中です。</p>
+        <p class="content-empty">{t("公式動画は、公開準備中です。")}</p>
       )}
     </div>
   </div>

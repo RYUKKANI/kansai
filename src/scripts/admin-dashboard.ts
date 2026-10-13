@@ -1,3 +1,4 @@
+import { text as t, format, currentLocale, intlLocales } from "../lib/i18n";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { resources, type Resource } from "../lib/admin-config";
 import type { StaffRole } from "../lib/content-types";
@@ -35,7 +36,7 @@ async function read(
     (!Array.isArray(response.data) ||
       response.data.some((row) => !row || typeof row !== "object"))
   )
-    throw new Error("管理情報の形式を確認できませんでした。");
+    throw new Error(t("管理情報の形式を確認できませんでした。"));
   return {
     data: response.data as Row[] | null,
     error: null,
@@ -183,7 +184,7 @@ export async function buildDashboard({
   ) {
     const card = action("", "admin-stat", callback);
     card.replaceChildren();
-    card.setAttribute("aria-label", title + " " + count + "件を確認");
+    card.setAttribute("aria-label", title + " " + format("{0}件を確認", count));
     const top = node("div", "", "office-stat-top");
     top.append(node("span", title), icon(iconName));
     const bottom = node("div", "", "office-stat-bottom");
@@ -192,11 +193,11 @@ export async function buildDashboard({
     stats.append(card);
   }
   if (allowed("articles"))
-    stat("公開ニュース", news.count ?? 0, "発行済みの記事", "news", () =>
+    stat(t("公開ニュース"), news.count ?? 0, t("発行済みの記事"), "news", () =>
       go("articles", { status: "published" }),
     );
   if (allowed("players"))
-    stat("登録選手", players.count ?? 0, "内部の選手登録", "users", () =>
+    stat(t("登録選手"), players.count ?? 0, t("内部の選手登録"), "users", () =>
       go("players"),
     );
   const upcomingCount = upcoming.reduce(
@@ -208,9 +209,9 @@ export async function buildDashboard({
     schedules.find(allowed);
   if (firstSchedule)
     stat(
-      "今後の予定",
+      t("今後の予定"),
       upcomingCount,
-      scheduleEnabled ? "試合・練習・クラブ行事" : "試合・練習の開催予定",
+      scheduleEnabled ? t("試合・練習・クラブ行事") : t("試合・練習の開催予定"),
       "calendar",
       () =>
         go(scheduleEnabled ? "schedule" : firstSchedule, {
@@ -225,19 +226,19 @@ export async function buildDashboard({
   const firstPending =
     pending.find((item) => item.response.count)?.resource ?? publishable[0];
   if (firstPending)
-    stat("承認待ち", pendingCount, "公開前の確認が必要", "shield", () =>
+    stat(t("承認待ち"), pendingCount, t("公開前の確認が必要"), "shield", () =>
       go(firstPending, { status: "pending" }),
     );
   stats.dataset.count = String(stats.children.length);
   root.append(stats);
 
-  const quick = panel("QUICK ACTIONS", "よく使う操作", "plus");
+  const quick = panel("QUICK ACTIONS", t("よく使う操作"), "plus");
   const quickActions = node("div", "", "office-quick-actions");
   for (const [resource, label] of [
-    ["articles", "ニュースを書く"],
-    ["fixtures", "試合を追加"],
-    ["players", "選手を登録"],
-    ["media_assets", "写真をアップロード"],
+    ["articles", t("ニュースを書く")],
+    ["fixtures", t("試合を追加")],
+    ["players", t("選手を登録")],
+    ["media_assets", t("写真をアップロード")],
   ] as [Resource, string][]) {
     if (allowed(resource)) {
       const button = action(
@@ -261,7 +262,7 @@ export async function buildDashboard({
   const grid = node("div", "", "office-dashboard-grid");
   const schedulePanel = panel(
     "UPCOMING SCHEDULE",
-    "これからの試合・練習",
+    t("これからの試合・練習"),
     "calendar",
   );
   const upcomingRows = upcoming
@@ -280,14 +281,20 @@ export async function buildDashboard({
     const local = japanInput(date);
     tile.append(
       node("strong", local.slice(8, 10)),
-      node("span", local.slice(5, 7) + "月"),
+      node(
+        "span",
+        new Intl.DateTimeFormat(intlLocales[currentLocale()], {
+          month: "short",
+          timeZone: "Asia/Tokyo",
+        }).format(new Date(date)),
+      ),
     );
     const copy = node("div", "", "office-schedule-copy");
     copy.append(
       node("strong", String(row[resources[resource].titleField])),
       node(
         "p",
-        dateLabel(date, true) + " · " + String(row.venue || "会場未定"),
+        dateLabel(date, true) + " · " + String(row.venue || t("会場未定")),
       ),
     );
     copy.append(
@@ -296,18 +303,23 @@ export async function buildDashboard({
     item.append(
       tile,
       copy,
-      action("確認", "office-link-button", () => open(resource, row), "arrow"),
+      action(
+        t("確認"),
+        "office-link-button",
+        () => open(resource, row),
+        "arrow",
+      ),
     );
     schedulePanel.body.append(item);
   }
   if (!upcomingRows.length)
     schedulePanel.body.append(
       emptyState(
-        "開催予定はまだありません",
-        "日時が決まった試合・練習を登録すると、ここに表示されます。",
+        t("開催予定はまだありません"),
+        t("日時が決まった試合・練習を登録すると、ここに表示されます。"),
         firstSchedule
           ? action(
-              "予定を登録",
+              t("予定を登録"),
               "office-link-button",
               () => create(firstSchedule),
               "plus",
@@ -319,7 +331,7 @@ export async function buildDashboard({
   for (const resource of schedules.filter(allowed))
     scheduleLinks.append(
       action(
-        resources[resource].label + "一覧",
+        resources[resource].label + t("一覧"),
         "office-link-button",
         () => go(resource),
         "arrow",
@@ -328,7 +340,7 @@ export async function buildDashboard({
   schedulePanel.body.append(scheduleLinks);
   grid.append(schedulePanel.section);
 
-  const required = panel("ACTION REQUIRED", "確認が必要な項目", "warning");
+  const required = panel("ACTION REQUIRED", t("確認が必要な項目"), "warning");
   function requiredRow(
     title: string,
     detail: string,
@@ -340,20 +352,20 @@ export async function buildDashboard({
     symbol.append(icon("warning"));
     const copy = node("div", "", "office-required-copy");
     copy.append(
-      node("strong", title + " · " + count + "件"),
+      node("strong", title + " · " + count + t("件")),
       node("p", detail),
     );
     item.append(
       symbol,
       copy,
-      action("確認", "office-link-button", callback, "arrow"),
+      action(t("確認"), "office-link-button", callback, "arrow"),
     );
     required.body.append(item);
   }
   for (const { resource, response } of pending)
     if (response.count)
       requiredRow(
-        resources[resource].label + "の承認待ち",
+        format("{0}の承認待ち", resources[resource].label),
         (response.data ?? [])
           .map((row) => String(row[resources[resource].titleField]))
           .join("、"),
@@ -362,22 +374,22 @@ export async function buildDashboard({
       );
   if (consent.count)
     requiredRow(
-      "選手の公開同意",
-      "活動中の選手に未確認の同意があります。",
+      t("選手の公開同意"),
+      t("活動中の選手に未確認の同意があります。"),
       consent.count,
       () => go("players", { consent: "unconfirmed", status: "active" }),
     );
   if (changedMatches.count)
     requiredRow(
-      "延期・中止の試合",
-      "実際の開催状態と案内内容をご確認ください。",
+      t("延期・中止の試合"),
+      t("実際の開催状態と案内内容をご確認ください。"),
       changedMatches.count,
       () => go("fixtures", { schedule: "changed", after: now }),
     );
   if (undatedMatches.count)
     requiredRow(
-      "日時未定の試合",
-      "日時が決まったら開催情報を更新してください。",
+      t("日時未定の試合"),
+      t("日時が決まったら開催情報を更新してください。"),
       undatedMatches.count,
       () => go("fixtures", { schedule: "undated" }),
     );
@@ -390,8 +402,10 @@ export async function buildDashboard({
       const resource = String(item.entity) as Resource;
       if (resources[resource] && allowed(resource))
         requiredRow(
-          resources[resource].label + "の予約発行",
-          "発行できなかった予約、または予約時刻を過ぎた項目を確認してください。",
+          format("{0}の予約発行", resources[resource].label),
+          t(
+            "発行できなかった予約、または予約時刻を過ぎた項目を確認してください。",
+          ),
           Number(item.total),
           () => go(resource),
         );
@@ -400,13 +414,13 @@ export async function buildDashboard({
   if (!required.body.children.length)
     required.body.append(
       emptyState(
-        "確認が必要な項目はありません",
-        "現在の権限で確認できる承認待ち・同意・予定の注意項目を表示します。",
+        t("確認が必要な項目はありません"),
+        t("現在の権限で確認できる承認待ち・同意・予定の注意項目を表示します。"),
       ),
     );
   grid.append(required.section);
 
-  const recent = panel("RECENT ACTIVITY", "最近の管理作業", "clock");
+  const recent = panel("RECENT ACTIVITY", t("最近の管理作業"), "clock");
   recent.section.classList.add("office-activity-panel");
   const actorIds = [
     ...new Set(
@@ -459,9 +473,9 @@ export async function buildDashboard({
   );
   const historyList = node("ul", "", "office-activity-list");
   const operations: Record<string, string> = {
-    INSERT: "を登録",
-    UPDATE: "を更新",
-    DELETE: "を削除",
+    INSERT: "{0}を登録",
+    UPDATE: "{0}を更新",
+    DELETE: "{0}を削除",
   };
   for (const row of history.data ?? []) {
     const item = node("li", "", "office-activity-item");
@@ -469,13 +483,15 @@ export async function buildDashboard({
     dot.append(icon(row.operation === "INSERT" ? "plus" : "check"));
     const copy = node("div", "", "office-activity-copy");
     const resource = String(row.entity) as Resource;
-    const label = resources[resource]?.singular ?? "管理情報";
+    const label = resources[resource]?.singular ?? t("管理情報");
     const target = targets.get(resource + ":" + row.record_id);
     copy.append(
       node(
         "strong",
-        (target ? label + "「" + target + "」" : label) +
-          (operations[String(row.operation)] ?? "を変更"),
+        format(
+          operations[String(row.operation)] ?? "{0}を変更",
+          target ? label + "「" + target + "」" : label,
+        ),
       ),
     );
     copy.append(
@@ -484,8 +500,8 @@ export async function buildDashboard({
         row.actor_id
           ? (names.get(String(row.actor_id)) ??
               roleLabels[String(row.actor_role)] ??
-              "運営メンバー")
-          : "システム",
+              t("運営メンバー"))
+          : t("システム"),
       ),
     );
     const time = node("time", dateLabel(row.occurred_at, true));
@@ -497,8 +513,8 @@ export async function buildDashboard({
     historyList.children.length
       ? historyList
       : emptyState(
-          "管理作業の記録はまだありません",
-          "登録・編集を行うと実際の変更履歴がここに表示されます。",
+          t("管理作業の記録はまだありません"),
+          t("登録・編集を行うと実際の変更履歴がここに表示されます。"),
         ),
   );
   grid.append(recent.section);

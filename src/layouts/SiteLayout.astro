@@ -1,11 +1,22 @@
 ---
+import { forLocale, localeFromUrl, locales, languageUrl } from "../lib/i18n";
+// 화면 언어는 URL에서 결정합니다. 일본어 원문과 저장 데이터는 유지합니다.
+const locale = localeFromUrl(Astro.url);
+const t = forLocale(locale);
+import { clubForLocale } from "../data/locales/content";
+const club = clubForLocale(locale);
 import Header from "../components/Header.astro";
 import Footer from "../components/Footer.astro";
 import SearchDialog from "../components/SearchDialog.astro";
 import PhotoDialog from "../components/PhotoDialog.astro";
-import { club } from "../data/club";
+
 import { asset } from "../lib/urls";
 import "../styles/global.css";
+import "../styles/languages.css";
+import { loadPublicContent } from "../data/cms";
+import { hasOriginalText } from "../data/locales/content";
+const originalNotice =
+  locale !== "ja" && hasOriginalText(await loadPublicContent(locale));
 // 모든 페이지의 공통 틀입니다. 페이지별 제목·설명만 Props로 전달합니다.
 interface Props {
   title?: string;
@@ -18,7 +29,7 @@ const {
 ---
 
 <!doctype html>
-<html lang="ja">
+<html lang={locale}>
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -28,18 +39,39 @@ const {
     <meta name="theme-color" content="#1168BC" />
     <title>{title}</title>
     <link rel="canonical" href={Astro.url.href} />
+    <!-- 언어별 같은 기사 주소를 연결합니다. 번역문을 자바스크립트 없이도 읽을 수 있습니다. -->
+    {locales.map((language) => (
+      <link
+        rel="alternate"
+        hreflang={language}
+        href={new URL(languageUrl(Astro.url, language), Astro.site).href}
+      />
+    ))}
+    <link
+      rel="alternate"
+      hreflang="x-default"
+      href={new URL(languageUrl(Astro.url, "ja"), Astro.site).href}
+    />
     <meta property="og:title" content={title} />
     <meta property="og:description" content={description} />
     <meta property="og:type" content="website" />
-    <meta property="og:locale" content="ja_JP" />
+    <meta
+      property="og:locale"
+      content={{ ja: "ja_JP", ko: "ko_KR", en: "en_GB" }[locale]}
+    />
     <link rel="icon" href={asset(club.logo)} type="image/jpeg" />
   </head>
   <body>
     <a class="skip-link" href="#main">
-      メインコンテンツへ移動
+      {t("メインコンテンツへ移動")}
     </a>
     <Header />
     <main id="main">
+      {originalNotice && (
+        <p class="translation-notice shell">
+          {t("一部の新しいコンテンツは日本語の原文で表示しています。")}
+        </p>
+      )}
       <slot />
     </main>
     <Footer />

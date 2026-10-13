@@ -1,8 +1,15 @@
 ---
+import { forLocale, localeFromUrl, localizedPage } from "../../lib/i18n";
+// 화면 언어는 URL에서 결정합니다. 일본어 원문과 저장 데이터는 유지합니다.
+const locale = localeFromUrl(Astro.url);
+const t = forLocale(locale);
+import { clubForLocale } from "../../data/locales/content";
+const club = clubForLocale(locale);
+const page = (path = "") => localizedPage(path, locale);
 import SiteLayout from "../../layouts/SiteLayout.astro";
 import { loadPublicContent } from "../../data/cms";
-import { club } from "../../data/club";
-import { asset, page } from "../../lib/urls";
+
+import { asset } from "../../lib/urls";
 import type { PublicPlayer } from "../../lib/content-types";
 // 내부 선수 테이블을 직접 읽지 않습니다. 공개 승인된 프로필만 정적 페이지로 생성합니다.
 export async function getStaticPaths() {
@@ -16,13 +23,17 @@ interface Props {
   player: PublicPlayer;
 }
 const { player } = Astro.props;
-const state = { active: "活動中", inactive: "活動休止中", former: "以前在籍" };
+const state = {
+  active: t("活動中"),
+  inactive: t("活動休止中"),
+  former: t("以前在籍"),
+};
 ---
 
 <SiteLayout title={player.name + " | " + club.name} description={player.bio}>
   <article class="shell subpage-content player-profile">
-    <nav class="breadcrumbs" aria-label="パンくず">
-      <a href={page()}>HOME</a>
+    <nav class="breadcrumbs" aria-label={t("パンくず")}>
+      <a href={page()}>{t("HOME")}</a>
       <span>/</span>
       <a href={page("team/")}>TEAM</a>
       <span>/</span>
@@ -54,7 +65,7 @@ const state = { active: "活動中", inactive: "活動休止中", former: "以�
           <p>{p}</p>
         ))}
         <a class="text-link" href={page("team/")}>
-          ← 選手一覧へ戻る
+          {t("← 選手一覧へ戻る")}
         </a>
       </div>
     </div>

@@ -1,3 +1,7 @@
+import { text as t, format } from "../lib/i18n";
+import { initLanguageSwitcher } from "./languages";
+// 서버 HTML은 일본어 기본 화면입니다. 세션을 읽기 전에 선택한 언어의 안내를 적용합니다.
+initLanguageSwitcher(true);
 import { createClient } from "@supabase/supabase-js";
 import {
   resources,
@@ -47,7 +51,7 @@ const key = import.meta.env.PUBLIC_SUPABASE_PUBLISHABLE_KEY;
 const onWeb = ["https:", "http:"].includes(window.location.protocol);
 const $ = <T extends HTMLElement>(selector: string): T => {
   const element = document.querySelector<T>(selector);
-  if (!element) throw new Error("管理画面を読み直してください。");
+  if (!element) throw new Error(t("管理画面を読み直してください。"));
   return element;
 };
 const client =
@@ -88,10 +92,10 @@ function notice(text: string, error = false) {
   const element = $("#admin-notice");
   element.replaceChildren();
   if (text) {
-    const close = action("閉じる", "office-notice-close", () =>
+    const close = action(t("閉じる"), "office-notice-close", () =>
       element.replaceChildren(),
     );
-    close.setAttribute("aria-label", "通知を閉じる");
+    close.setAttribute("aria-label", t("通知を閉じる"));
     element.append(node("span", text), close);
   }
   element.dataset.error = String(error);
@@ -108,51 +112,72 @@ function message(error: unknown): string {
       ? error.message
       : typeof error === "object" && error && "message" in error
         ? String(error.message)
-        : "操作を完了できませんでした。";
+        : t("操作を完了できませんでした。");
   const code = errorCode(error);
   if (["signup_disabled", "email_not_confirmed"].includes(code))
-    return "初回は招待・確認メールのリンクを開いてください。招待されたメールアドレスもご確認ください。";
+    return t(
+      "初回は招待・確認メールのリンクを開いてください。招待されたメールアドレスもご確認ください。",
+    );
   if (code === "invalid_credentials")
-    return "メールアドレスまたはパスワードをご確認ください。パスワードを設定していない場合はメールリンクをご利用ください。";
+    return t(
+      "メールアドレスまたはパスワードをご確認ください。パスワードを設定していない場合はメールリンクをご利用ください。",
+    );
   if (["over_email_send_rate_limit", "over_request_rate_limit"].includes(code))
-    return "メールの送信回数に制限がかかっています。少し時間をおいてから再度お試しください。";
+    return t(
+      "メールの送信回数に制限がかかっています。少し時間をおいてから再度お試しください。",
+    );
   if (code === "otp_expired")
-    return "メールリンクの有効期限が切れているか、すでに使用されています。最新のメールをご確認ください。";
+    return t(
+      "メールリンクの有効期限が切れているか、すでに使用されています。最新のメールをご確認ください。",
+    );
   if (code === "email_address_not_authorized")
-    return "メールを送信できません。運営責任者にメール送信設定をご確認ください。";
+    return t(
+      "メールを送信できません。運営責任者にメール送信設定をご確認ください。",
+    );
   if (/row-level|permission denied|owner role|active staff/i.test(raw))
-    return "この操作に必要な権限がありません。運営責任者にご確認ください。";
-  if (/last owner/i.test(raw)) return "最後のOwnerは無効化・削除できません。";
+    return t("この操作に必要な権限がありません。運営責任者にご確認ください。");
+  if (/last owner/i.test(raw))
+    return t("最後のOwnerは無効化・削除できません。");
   if (/content changed|schedule changed/i.test(raw))
-    return "ほかの操作で内容が更新されています。編集画面を閉じて最新の内容を開き直してください。一時保存の内容は復元時に照合できます。";
+    return t(
+      "ほかの操作で内容が更新されています。編集画面を閉じて最新の内容を開き直してください。一時保存の内容は復元時に照合できます。",
+    );
   if (/scheduled publisher is not enabled/i.test(raw))
-    return "予約発行はまだ有効になっていません。下書き保存をご利用ください。";
+    return t(
+      "予約発行はまだ有効になっていません。下書き保存をご利用ください。",
+    );
   if (/schedule must be in the next year/i.test(raw))
-    return "予約日時は現在より後、1年以内で指定してください。";
+    return t("予約日時は現在より後、1年以内で指定してください。");
   if (/future series occurrence/i.test(raw))
-    return "全体変更は未来の未実施回を選んで行ってください。";
+    return t("全体変更は未来の未実施回を選んで行ってください。");
   if (/profile consent/i.test(raw))
-    return "先に選手登録画面でプロフィールの公開同意を確認してください。";
+    return t("先に選手登録画面でプロフィールの公開同意を確認してください。");
   if (/photo consent/i.test(raw))
-    return "先に選手登録画面で写真の公開同意を確認してください。";
+    return t("先に選手登録画面で写真の公開同意を確認してください。");
   if (/album must be approved/i.test(raw))
-    return "使用するアルバムを先に発行してください。";
+    return t("使用するアルバムを先に発行してください。");
   if (/photo upload is required/i.test(raw))
-    return "写真をアップロードしてから発行してください。";
+    return t("写真をアップロードしてから発行してください。");
   if (/must be approved/i.test(raw))
-    return "使用する写真を先に発行してください。";
+    return t("使用する写真を先に発行してください。");
   if (/approval requires/i.test(raw))
-    return "プロフィールの発行はOwnerまたはAdministratorが承認します。";
+    return t("プロフィールの発行はOwnerまたはAdministratorが承認します。");
   if (/published URL|UUID is immutable|record ID/i.test(raw))
-    return "発行済みのURLと識別子は変更できません。";
+    return t("発行済みのURLと識別子は変更できません。");
   if (/duplicate key/i.test(raw))
-    return "同じURLまたは登録情報がすでにあります。既存の項目を編集してください。";
+    return t(
+      "同じURLまたは登録情報がすでにあります。既存の項目を編集してください。",
+    );
   if (/foreign key/i.test(raw))
-    return "関連するプロフィール・記録があるため削除できません。非公開または活動休止にしてください。";
+    return t(
+      "関連するプロフィール・記録があるため削除できません。非公開または活動休止にしてください。",
+    );
   if (/check constraint/i.test(raw))
-    return "必須項目、写真の掲載確認、得点、日時などの入力を確認してください。";
+    return t(
+      "必須項目、写真の掲載確認、得点、日時などの入力を確認してください。",
+    );
   if (/future publication/i.test(raw))
-    return "未来の日時で発行できません。下書きに保存してください。";
+    return t("未来の日時で発行できません。下書きに保存してください。");
   return raw;
 }
 async function run(callback: () => Promise<void>) {
@@ -259,7 +284,7 @@ async function authenticate() {
     )
   ) {
     resetLogin();
-    notice("このアカウントには運営メンバーのアクセス権がありません。", true);
+    notice(t("このアカウントには運営メンバーのアクセス権がありません。"), true);
     return;
   }
   const unchanged =
@@ -317,9 +342,9 @@ function navigation() {
         continue;
       const label =
         name === "dashboard"
-          ? "ダッシュボード"
+          ? t("ダッシュボード")
           : name === "schedule"
-            ? "統合カレンダー"
+            ? t("統合カレンダー")
             : resources[name].label;
       const button = action(
         label,
@@ -347,8 +372,9 @@ async function publicationStatus(version = requestId) {
       .eq("id", 1)
       .single(),
   );
-  let text =
-    "発行した内容は次のサイト再構築で反映されます（通常15分間隔。処理待ちで遅れる場合があります）。";
+  let text = t(
+    "発行した内容は次のサイト再構築で反映されます（通常15分間隔。処理待ちで遅れる場合があります）。",
+  );
   let status = "unknown";
   try {
     const response = await fetch(base + "build.json", { cache: "no-store" });
@@ -358,22 +384,25 @@ async function publicationStatus(version = requestId) {
         !Number.isFinite(Number(deployed.version)) ||
         !Number.isFinite(Number(state.data?.version))
       )
-        throw new Error("発行版を確認できません。");
+        throw new Error(t("発行版を確認できません。"));
       if (!deployed.fromCms)
-        text =
-          "公開サイトへの接続は準備中です。発行した内容はまだ反映されていません。";
+        text = t(
+          "公開サイトへの接続は準備中です。発行した内容はまだ反映されていません。",
+        );
       else if (scheduleEnabled && deployed.schedulesEnabled !== true) {
         status = "waiting";
-        text =
-          "公開予定のサイト連携は準備中です。保存した予定はまだホームページに表示されません。運営責任者に連携設定をご確認ください。";
+        text = t(
+          "公開予定のサイト連携は準備中です。保存した予定はまだホームページに表示されません。運営責任者に連携設定をご確認ください。",
+        );
       } else if (Number(deployed.version) < Number(state.data?.version)) {
         status = "waiting";
-        text =
-          "発行内容のサイト反映待ちです。次の再構築で更新されます（通常15分間隔。遅れる場合があります）。";
+        text = t(
+          "発行内容のサイト反映待ちです。次の再構築で更新されます（通常15分間隔。遅れる場合があります）。",
+        );
       } else {
         status = "synced";
         text =
-          "発行内容は公開サイトに反映済みです。最終更新：" +
+          t("発行内容は公開サイトに反映済みです。最終更新：") +
           dateLabel(deployed.builtAt, true);
       }
     }
@@ -414,9 +443,9 @@ async function show(
   const info = officePages[resource];
   const title =
     resource === "dashboard"
-      ? "ダッシュボード"
+      ? t("ダッシュボード")
       : resource === "schedule"
-        ? "統合カレンダー"
+        ? t("統合カレンダー")
         : resources[resource].label;
   $("#resource-title").textContent = title;
   $("#header-page-title").textContent = title;
@@ -429,10 +458,10 @@ async function show(
     node(
       "span",
       resource === "admin_roles"
-        ? "メンバーを招待"
+        ? t("メンバーを招待")
         : resource === "articles"
-          ? "ニュースを書く"
-          : "新規登録",
+          ? t("ニュースを書く")
+          : t("新規登録"),
     ),
   );
   $("#admin-navigation")
@@ -445,7 +474,7 @@ async function show(
   if (resource === "dashboard") {
     const loading = node(
       "div",
-      "ダッシュボードを読み込み中…",
+      t("ダッシュボードを読み込み中…"),
       "office-loading",
     );
     loading.prepend(icon("clock"));
@@ -501,8 +530,10 @@ async function show(
       remove: (row) => {
         removing = row;
         removeResource = resource;
-        $("#delete-description").textContent =
-          String(row[resources[resource].titleField] ?? "") + "を削除します。";
+        $("#delete-description").textContent = format(
+          "{0}を削除します。",
+          String(row[resources[resource].titleField] ?? ""),
+        );
         $<HTMLDialogElement>("#delete-dialog").showModal();
       },
       create: () => {
@@ -548,7 +579,7 @@ async function choices(field: Field) {
       client.from("media_albums").select("id,title").order("title"),
     );
     return [
-      { value: "", label: "アルバムなし" },
+      { value: "", label: t("アルバムなし") },
       ...(response.data ?? []).map((p) => ({ value: p.id, label: p.title })),
     ];
   }
@@ -578,8 +609,10 @@ async function openEditor(row: Row | null) {
   editor.dataset.resource = resource;
   editing = row;
   editResource = resource;
-  $("#editor-title").textContent =
-    config.singular + (row ? "を編集" : "を登録");
+  $("#editor-title").textContent = format(
+    row ? "{0}を編集" : "{0}を登録",
+    config.singular,
+  );
   const fields = $("#editor-fields");
   fields.replaceChildren();
   editorForm.reset();
@@ -587,7 +620,7 @@ async function openEditor(row: Row | null) {
     const upload = node("div", "", "admin-upload");
     const label = node(
       "label",
-      "写真をアップロード（JPEG・PNG・WebP、10MBまで）",
+      t("写真をアップロード（JPEG・PNG・WebP、10MBまで）"),
     );
     const input = node("input");
     input.type = "file";
@@ -597,7 +630,9 @@ async function openEditor(row: Row | null) {
       label,
       node(
         "p",
-        "表示用に圧縮して保存します。写真を発行する前に掲載権限を確認してください。",
+        t(
+          "表示用に圧縮して保存します。写真を発行する前に掲載権限を確認してください。",
+        ),
         "admin-help",
       ),
     );
@@ -680,7 +715,7 @@ async function openEditor(row: Row | null) {
       }
       if (!group.children.length)
         group.append(
-          node("p", "先に写真を登録して発行してください。", "admin-help"),
+          node("p", t("先に写真を登録して発行してください。"), "admin-help"),
         );
       container.append(label, group);
     } else {
@@ -689,7 +724,7 @@ async function openEditor(row: Row | null) {
       else if (field.type === "select" || field.type === "media") {
         input = node("select");
         if (field.type === "media") {
-          const empty = node("option", "写真なし");
+          const empty = node("option", t("写真なし"));
           empty.value = "";
           input.append(empty);
         }
@@ -750,8 +785,8 @@ async function openEditor(row: Row | null) {
     node(
       "h3",
       config.canPublish.length || resource === "public_player_profiles"
-        ? "保存と発行"
-        : "保存設定",
+        ? t("保存と発行")
+        : t("保存設定"),
     ),
   );
   meta.append(
@@ -759,20 +794,24 @@ async function openEditor(row: Row | null) {
       row?.status ??
         (config.canPublish.length || resource === "public_player_profiles"
           ? "draft"
-          : "内部専用"),
+          : t("内部専用")),
     ),
   );
   if (row?.updated_at)
     meta.append(
-      node("p", "最終更新：" + dateLabel(row.updated_at, true), "admin-help"),
+      node(
+        "p",
+        t("最終更新：") + dateLabel(row.updated_at, true),
+        "admin-help",
+      ),
     );
   if (resource === "players" || resource === "public_player_profiles")
     meta.append(
       node(
         "p",
         row
-          ? "選手UUID：" + String(row[config.key])
-          : "選手の識別子は登録後も維持されます。",
+          ? t("選手UUID：") + String(row[config.key])
+          : t("選手の識別子は登録後も維持されます。"),
         "admin-help",
       ),
     );
@@ -785,7 +824,7 @@ async function openEditor(row: Row | null) {
     meta.append(
       node(
         "p",
-        "保存・発行後、公開サイトの反映状態を別途ご確認ください。",
+        t("保存・発行後、公開サイトの反映状態を別途ご確認ください。"),
         "admin-help",
       ),
     );
@@ -798,24 +837,26 @@ async function openEditor(row: Row | null) {
     actions.append(button);
   };
   if (config.canPublish.length) {
-    save("下書き保存", "draft");
-    save("承認待ちで保存", "pending");
+    save(t("下書き保存"), "draft");
+    save(t("承認待ちで保存"), "pending");
     if (config.canPublish.includes(role))
       save(
-        row?.status === "published" ? "更新して発行" : "発行する",
+        row?.status === "published" ? t("更新して発行") : t("発行する"),
         "published",
       );
     if (row?.status === "published")
       actions.append(
         node(
           "p",
-          "下書き・承認待ち・予約で保存すると公開が取り消されます。サイトへの反映には再構築が必要です。",
+          t(
+            "下書き・承認待ち・予約で保存すると公開が取り消されます。サイトへの反映には再構築が必要です。",
+          ),
           "admin-help",
         ),
       );
-  } else save("保存", "");
+  } else save(t("保存"), "");
   if (row && resource === "public_player_profiles") {
-    const button = action("非公開にする", "admin-secondary");
+    const button = action(t("非公開にする"), "admin-secondary");
     button.type = "submit";
     button.dataset.saveStatus = "draft";
     actions.append(button);
@@ -837,7 +878,9 @@ async function openEditor(row: Row | null) {
         await show(resource, false);
         await openEditor(restored);
         notice(
-          "履歴から下書きとして復元しました。公開する内容を再確認してください。",
+          t(
+            "履歴から下書きとして復元しました。公開する内容を再確認してください。",
+          ),
         );
       },
     });
@@ -846,7 +889,7 @@ async function openEditor(row: Row | null) {
   if (resource === "articles")
     $("#editor-preview-actions").append(
       action(
-        "公開前プレビュー",
+        t("公開前プレビュー"),
         "admin-secondary",
         () => {
           void run(previewArticle);
@@ -865,7 +908,7 @@ async function uploadPhoto(input: HTMLInputElement) {
     !["image/jpeg", "image/png", "image/webp"].includes(file.type) ||
     file.size > 10485760
   )
-    throw new Error("JPEG・PNG・WebPの10MB以下の写真を選択してください。");
+    throw new Error(t("JPEG・PNG・WebPの10MB以下の写真を選択してください。"));
   input.disabled = true;
   try {
     const bitmap = await createImageBitmap(file);
@@ -874,14 +917,15 @@ async function uploadPhoto(input: HTMLInputElement) {
     canvas.width = Math.round(bitmap.width * scale);
     canvas.height = Math.round(bitmap.height * scale);
     const context = canvas.getContext("2d");
-    if (!context) throw new Error("写真を処理できません。");
+    if (!context) throw new Error(t("写真を処理できません。"));
     context.fillStyle = "#ffffff";
     context.fillRect(0, 0, canvas.width, canvas.height);
     context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
     bitmap.close();
     const blob = await new Promise<Blob>((resolve, reject) =>
       canvas.toBlob(
-        (b) => (b ? resolve(b) : reject(new Error("写真を処理できません。"))),
+        (b) =>
+          b ? resolve(b) : reject(new Error(t("写真を処理できません。"))),
         "image/jpeg",
         0.88,
       ),
@@ -896,7 +940,9 @@ async function uploadPhoto(input: HTMLInputElement) {
     $<HTMLSelectElement>("#field-kind").value = "photo";
     markEditorDirty();
     notice(
-      "写真をアップロードしました。説明と掲載確認を入力し、保存してください。",
+      t(
+        "写真をアップロードしました。説明と掲載確認を入力し、保存してください。",
+      ),
     );
   } finally {
     input.disabled = false;
@@ -941,7 +987,7 @@ async function save(event: SubmitEvent) {
       ].includes(field.name)
     ) {
       if (field.name.endsWith("_url") && text && !/^https:\/\//.test(text))
-        throw new Error("URLはHTTPSで入力してください。");
+        throw new Error(t("URLはHTTPSで入力してください。"));
       payload[field.name] = text || null;
     } else payload[field.name] = text;
   }
@@ -964,7 +1010,9 @@ async function save(event: SubmitEvent) {
       status === "scheduled" &&
       (!scheduled || new Date(scheduled + "+09:00").getTime() <= Date.now())
     )
-      throw new Error("予約発行する未来の日時を日本時間で入力してください。");
+      throw new Error(
+        t("予約発行する未来の日時を日本時間で入力してください。"),
+      );
     await result(
       client.rpc("save_office_content", {
         p_entity: resource,
@@ -1017,10 +1065,12 @@ async function save(event: SubmitEvent) {
   editor.close();
   notice(
     status === "published"
-      ? "発行しました。公開サイトの反映状態をご確認ください。"
+      ? t("発行しました。公開サイトの反映状態をご確認ください。")
       : status === "scheduled"
-        ? "予約を保存しました。予約時刻以降の発行と、公開サイトの反映は別に確認できます。"
-        : "保存しました。",
+        ? t(
+            "予約を保存しました。予約時刻以降の発行と、公開サイトの反映は別に確認できます。",
+          )
+        : t("保存しました。"),
   );
   await show(resource, false);
 }
@@ -1049,11 +1099,11 @@ function setSidebarCollapsed(collapsed: boolean) {
   button.setAttribute("aria-expanded", String(!collapsed));
   button.setAttribute(
     "aria-label",
-    collapsed ? "サイドバーを展開する" : "サイドバーを折りたたむ",
+    collapsed ? t("サイドバーを展開する") : t("サイドバーを折りたたむ"),
   );
   button.replaceChildren(
     icon("collapse"),
-    node("span", "サイドバーを折りたたむ", "button-label"),
+    node("span", t("サイドバーを折りたたむ"), "button-label"),
   );
 }
 try {
@@ -1112,7 +1162,7 @@ document.addEventListener("keydown", (event) => {
 syncSidebar();
 $("#logout-button").replaceChildren(
   icon("logout"),
-  node("span", "ログアウト", "button-label"),
+  node("span", t("ログアウト"), "button-label"),
 );
 
 // 양식 값이 실제로 달라진 경우만 경고합니다. 미리보기·닫기·발행 처리는 모두 같은 편집 화면을 사용합니다.
@@ -1138,8 +1188,10 @@ function updateProfileApproval() {
     player?.profile_consent && (!needsPhotoConsent || player.photo_consent),
   );
   $("#profile-consent-state").textContent = approved
-    ? "選手の公開同意は確認済みです。公開内容をご確認ください。"
-    : "発行には選手のプロフィール公開同意と、写真を使用する場合は写真の公開同意が必要です。選手登録画面でご確認ください。";
+    ? t("選手の公開同意は確認済みです。公開内容をご確認ください。")
+    : t(
+        "発行には選手のプロフィール公開同意と、写真を使用する場合は写真の公開同意が必要です。選手登録画面でご確認ください。",
+      );
   const publish = editorForm.querySelector<HTMLButtonElement>(
     '[data-save-status="published"]',
   );
@@ -1147,7 +1199,7 @@ function updateProfileApproval() {
 }
 function closeEditor() {
   if (editorSaving) {
-    notice("保存中です。完了までお待ちください。");
+    notice(t("保存中です。完了までお待ちください。"));
     return;
   }
   if (editorDirty) $<HTMLDialogElement>("#unsaved-dialog").showModal();
@@ -1191,7 +1243,7 @@ async function previewArticle() {
       ?.label ?? "";
   article.append(
     node("p", category, "office-kicker"),
-    node("h1", String(data.get("title") || "タイトル未入力")),
+    node("h1", String(data.get("title") || t("タイトル未入力"))),
     node("p", String(data.get("summary") ?? ""), "office-preview-summary"),
   );
   const cover = sources.get(String(data.get("cover_path") ?? ""));
@@ -1223,8 +1275,9 @@ async function previewArticle() {
 if (!client) {
   $("#config-warning").hidden = false;
   if (!onWeb)
-    $("#config-warning").textContent =
-      "このファイルは画面確認用です。ログインと編集は公式サイトの管理画面をご利用ください。";
+    $("#config-warning").textContent = t(
+      "このファイルは画面確認用です。ログインと編集は公式サイトの管理画面をご利用ください。",
+    );
   $("#login-form")
     .querySelectorAll<HTMLInputElement | HTMLButtonElement>("input,button")
     .forEach((element) => {
@@ -1238,7 +1291,7 @@ if (!client) {
       const password = String(data.get("password") ?? "");
       if (!password)
         throw new Error(
-          "パスワードを入力するか、メールリンクをご利用ください。",
+          t("パスワードを入力するか、メールリンクをご利用ください。"),
         );
       await result(
         client.auth.signInWithPassword({
@@ -1256,6 +1309,7 @@ if (!client) {
       const input = $<HTMLInputElement>('#login-form input[name="email"]');
       if (!input.reportValidity()) return;
       const email = input.value.trim().toLowerCase();
+      // 이메일 인증의 기존 허용 주소는 유지하고, 언어 선택은 브라우저에서 기억합니다.
       const emailRedirectTo = new URL(base + "admin/", location.origin).href;
       const response = await client.auth.signInWithOtp({
         email,
@@ -1277,13 +1331,17 @@ if (!client) {
         );
         // 등록 여부를 노출하지 않고, 발송 접수와 실제 로그인 완료를 구분합니다.
         notice(
-          "確認メールの送信を受け付けました。招待されたアドレスの受信箱・迷惑メールをご確認ください。メールが届かない場合は運営責任者にご確認ください。",
+          t(
+            "確認メールの送信を受け付けました。招待されたアドレスの受信箱・迷惑メールをご確認ください。メールが届かない場合は運営責任者にご確認ください。",
+          ),
         );
         return;
       }
       if (response.error) throw response.error;
       notice(
-        "ログインリンクを送信しました。招待されたメールの受信箱をご確認ください。",
+        t(
+          "ログインリンクを送信しました。招待されたメールの受信箱をご確認ください。",
+        ),
       );
     });
   });
@@ -1291,7 +1349,7 @@ if (!client) {
     void run(async () => {
       await result(client.auth.signOut());
       resetLogin();
-      notice("ログアウトしました。");
+      notice(t("ログアウトしました。"));
     });
   });
   let authPending = false;
@@ -1366,7 +1424,7 @@ $("#delete-confirm").addEventListener("click", () => {
     );
     $<HTMLDialogElement>("#delete-dialog").close();
     removing = null;
-    notice("削除しました。");
+    notice(t("削除しました。"));
     await show(removeResource, false);
   });
 });
@@ -1389,7 +1447,7 @@ $("#invite-form").addEventListener("submit", (event) => {
     );
     $<HTMLDialogElement>("#invite-dialog").close();
     form.reset();
-    notice("運営メンバーを招待しました。");
+    notice(t("運営メンバーを招待しました。"));
     await show("admin_roles");
   });
 });

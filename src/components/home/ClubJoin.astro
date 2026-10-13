@@ -1,19 +1,26 @@
 ---
+import { forLocale, localeFromUrl, localizedPage } from "../../lib/i18n";
+// 화면 언어는 URL에서 결정합니다. 일본어 원문과 저장 데이터는 유지합니다.
+const locale = localeFromUrl(Astro.url);
+const t = forLocale(locale);
+import { clubForLocale } from "../../data/locales/content";
+const club = clubForLocale(locale);
+const page = (path = "") => localizedPage(path, locale);
 import Icon from "../Icon.astro";
-import { club } from "../../data/club";
+
 import { loadPublicContent } from "../../data/cms";
-import { asset, page } from "../../lib/urls";
-const { pages } = await loadPublicContent();
+import { asset } from "../../lib/urls";
+const { pages } = await loadPublicContent(locale);
 const about = pages.find((p) => p.id === "club");
 const join = pages.find((p) => p.id === "join");
 ---
 
 <section
   class="shell club-join-section section-anchor"
-  aria-label="クラブ紹介と参加について"
+  aria-label={t("クラブ紹介と参加について")}
 >
   <div class="club-panel section-anchor" id="club">
-    <p class="eyebrow">クラブについて</p>
+    <p class="eyebrow">{t("クラブについて")}</p>
     <h2 class="display">
       THIS IS
       <br />
@@ -23,11 +30,12 @@ const join = pages.find((p) => p.id === "join");
       <img src={asset(club.logo)} alt="" width="70" height="70" />
       <div>
         <h3>{about?.title ?? club.name}</h3>
-        <p>{about?.introduction ?? "クラブ情報は、公開準備中です。"}</p>
+        <p>{about?.introduction ?? t("クラブ情報は、公開準備中です。")}</p>
       </div>
     </div>
     <a class="text-link" href={page("club/")}>
-      クラブについてもっと知る <Icon name="arrow" size={18} />
+      {t("クラブについてもっと知る")}
+      <Icon name="arrow" size={18} />
     </a>
   </div>
   <div class="join-panel section-anchor" id="join">
@@ -35,15 +43,16 @@ const join = pages.find((p) => p.id === "join");
       +
     </span>
     <p class="eyebrow">JOIN THE TEAM</p>
-    <h2>{join?.title ?? "参加について"}</h2>
+    <h2>{join?.title ?? t("参加について")}</h2>
     <p class="join-roles">
       PLAYER <span>/</span> COACH <span>/</span> STAFF
     </p>
     <p class="join-body">
-      {join?.introduction ?? "お問い合わせは公式InstagramのDMへ。"}
+      {join?.introduction ?? t("お問い合わせは公式InstagramのDMへ。")}
     </p>
     <a class="join-button" href={page("join/")}>
-      参加・見学のご案内 <Icon name="arrow" size={20} />
+      {t("参加・見学のご案内")}
+      <Icon name="arrow" size={20} />
     </a>
     <a
       class="join-instagram"
@@ -51,7 +60,8 @@ const join = pages.find((p) => p.id === "join");
       target="_blank"
       rel="noopener noreferrer"
     >
-      <Icon name="instagram" size={18} /> 公式Instagramで相談する
+      <Icon name="instagram" size={18} />
+      {t("公式Instagramで相談する")}
     </a>
   </div>
 </section>

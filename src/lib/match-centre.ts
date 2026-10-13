@@ -1,4 +1,5 @@
 import type { PublicFixture } from "./content-types";
+import { intlLocales, translate, type Locale } from "./i18n";
 
 // [편집 안내] 홈에는 최근 결과 1개와 앞으로 열릴 경기 2개를 표시합니다.
 // 미정 일정은 확정 일정 뒤에 놓고, 취소·연기되거나 이미 지난 예정 경기는 제외합니다.
@@ -37,9 +38,9 @@ export function matchSides(fixture?: PublicFixture) {
     : ([club, opponent] as const);
 }
 
-export function matchDate(kickoff: string | null) {
-  if (!kickoff) return "日程未定";
-  return new Intl.DateTimeFormat("ja-JP", {
+export function matchDate(kickoff: string | null, locale: Locale = "ja") {
+  if (!kickoff) return translate("日程未定", locale);
+  return new Intl.DateTimeFormat(intlLocales[locale], {
     timeZone: "Asia/Tokyo",
     year: "numeric",
     month: "long",
@@ -48,9 +49,9 @@ export function matchDate(kickoff: string | null) {
   }).format(new Date(kickoff));
 }
 
-export function matchTime(kickoff: string | null) {
-  if (!kickoff) return "未定";
-  return new Intl.DateTimeFormat("ja-JP", {
+export function matchTime(kickoff: string | null, locale: Locale = "ja") {
+  if (!kickoff) return translate("未定", locale);
+  return new Intl.DateTimeFormat(intlLocales[locale], {
     timeZone: "Asia/Tokyo",
     hour: "2-digit",
     minute: "2-digit",

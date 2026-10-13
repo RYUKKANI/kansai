@@ -1,27 +1,34 @@
 ---
+import { forLocale, localeFromUrl, localizedPage } from "../../lib/i18n";
+// 화면 언어는 URL에서 결정합니다. 일본어 원문과 저장 데이터는 유지합니다.
+const locale = localeFromUrl(Astro.url);
+const t = forLocale(locale);
+import { clubForLocale } from "../../data/locales/content";
+const club = clubForLocale(locale);
+const page = (path = "") => localizedPage(path, locale);
 import SiteLayout from "../../layouts/SiteLayout.astro";
 import PageHero from "../../components/PageHero.astro";
 import Photo from "../../components/Photo.astro";
 import Icon from "../../components/Icon.astro";
 import { loadPublicContent } from "../../data/cms";
-import { club } from "../../data/club";
-import { asset, page } from "../../lib/urls";
-const { pages } = await loadPublicContent();
+
+import { asset } from "../../lib/urls";
+const { pages } = await loadPublicContent(locale);
 const content = pages.find((p) => p.id === "club");
 ---
 
-<SiteLayout title={"クラブについて | " + club.name}>
+<SiteLayout title={t("クラブについて | ") + club.name}>
   <PageHero
     title="THIS IS UNITED"
-    japanese="クラブについて"
-    description={content?.introduction ?? "クラブ情報は、公開準備中です。"}
+    japanese={t("クラブについて")}
+    description={content?.introduction ?? t("クラブ情報は、公開準備中です。")}
   />
   <div class="shell subpage-content">
     <div class="club-page-layout">
       <div class="club-page-copy">
         <img
           src={asset(club.logo)}
-          alt={club.name + " ロゴ"}
+          alt={club.name + t(" ロゴ")}
           width="100"
           height="100"
         />
@@ -36,20 +43,21 @@ const content = pages.find((p) => p.id === "club");
           target="_blank"
           rel="noopener noreferrer"
         >
-          公式Instagram <Icon name="external" size={16} />
+          {t("公式Instagram")}
+          <Icon name="external" size={16} />
         </a>
       </div>
       <Photo
         src="assets/training-october-01.jpg"
-        alt="青空の下でトレーニングする関西ユナイテッドFC"
+        alt={t("青空の下でトレーニングする関西ユナイテッドFC")}
         class="club-page-photo"
       />
     </div>
     <div class="club-route-grid">
       {[
-        { path: "team/", title: "TEAM", copy: "選手プロフィール" },
-        { path: "matches/", title: "MATCHES", copy: "試合日程・結果" },
-        { path: "join/", title: "JOIN US", copy: "参加・見学について" },
+        { path: "team/", title: "TEAM", copy: t("選手プロフィール") },
+        { path: "matches/", title: "MATCHES", copy: t("試合日程・結果") },
+        { path: "join/", title: "JOIN US", copy: t("参加・見学について") },
       ].map((item) => (
         <a href={page(item.path)}>
           <span class="display">{item.title}</span>

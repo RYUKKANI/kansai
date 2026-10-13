@@ -1,9 +1,14 @@
 ---
+import { forLocale, localeFromUrl, localizedPage } from "../../lib/i18n";
+// 화면 언어는 URL에서 결정합니다. 일본어 원문과 저장 데이터는 유지합니다.
+const locale = localeFromUrl(Astro.url);
+const t = forLocale(locale);
+const page = (path = "") => localizedPage(path, locale);
 import Icon from "../Icon.astro";
 import MediaGrid from "../MediaGrid.astro";
 import { loadPublicContent } from "../../data/cms";
-import { page } from "../../lib/urls";
-const { media } = await loadPublicContent();
+
+const { media } = await loadPublicContent(locale);
 const photos = media.filter((m) => m.kind === "photo").slice(0, 4);
 const videos = media.filter((m) => m.kind === "video").slice(0, 4);
 ---
@@ -17,16 +22,17 @@ const videos = media.filter((m) => m.kind === "video").slice(0, 4);
   <div class="shell">
     <div class="section-heading">
       <div>
-        <p class="eyebrow">写真と映像で見る、チームの今</p>
+        <p class="eyebrow">{t("写真と映像で見る、チームの今")}</p>
         <h2 id="media-title" class="display">
           UNITED MEDIA<span class="text-blue">.</span>
         </h2>
       </div>
       <a class="text-link" href={page("media/")}>
-        すべてのメディア <Icon name="arrow" />
+        {t("すべてのメディア")}
+        <Icon name="arrow" />
       </a>
     </div>
-    <div class="media-tabs" role="tablist" aria-label="メディアの種類">
+    <div class="media-tabs" role="tablist" aria-label={t("メディアの種類")}>
       <button
         type="button"
         role="tab"
@@ -35,7 +41,8 @@ const videos = media.filter((m) => m.kind === "video").slice(0, 4);
         aria-controls="photo-panel"
         tabindex="0"
       >
-        <Icon name="photo" size={17} /> フォト
+        <Icon name="photo" size={17} />
+        {t("フォト")}
       </button>
       <button
         type="button"
@@ -45,14 +52,15 @@ const videos = media.filter((m) => m.kind === "video").slice(0, 4);
         aria-controls="video-panel"
         tabindex="-1"
       >
-        <Icon name="play" size={17} /> 動画
+        <Icon name="play" size={17} />
+        {t("動画")}
       </button>
     </div>
     <div id="photo-panel" role="tabpanel" aria-labelledby="photo-tab">
       {photos.length ? (
         <MediaGrid items={photos} />
       ) : (
-        <p class="content-empty">写真は、公開準備中です。</p>
+        <p class="content-empty">{t("写真は、公開準備中です。")}</p>
       )}
     </div>
     <div id="video-panel" role="tabpanel" aria-labelledby="video-tab" hidden>
@@ -64,8 +72,8 @@ const videos = media.filter((m) => m.kind === "video").slice(0, 4);
             <Icon name="play" size={34} />
           </span>
           <p class="eyebrow">UNITED VIDEO</p>
-          <h3>動画は、公開準備中です。</h3>
-          <p>公式動画が公開されたら、こちらでご紹介します。</p>
+          <h3>{t("動画は、公開準備中です。")}</h3>
+          <p>{t("公式動画が公開されたら、こちらでご紹介します。")}</p>
         </div>
       )}
     </div>

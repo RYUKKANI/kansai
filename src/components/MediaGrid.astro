@@ -1,4 +1,8 @@
 ---
+import { forLocale, localeFromUrl } from "../lib/i18n";
+// 화면 언어는 URL에서 결정합니다. 일본어 원문과 저장 데이터는 유지합니다.
+const locale = localeFromUrl(Astro.url);
+const t = forLocale(locale);
 import type { PublicMedia } from "../lib/content-types";
 import Photo from "./Photo.astro";
 import Icon from "./Icon.astro";
@@ -26,7 +30,7 @@ const { items } = Astro.props;
             item.title + (item.capturedOn ? " / " + item.capturedOn : "")
           }
           data-source={item.source}
-          aria-label={item.title + "。写真を拡大"}
+          aria-label={item.title + t("。写真を拡大")}
         >
           <Photo src={item.image} alt={item.alt} />
           <span class="media-expand">
@@ -56,7 +60,8 @@ const { items } = Astro.props;
               data-video-open={youtubeId(item.videoUrl)}
               data-video-title={item.title}
             >
-              動画を再生 <Icon name="play" size={16} />
+              {t("動画を再生")}
+              <Icon name="play" size={16} />
             </button>
           ) : (
             <a
@@ -65,7 +70,8 @@ const { items } = Astro.props;
               target="_blank"
               rel="noopener noreferrer"
             >
-              動画を見る <Icon name="external" size={16} />
+              {t("動画を見る")}
+              <Icon name="external" size={16} />
             </a>
           )}
           <div class="video-embed" hidden></div>

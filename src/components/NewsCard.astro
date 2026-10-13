@@ -1,8 +1,12 @@
 ---
+import { forLocale, localeFromUrl, localizedPage } from "../lib/i18n";
+// 화면 언어는 URL에서 결정합니다. 일본어 원문과 저장 데이터는 유지합니다.
+const locale = localeFromUrl(Astro.url);
+const t = forLocale(locale);
+const page = (path = "") => localizedPage(path, locale);
 import Icon from "./Icon.astro";
 import Photo from "./Photo.astro";
 import { storyCategories, type Story } from "../data/club";
-import { page } from "../lib/urls";
 
 // 홈과 뉴스 목록의 공통 카드입니다. 문구·날짜·기본 사진은 src/data/club.ts에서 편집합니다.
 interface Props {
@@ -21,19 +25,20 @@ const category = storyCategories[story.category];
   <a href={page(`news/${story.id}/`)}>
     <div class="news-card-image">
       <Photo src={image} alt={story.alt} />
-      <span class="image-category">{category.badge}</span>
+      <span class="image-category">{t(category.badge)}</span>
     </div>
     <div class="news-card-copy">
       <p class="news-meta">
         <time datetime={story.published.replaceAll(".", "-")}>
           {story.published}
         </time>
-        <span> / {category.label}</span>
+        <span> / {t(category.label)}</span>
       </p>
       <Heading>{story.title}</Heading>
       <p class="card-summary">{story.summary}</p>
       <span class="card-read">
-        記事を読む <Icon name="arrow" size={19} />
+        {t("記事を読む")}
+        <Icon name="arrow" size={19} />
       </span>
     </div>
   </a>

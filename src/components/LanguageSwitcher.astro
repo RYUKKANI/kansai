@@ -1,0 +1,35 @@
+---
+import Icon from "./Icon.astro";
+import {
+  locales,
+  languageNames,
+  languageCodes,
+  localeFromUrl,
+  languageUrl,
+  forLocale,
+} from "../lib/i18n";
+// 카라바흐의 헤더처럼 현재 언어와 펼침 화살표를 표시합니다. 링크는 같은 페이지의 다른 언어로 연결합니다.
+const locale = localeFromUrl(Astro.url);
+const t = forLocale(locale);
+---
+
+<details class="language-switcher">
+  <summary aria-label={t("表示言語を選択")} data-language-summary>
+    <span data-language-current>{languageCodes[locale]}</span>
+    <Icon name="down" size={15} />
+  </summary>
+  <nav class="language-options" aria-label={t("表示言語")} data-language-menu>
+    {locales.map((language) => (
+      <a
+        href={languageUrl(Astro.url, language)}
+        lang={language}
+        hreflang={language}
+        data-language={language}
+        aria-current={language === locale ? "true" : undefined}
+      >
+        <span>{languageNames[language]}</span>
+        <small>{languageCodes[language]}</small>
+      </a>
+    ))}
+  </nav>
+</details>

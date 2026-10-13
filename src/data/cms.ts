@@ -1,4 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
+import { localizeContent } from "./locales/content";
+import type { Locale } from "../lib/i18n";
 import { japanPublicationDate } from "../lib/dates";
 import { createHash } from "node:crypto";
 import { mkdir, writeFile } from "node:fs/promises";
@@ -123,9 +125,11 @@ const paragraphs = (value: string | null): string[] =>
     .map((p) => p.trim())
     .filter(Boolean);
 let cached: Promise<PublicContent> | undefined;
-export function loadPublicContent(): Promise<PublicContent> {
+export async function loadPublicContent(
+  locale: Locale = "ja",
+): Promise<PublicContent> {
   cached ??= readPublishedContent();
-  return cached;
+  return localizeContent(await cached, locale);
 }
 async function readPublishedContent(): Promise<PublicContent> {
   if (import.meta.env.PUBLIC_CMS_ENABLED !== "true") return localContent();
@@ -206,8 +210,15 @@ async function readPublishedContent(): Promise<PublicContent> {
   // 새 마이그레이션 승인 전에는 운영 DB의 없는 테이블을 읽지 않습니다.
   let schedules: PublicSchedule[] = [];
   if (import.meta.env.PUBLIC_SCHEDULE_ENABLED === "true") {
-    const response = await client.from("published_schedule").select("resource,id,title,starts_at,ends_at,venue,schedule_status,description").order("starts_at").limit(500);
-    if (response.error || response.data?.length === 500) throw new Error("공개 일정 조회 실패 또는 페이지 수 제한 도달");
+    const response = await client
+      .from("published_schedule")
+      .select(
+        "resource,id,title,starts_at,ends_at,venue,schedule_status,description",
+      )
+      .order("starts_at")
+      .limit(500);
+    if (response.error || response.data?.length === 500)
+      throw new Error("공개 일정 조회 실패 또는 페이지 수 제한 도달");
     schedules = response.data ?? [];
   }
   const downloaded = new Map<string, Promise<string>>();
