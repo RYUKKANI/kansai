@@ -61,7 +61,7 @@ test("existing articles and independent page links stay valid", async () => {
       page === "admin/index.html" ? 2 : 1,
     );
     if (page !== "admin/index.html")
-      assert.ok(!document.body.textContent.includes("DESIGN PREVIEW"));
+      assert.ok(!/design preview/i.test(document.body.textContent));
     for (const link of document.querySelectorAll('a[href^="/kansai/"]')) {
       const url = new URL(link.href, "https://ryukkani.github.io");
       const destination = path.join(

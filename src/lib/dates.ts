@@ -11,3 +11,16 @@ export function japanDate(value: string | null): string {
     minute: "2-digit",
   }).format(new Date(value));
 }
+
+// 게시일도 일본 시간으로 변환합니다. 저장된 UTC 문자열을 자르면 자정 게시물이 전날로 표시됩니다.
+export function japanPublicationDate(value: string | null): string {
+  if (!value) return "";
+  return new Intl.DateTimeFormat("ja-JP", {
+    timeZone: "Asia/Tokyo",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  })
+    .format(new Date(value))
+    .replaceAll("/", ".");
+}
