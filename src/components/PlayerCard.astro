@@ -1,5 +1,9 @@
 ---
-import { asset, page } from "../lib/urls";
+import { localeFromUrl, localizedPage } from "../lib/i18n";
+// 화면 언어는 URL에서 결정합니다. 일본어 원문과 저장 데이터는 유지합니다.
+const locale = localeFromUrl(Astro.url);
+const page = (path = "") => localizedPage(path, locale);
+import { asset } from "../lib/urls";
 import type { PublicPlayer } from "../lib/content-types";
 interface Props {
   player: PublicPlayer;

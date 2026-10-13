@@ -1,7 +1,14 @@
 ---
+import { forLocale, localeFromUrl, localizedPage } from "../lib/i18n";
+// 화면 언어는 URL에서 결정합니다. 일본어 원문과 저장 데이터는 유지합니다.
+const locale = localeFromUrl(Astro.url);
+const t = forLocale(locale);
+import { clubForLocale } from "../data/locales/content";
+const club = clubForLocale(locale);
+const page = (path = "") => localizedPage(path, locale);
 import Icon from "./Icon.astro";
-import { club } from "../data/club";
-import { asset, page } from "../lib/urls";
+
+import { asset } from "../lib/urls";
 import { matchDate, matchSides, matchTime } from "../lib/match-centre";
 import type { PublicFixture } from "../lib/content-types";
 
@@ -22,7 +29,7 @@ const target = fixture
     : "schedule-panel";
 // [편집 안내] 세 카드는 같은 구성을 사용합니다. 팀·시간·점수는 CMS의 실제 공개 정보만 표시합니다.
 const emptyMessage =
-  kind === "last" ? "試合結果は未発表です" : "試合はまだ未定です";
+  kind === "last" ? t("試合結果は未発表です") : t("試合はまだ未定です");
 ---
 
 <article class="match-summary" data-match-slot={kind}>
@@ -33,13 +40,15 @@ const emptyMessage =
   <div class="match-summary-body">
     <p class="match-summary-date">
       {fixture?.kickoff ? (
-        <time datetime={fixture.kickoff}>{matchDate(fixture.kickoff)}</time>
+        <time datetime={fixture.kickoff}>
+          {matchDate(fixture.kickoff, locale)}
+        </time>
       ) : completed ? (
-        "日付未発表"
+        t("日付未発表")
       ) : kind === "last" ? (
-        "結果未発表"
+        t("結果未発表")
       ) : (
-        "日程未定"
+        t("日程未定")
       )}
     </p>
     <div class="match-summary-teams">
@@ -59,8 +68,8 @@ const emptyMessage =
                 {completed
                   ? (left.score ?? "–") + " - " + (right.score ?? "–")
                   : fixture?.kickoff
-                    ? matchTime(fixture.kickoff)
-                    : "未定"}
+                    ? matchTime(fixture.kickoff, locale)
+                    : t("未定")}
               </strong>
               {completed && <span class="match-summary-ft">FT</span>}
             </div>
@@ -81,7 +90,7 @@ const emptyMessage =
               </span>
             )}
             <strong>
-              {side.own ? club.name : fixture?.opponent || "対戦相手未定"}
+              {side.own ? club.name : fixture?.opponent || t("対戦相手未定")}
             </strong>
           </div>
         </>
@@ -94,9 +103,9 @@ const emptyMessage =
             <p class="match-summary-pending">{emptyMessage}</p>
           )}
           <p class="match-summary-competition">
-            {fixture.competition || "大会名未発表"}
+            {fixture.competition || t("大会名未発表")}
           </p>
-          <p class="match-summary-venue">{fixture.venue || "会場未発表"}</p>
+          <p class="match-summary-venue">{fixture.venue || t("会場未発表")}</p>
         </>
       ) : (
         <p class="match-summary-pending">{emptyMessage}</p>
@@ -104,10 +113,10 @@ const emptyMessage =
     </div>
     <a class="match-summary-link" href={page("matches/") + "#" + target}>
       {hasReport
-        ? "試合レポート"
+        ? t("試合レポート")
         : fixture
-          ? "試合情報を見る"
-          : "日程・結果を見る"}
+          ? t("試合情報を見る")
+          : t("日程・結果を見る")}
       <Icon name="arrow" size={16} />
     </a>
   </div>

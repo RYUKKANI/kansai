@@ -1,8 +1,21 @@
 ---
+import {
+  forLocale,
+  localeFromUrl,
+  formatForLocale,
+  localizedPage,
+} from "../lib/i18n";
+// 화면 언어는 URL에서 결정합니다. 일본어 원문과 저장 데이터는 유지합니다.
+const locale = localeFromUrl(Astro.url);
+const t = forLocale(locale);
+import { clubForLocale } from "../data/locales/content";
+const club = clubForLocale(locale);
+const format = formatForLocale(locale);
+const page = (path = "") => localizedPage(path, locale);
 import Icon from "./Icon.astro";
-import { club } from "../data/club";
+
 import { navigation } from "../data/navigation";
-import { asset, page } from "../lib/urls";
+import { asset } from "../lib/urls";
 // 푸터 메뉴는 헤더와 같은 데이터를 사용하고, footerLabel로 푸터 문구만 지정합니다.
 ---
 
@@ -13,7 +26,7 @@ import { asset, page } from "../lib/urls";
         src={asset(club.logo)}
         width="76"
         height="76"
-        alt={`${club.name} ロゴ`}
+        alt={format("{0} ロゴ", club.name)}
       />
       <span>
         KANSAI
@@ -23,7 +36,7 @@ import { asset, page } from "../lib/urls";
     </a>
     <div class="footer-links">
       {navigation.map((item) => (
-        <a href={page(item.path)}>{item.footerLabel}</a>
+        <a href={page(item.path)}>{t(item.footerLabel)}</a>
       ))}
     </div>
     <a
@@ -31,7 +44,7 @@ import { asset, page } from "../lib/urls";
       class="social-button"
       target="_blank"
       rel="noopener noreferrer"
-      aria-label="公式Instagramを開く"
+      aria-label={t("公式Instagramを開く")}
     >
       <Icon name="instagram" size={24} />
     </a>
@@ -40,7 +53,7 @@ import { asset, page } from "../lib/urls";
     <span>
       © {new Date().getFullYear()} {club.englishName}.
     </span>
-    <span>写真：公式Instagram {club.instagramHandle}</span>
-    <a href="#top">PAGE TOP ↑</a>
+    <span>{format("写真：公式Instagram {0}", club.instagramHandle)}</span>
+    <a href="#top">{t("PAGE TOP ↑")}</a>
   </div>
 </footer>

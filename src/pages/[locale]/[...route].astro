@@ -1,0 +1,62 @@
+---
+import Home from "../index.astro";
+import News from "../news/index.astro";
+import Article from "../news/[slug].astro";
+import Team from "../team/index.astro";
+import Player from "../team/[slug].astro";
+import Matches from "../matches/index.astro";
+import Media from "../media/index.astro";
+import Club from "../club/index.astro";
+import Join from "../join/index.astro";
+import { loadPublicContent } from "../../data/cms";
+// 일본어 기존 URL을 보존하면서 같은 화면 컴포넌트로 한국어·영어 정적 페이지를 생성합니다.
+// 공개한 원본 슬러그만 사용하므로 언어를 바꿔도 기사·선수의 식별자는 유지됩니다.
+export async function getStaticPaths() {
+  const paths = [];
+  for (const locale of ["ko", "en"] as const) {
+    const content = await loadPublicContent(locale);
+    for (const route of [
+      "",
+      "news",
+      "team",
+      "matches",
+      "media",
+      "club",
+      "join",
+    ])
+      paths.push({
+        params: { locale, route: route || undefined },
+        props: { view: route || "home" },
+      });
+    for (const story of content.stories)
+      paths.push({
+        params: { locale, route: "news/" + story.id },
+        props: { view: "article", story },
+      });
+    for (const player of content.players)
+      paths.push({
+        params: { locale, route: "team/" + player.slug },
+        props: { view: "player", player },
+      });
+  }
+  return paths;
+}
+const components = {
+  home: Home,
+  news: News,
+  team: Team,
+  matches: Matches,
+  media: Media,
+  club: Club,
+  join: Join,
+};
+const Page = components[Astro.props.view as keyof typeof components];
+---
+
+{Astro.props.story ? (
+  <Article story={Astro.props.story} />
+) : Astro.props.player ? (
+  <Player player={Astro.props.player} />
+) : (
+  <Page />
+)}

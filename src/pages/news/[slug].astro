@@ -1,10 +1,23 @@
 ---
+import {
+  forLocale,
+  localeFromUrl,
+  formatForLocale,
+  localizedPage,
+} from "../../lib/i18n";
+// 화면 언어는 URL에서 결정합니다. 일본어 원문과 저장 데이터는 유지합니다.
+const locale = localeFromUrl(Astro.url);
+const t = forLocale(locale);
+import { clubForLocale } from "../../data/locales/content";
+const club = clubForLocale(locale);
+const format = formatForLocale(locale);
+const page = (path = "") => localizedPage(path, locale);
 import SiteLayout from "../../layouts/SiteLayout.astro";
 import Icon from "../../components/Icon.astro";
 import Photo from "../../components/Photo.astro";
-import { club, storyCategories, type Story } from "../../data/club";
+import { storyCategories, type Story } from "../../data/club";
 import { loadPublicContent } from "../../data/cms";
-import { asset, page } from "../../lib/urls";
+import { asset } from "../../lib/urls";
 
 // 기사 id마다 정적 상세 페이지를 만듭니다. 새 기사는 data/club.ts의 stories에 등록합니다.
 export async function getStaticPaths() {
@@ -22,12 +35,12 @@ const { story } = Astro.props;
 
 <SiteLayout title={`${story.title} | ${club.name}`} description={story.summary}>
   <article class="shell story-page">
-    <nav class="breadcrumbs" aria-label="パンくず">
-      <a href={page()}>HOME</a>
+    <nav class="breadcrumbs" aria-label={t("パンくず")}>
+      <a href={page()}>{t("HOME")}</a>
       <Icon name="chevron" size={13} />
       <a href={page("news/")}>NEWS</a>
       <Icon name="chevron" size={13} />
-      <span>{storyCategories[story.category].badge}</span>
+      <span>{t(storyCategories[story.category].badge)}</span>
     </nav>
     <div class="story-page-heading">
       <p class="eyebrow">
@@ -40,10 +53,13 @@ const { story } = Astro.props;
 
     <!-- 활동일과 본문 문단은 기사 데이터에서 가져옵니다. 출처 링크는 항상 함께 표시합니다. -->
     <div class="article-body">
-      <p class="article-credit">写真：{club.name} 公式Instagram</p>
+      <p class="article-credit">
+        {format("写真：{0} 公式Instagram", club.name)}
+      </p>
       {story.activityDate && (
         <p class="activity-date">
-          <Icon name="calendar" size={17} /> 活動日：{story.activityDate}
+          <Icon name="calendar" size={17} />
+          {format("活動日：{0}", story.activityDate)}
         </p>
       )}
       {story.paragraphs.map((paragraph) => (
@@ -56,8 +72,8 @@ const { story } = Astro.props;
           target="_blank"
           rel="noopener noreferrer"
         >
-          <Icon name="external" size={21} /> 関連する公式情報{" "}
-          <Icon name="external" size={17} />
+          <Icon name="external" size={21} />
+          {t("関連する公式情報")} <Icon name="external" size={17} />
         </a>
       )}
     </div>
@@ -67,7 +83,7 @@ const { story } = Astro.props;
       <section class="article-gallery" aria-labelledby="gallery-title">
         <div class="section-heading">
           <div>
-            <p class="eyebrow">トレーニングの風景</p>
+            <p class="eyebrow">{t("トレーニングの風景")}</p>
             <h2 class="display" id="gallery-title">
               IN PICTURES<span class="text-blue">.</span>
             </h2>
@@ -84,9 +100,12 @@ const { story } = Astro.props;
               data-alt={story.alt}
               data-caption={`${story.activityDate ?? ""} / PHOTO ${index + 1}`}
               data-source={story.source}
-              aria-label={`活動写真 ${index + 1} を拡大`}
+              aria-label={format("活動写真 {0} を拡大", index + 1)}
             >
-              <Photo src={image} alt={`${story.alt}（写真 ${index + 1}）`} />
+              <Photo
+                src={image}
+                alt={format("{0}（写真 {1}）", story.alt, index + 1)}
+              />
               <span class="media-expand">
                 <Icon name="external" size={18} />
               </span>
@@ -96,7 +115,8 @@ const { story } = Astro.props;
       </section>
     )}
     <a class="back-link" href={page("news/")}>
-      <span>←</span> ニュース一覧へ戻る
+      <span>←</span>
+      {t("ニュース一覧へ戻る")}
     </a>
   </article>
 </SiteLayout>

@@ -1,3 +1,5 @@
+import { text as t } from "./i18n";
+import { currentLocale, intlLocales, type Locale } from "./i18n";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { resources, type Resource } from "./admin-config";
 import { scheduleEnabled } from "./office-features";
@@ -29,100 +31,104 @@ export const officePages: Record<
     group: "OVERVIEW",
     english: "DASHBOARD",
     icon: "grid",
-    description: "クラブの公開状況と、今日の運営業務を確認できます。",
+    description: t("クラブの公開状況と、今日の運営業務を確認できます。"),
   },
   schedule: {
     group: "OPERATIONS",
     english: "CLUB CALENDAR",
     icon: "calendar",
-    description: "試合・練習・クラブ行事を日本時間でまとめて確認します。",
+    description: t("試合・練習・クラブ行事を日本時間でまとめて確認します。"),
   },
   club_events: {
     group: "OPERATIONS",
     english: "CLUB EVENTS",
     icon: "calendar",
-    description: "クラブ行事の日程、公開案内、内部メモを管理します。",
+    description: t("クラブ行事の日程、公開案内、内部メモを管理します。"),
   },
   articles: {
     group: "CONTENT",
     english: "NEWSROOM",
     icon: "news",
-    description: "ニュースの作成・編集と発行状況を管理します。",
+    description: t("ニュースの作成・編集と発行状況を管理します。"),
   },
   media_albums: {
     group: "CONTENT",
     english: "ALBUMS",
     icon: "album",
-    description: "活動写真をアルバムにまとめ、公開する内容を管理します。",
+    description: t("活動写真をアルバムにまとめ、公開する内容を管理します。"),
   },
   media_assets: {
     group: "CONTENT",
     english: "MEDIA LIBRARY",
     icon: "image",
-    description:
+    description: t(
       "写真・動画と掲載確認を管理します。未確認の素材は発行できません。",
+    ),
   },
   players: {
     group: "TEAM",
     english: "PLAYER REGISTER",
     icon: "users",
-    description:
+    description: t(
       "内部の選手登録と公開同意を管理します。登録だけでプロフィールは公開されません。",
+    ),
   },
   public_player_profiles: {
     group: "TEAM",
     english: "PUBLIC PROFILES",
     icon: "profile",
-    description:
+    description: t(
       "公式サイトに掲載するプロフィールです。登録・同意の確認後に公開を承認します。",
+    ),
   },
   fixtures: {
     group: "OPERATIONS",
     english: "MATCHES",
     icon: "ball",
-    description: "試合の日時・会場・結果と公開状態を管理します。",
+    description: t("試合の日時・会場・結果と公開状態を管理します。"),
   },
   training_sessions: {
     group: "OPERATIONS",
     english: "TRAINING",
     icon: "calendar",
-    description:
+    description: t(
       "練習予定と運営メモを管理します。練習の運営記録は内部専用です。",
+    ),
   },
   site_pages: {
     group: "SYSTEM",
     english: "CLUB INFORMATION",
     icon: "club",
-    description: "クラブ紹介と参加案内の掲載内容を管理します。",
+    description: t("クラブ紹介と参加案内の掲載内容を管理します。"),
   },
   admin_roles: {
     group: "SYSTEM",
     english: "STAFF & ACCESS",
     icon: "shield",
-    description: "運営メンバーの招待、権限、アクセス状態を管理します。",
+    description: t("運営メンバーの招待、権限、アクセス状態を管理します。"),
   },
 };
 export const stateLabels: Record<string, string> = {
-  draft: "下書き",
-  pending: "承認待ち",
-  published: "発行済み",
-  active: "活動中",
-  inactive: "活動休止",
-  former: "以前在籍",
-  scheduled: "開催予定",
-  completed: "終了",
-  postponed: "延期",
-  cancelled: "中止",
-  confirmed: "確認済み",
-  unconfirmed: "未確認",
-  enabled: "有効",
-  disabled: "無効",
+  draft: t("下書き"),
+  pending: t("承認待ち"),
+  published: t("発行済み"),
+  active: t("活動中"),
+  inactive: t("活動休止"),
+  former: t("以前在籍"),
+  scheduled: t("開催予定"),
+  completed: t("終了"),
+  postponed: t("延期"),
+  cancelled: t("中止"),
+  confirmed: t("確認済み"),
+  unconfirmed: t("未確認"),
+  enabled: t("有効"),
+  disabled: t("無効"),
 };
 export const roleLabels: Record<string, string> = {
-  owner: "Owner",
-  administrator: "Administrator",
-  editor: "Editor",
-  coach: "Coach",
+  owner: t("Owner"),
+  administrator: t("Administrator"),
+  editor: t("Editor"),
+  coach: t("Coach"),
 };
 
 // 경로는 구단 UI 안에서만 쓰는 고정 SVG입니다. 사용자 입력을 SVG나 HTML로 해석하지 않습니다.
@@ -240,11 +246,15 @@ export function panel(
   section.append(heading, body);
   return { section, body };
 }
-export function dateLabel(value: unknown, time = false): string {
+export function dateLabel(
+  value: unknown,
+  time = false,
+  locale: Locale = currentLocale(),
+): string {
   if (!value) return "—";
   const date = new Date(String(value));
   if (Number.isNaN(date.getTime())) return "—";
-  return new Intl.DateTimeFormat("ja-JP", {
+  return new Intl.DateTimeFormat(intlLocales[locale], {
     timeZone: "Asia/Tokyo",
     year: "numeric",
     month: "2-digit",
@@ -336,38 +346,38 @@ export const editorGroups: Record<
 > = {
   articles: [
     {
-      label: "記事の内容",
+      label: t("記事の内容"),
       fields: ["title", "slug", "category", "summary", "body"],
     },
     {
-      label: "写真・ギャラリー",
+      label: t("写真・ギャラリー"),
       fields: ["cover_path", "cover_alt", "gallery_paths"],
     },
     {
-      label: "掲載設定",
+      label: t("掲載設定"),
       fields: ["activity_date", "published_at", "source_url", "featured"],
     },
   ],
   players: [
     {
-      label: "内部の選手登録",
+      label: t("内部の選手登録"),
       fields: ["internal_name", "activity_status"],
-      hint: "この登録情報は運営専用です。",
+      hint: t("この登録情報は運営専用です。"),
     },
     {
-      label: "公開同意の確認",
+      label: t("公開同意の確認"),
       fields: ["profile_consent", "photo_consent"],
-      hint: "公開プロフィールと写真の同意を個別に確認します。",
+      hint: t("公開プロフィールと写真の同意を個別に確認します。"),
     },
   ],
   public_player_profiles: [
     {
-      label: "登録選手との連携",
+      label: t("登録選手との連携"),
       fields: ["player_id", "slug"],
-      hint: "既存の選手UUIDを維持して公開用の情報を管理します。",
+      hint: t("既存の選手UUIDを維持して公開用の情報を管理します。"),
     },
     {
-      label: "公開するプロフィール",
+      label: t("公開するプロフィール"),
       fields: [
         "display_name",
         "romanized_name",
@@ -377,63 +387,68 @@ export const editorGroups: Record<
         "bio",
       ],
     },
-    { label: "掲載設定", fields: ["activity_status", "display_order"] },
+    { label: t("掲載設定"), fields: ["activity_status", "display_order"] },
   ],
   fixtures: [
     {
-      label: "対戦カード",
+      label: t("対戦カード"),
       fields: ["opponent", "competition", "home_away", "opponent_logo_path"],
     },
     {
-      label: "開催日時・会場",
+      label: t("開催日時・会場"),
       fields: ["kickoff_at", "venue", "match_status"],
     },
     {
-      label: "試合結果・レポート",
+      label: t("試合結果・レポート"),
       fields: ["own_score", "opponent_score", "report"],
     },
   ],
   training_sessions: [
-    { label: "練習内容", fields: ["title", "session_status"] },
-    { label: "日時・場所", fields: ["starts_at", "ends_at", "venue"] },
-    { label: "内部の運営メモ", fields: ["notes"] },
+    { label: t("練習内容"), fields: ["title", "session_status"] },
+    { label: t("日時・場所"), fields: ["starts_at", "ends_at", "venue"] },
+    { label: t("内部の運営メモ"), fields: ["notes"] },
     {
-      label: "公式サイトへの案内",
+      label: t("公式サイトへの案内"),
       fields: ["is_public", "public_description"],
     },
   ],
   club_events: [
-    { label: "行事内容", fields: ["title", "session_status"] },
-    { label: "日時・場所", fields: ["starts_at", "ends_at", "venue"] },
+    { label: t("行事内容"), fields: ["title", "session_status"] },
+    { label: t("日時・場所"), fields: ["starts_at", "ends_at", "venue"] },
     {
-      label: "公式サイトへの案内",
+      label: t("公式サイトへの案内"),
       fields: ["is_public", "public_description"],
     },
-    { label: "内部の運営メモ", fields: ["notes"] },
+    { label: t("内部の運営メモ"), fields: ["notes"] },
   ],
   media_albums: [
-    { label: "アルバム情報", fields: ["title", "description", "captured_on"] },
+    {
+      label: t("アルバム情報"),
+      fields: ["title", "description", "captured_on"],
+    },
   ],
   media_assets: [
     {
-      label: "写真・動画",
+      label: t("写真・動画"),
       fields: ["title", "kind", "storage_path", "video_url", "album_id"],
     },
     {
-      label: "説明と撮影情報",
+      label: t("説明と撮影情報"),
       fields: ["alt_text", "description", "captured_on", "source_url"],
     },
-    { label: "掲載確認", fields: ["consent_confirmed"] },
+    { label: t("掲載確認"), fields: ["consent_confirmed"] },
   ],
   site_pages: [
-    { label: "掲載するページ", fields: ["id", "title"] },
-    { label: "ページの内容", fields: ["introduction", "body"] },
+    { label: t("掲載するページ"), fields: ["id", "title"] },
+    { label: t("ページの内容"), fields: ["introduction", "body"] },
   ],
   admin_roles: [
     {
-      label: "メンバーのアクセス",
+      label: t("メンバーのアクセス"),
       fields: ["role", "active"],
-      hint: "最後のOwnerは無効化できません。退任時は削除せずアクセスを無効にします。",
+      hint: t(
+        "最後のOwnerは無効化できません。退任時は削除せずアクセスを無効にします。",
+      ),
     },
   ],
 };

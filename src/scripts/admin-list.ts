@@ -1,3 +1,10 @@
+import {
+  text as t,
+  format,
+  currentLocale,
+  intlLocales,
+  weekdayNames,
+} from "../lib/i18n";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { resources, type Resource } from "../lib/admin-config";
 import { contentEnabled } from "../lib/office-features";
@@ -73,14 +80,17 @@ export function createList(options: Options): ListController {
   );
   const element = node("section", "", "office-panel admin-list");
   const toolbar = node("form", "", "office-toolbar");
-  toolbar.setAttribute("aria-label", config.label + "の検索とフィルター");
-  const searchLabel = node("label", "検索", "office-search");
+  toolbar.setAttribute(
+    "aria-label",
+    format("{0}の検索とフィルター", config.label),
+  );
+  const searchLabel = node("label", t("検索"), "office-search");
   const search = node("input");
   search.type = "search";
   search.name = "search";
   search.maxLength = 150;
   search.value = filters.search ?? "";
-  search.placeholder = config.singular + "を検索";
+  search.placeholder = format("{0}を検索", config.singular);
   searchLabel.append(icon("search"), search);
   toolbar.append(searchLabel);
   function filterSelect(
@@ -91,7 +101,7 @@ export function createList(options: Options): ListController {
     const container = node("label", label);
     const input = node("select");
     input.name = name;
-    for (const option of [{ value: "", label: "すべて" }, ...values]) {
+    for (const option of [{ value: "", label: t("すべて") }, ...values]) {
       const item = node("option", option.label);
       item.value = option.value;
       input.append(item);
@@ -108,55 +118,55 @@ export function createList(options: Options): ListController {
   if (resource === "articles")
     filterSelect(
       "category",
-      "カテゴリー",
+      t("カテゴリー"),
       config.fields.find((field) => field.name === "category")?.options ?? [],
     );
   if (config.canPublish.length || resource === "public_player_profiles")
-    filterSelect("status", "公開状態", [
-      { value: "draft", label: "下書き" },
-      { value: "pending", label: "承認待ち" },
-      { value: "published", label: "発行済み" },
+    filterSelect("status", t("公開状態"), [
+      { value: "draft", label: t("下書き") },
+      { value: "pending", label: t("承認待ち") },
+      { value: "published", label: t("発行済み") },
     ]);
   if (resource === "players") {
     filterSelect(
       "status",
-      "活動状態",
+      t("活動状態"),
       config.fields.find((field) => field.name === "activity_status")
         ?.options ?? [],
     );
-    filterSelect("consent", "公開同意", [
-      { value: "unconfirmed", label: "未確認あり" },
-      { value: "confirmed", label: "両方確認済み" },
+    filterSelect("consent", t("公開同意"), [
+      { value: "unconfirmed", label: t("未確認あり") },
+      { value: "confirmed", label: t("両方確認済み") },
     ]);
   }
   if (resource === "admin_roles")
-    filterSelect("status", "アクセス", [
-      { value: "enabled", label: "有効" },
-      { value: "disabled", label: "無効" },
+    filterSelect("status", t("アクセス"), [
+      { value: "enabled", label: t("有効") },
+      { value: "disabled", label: t("無効") },
     ]);
   const scheduleResource =
     resource === "fixtures" ||
     resource === "training_sessions" ||
     resource === "club_events";
   if (scheduleResource) {
-    filterSelect("schedule", "開催状態", [
-      { value: "scheduled", label: "開催予定" },
-      { value: "completed", label: "終了" },
+    filterSelect("schedule", t("開催状態"), [
+      { value: "scheduled", label: t("開催予定") },
+      { value: "completed", label: t("終了") },
       ...(resource === "fixtures"
         ? [
-            { value: "postponed", label: "延期" },
-            { value: "changed", label: "延期・中止" },
-            { value: "undated", label: "日時未定" },
+            { value: "postponed", label: t("延期") },
+            { value: "changed", label: t("延期・中止") },
+            { value: "undated", label: t("日時未定") },
           ]
         : []),
-      { value: "cancelled", label: "中止" },
+      { value: "cancelled", label: t("中止") },
     ]);
     const views = node("div", "", "office-view-toggle");
     views.setAttribute("role", "group");
-    views.setAttribute("aria-label", "予定の表示");
+    views.setAttribute("aria-label", t("予定の表示"));
     for (const [value, label, symbol] of [
-      ["list", "一覧", "list"],
-      ["calendar", "カレンダー", "calendar"],
+      ["list", t("一覧"), "list"],
+      ["calendar", t("カレンダー"), "calendar"],
     ] as const) {
       const button = action(
         label,
@@ -179,7 +189,7 @@ export function createList(options: Options): ListController {
     }
     toolbar.append(views);
   }
-  const submit = action("検索", "admin-secondary");
+  const submit = action(t("検索"), "admin-secondary");
   submit.type = "submit";
   toolbar.append(submit);
   const summary = node("div", "", "office-result-line");
@@ -188,7 +198,7 @@ export function createList(options: Options): ListController {
   summary.append(countLabel);
   if (filters.after)
     summary.append(
-      action("今後の予定のみ · 解除", "office-link-button", () => {
+      action(t("今後の予定のみ · 解除"), "office-link-button", () => {
         filters.after = undefined;
         page = 0;
         summary.querySelector("button")?.remove();
@@ -261,13 +271,13 @@ export function createList(options: Options): ListController {
       row.summary ??
       row.description ??
       (resource === "players"
-        ? "内部の選手登録"
+        ? t("内部の選手登録")
         : resource === "public_player_profiles"
           ? row.romanized_name
           : resource === "media_assets"
             ? row.kind === "video"
-              ? "動画URL"
-              : "写真"
+              ? t("動画URL")
+              : t("写真")
             : "");
     if (detail) copy.append(node("p", String(detail)));
     title.append(thumbnail(row), copy);
@@ -277,15 +287,15 @@ export function createList(options: Options): ListController {
     const result: Column[] = [{ label: config.singular, render: titleCell }];
     if (contentEnabled && contentResources.includes(resource))
       result.push({
-        label: "予約発行",
+        label: t("予約発行"),
         render: (row) => {
           const release = row.office_release as Row | undefined;
           if (!release) return "—";
           const labels: Record<string, string> = {
-            queued: "予約済み",
-            published: "発行済み",
-            cancelled: "予約取消",
-            failed: "要確認",
+            queued: t("予約済み"),
+            published: t("発行済み"),
+            cancelled: t("予約取消"),
+            failed: t("要確認"),
           };
           const cell = node("div");
           cell.append(
@@ -298,18 +308,18 @@ export function createList(options: Options): ListController {
     const add = (label: string, render: Column["render"], compact = false) =>
       result.push({ label, render, compact });
     if (resource === "articles") {
-      add("カテゴリー", (row) =>
+      add(t("カテゴリー"), (row) =>
         optionLabel(resource, "category", row.category),
       );
-      add("公開状態", (row) => badge(row.status));
+      add(t("公開状態"), (row) => badge(row.status));
       // 뉴스에는 created_at 열이 없으므로 실제 INSERT 감사 기록만 작성일로 표시합니다.
-      add("作成日", (row) => dateLabel(row.office_created_at), true);
-      add("最終更新", (row) => dateLabel(row.updated_at));
+      add(t("作成日"), (row) => dateLabel(row.office_created_at), true);
+      add(t("最終更新"), (row) => dateLabel(row.updated_at));
     } else if (
       resource === "players" ||
       resource === "public_player_profiles"
     ) {
-      add("ポジション / 背番号", (row) => {
+      add(t("ポジション / 背番号"), (row) => {
         const profile =
           resource === "players"
             ? (row.office_profile as Row | undefined)
@@ -318,57 +328,58 @@ export function createList(options: Options): ListController {
           ? String(profile.position ?? "—") +
               " / " +
               (profile.jersey_number ?? "—")
-          : "未登録";
+          : t("未登録");
       });
-      add("活動状態", (row) => badge(row.activity_status));
-      add("公開状態", (row) =>
+      add(t("活動状態"), (row) => badge(row.activity_status));
+      add(t("公開状態"), (row) =>
         badge(
           resource === "players"
-            ? ((row.office_profile as Row | undefined)?.status ?? "未登録")
+            ? ((row.office_profile as Row | undefined)?.status ?? t("未登録"))
             : row.status,
         ),
       );
       if (resource === "players")
-        add("公開同意", (row) => {
+        add(t("公開同意"), (row) => {
           const stack = node("div", "", "office-cell-stack");
           stack.append(
-            node("span", "プロフィール"),
+            node("span", t("プロフィール")),
             badge(row.profile_consent ? "confirmed" : "unconfirmed"),
-            node("span", "写真"),
+            node("span", t("写真")),
             badge(row.photo_consent ? "confirmed" : "unconfirmed"),
           );
           return stack;
         });
     } else if (scheduleResource) {
-      add("日時（日本時間）", (row) =>
+      add(t("日時（日本時間）"), (row) =>
         row[resource === "fixtures" ? "kickoff_at" : "starts_at"]
           ? dateLabel(
               row[resource === "fixtures" ? "kickoff_at" : "starts_at"],
               true,
             )
-          : "日時未定",
+          : t("日時未定"),
       );
-      add("会場", (row) => String(row.venue || "会場未定"));
-      add("開催状態", (row) =>
+      add(t("会場"), (row) => String(row.venue || t("会場未定")));
+      add(t("開催状態"), (row) =>
         badge(row[resource === "fixtures" ? "match_status" : "session_status"]),
       );
-      if (resource === "fixtures") add("公開状態", (row) => badge(row.status));
+      if (resource === "fixtures")
+        add(t("公開状態"), (row) => badge(row.status));
     } else if (resource === "admin_roles") {
-      add("権限", (row) => roleLabels[String(row.role)] ?? String(row.role));
-      add("アクセス", (row) => badge(row.active ? "enabled" : "disabled"));
-      add("最終更新", (row) => dateLabel(row.updated_at));
+      add(t("権限"), (row) => roleLabels[String(row.role)] ?? String(row.role));
+      add(t("アクセス"), (row) => badge(row.active ? "enabled" : "disabled"));
+      add(t("最終更新"), (row) => dateLabel(row.updated_at));
     } else {
       if (resource === "media_assets")
-        add("種類", (row) => (row.kind === "video" ? "動画" : "写真"));
-      add("公開状態", (row) => badge(row.status));
+        add(t("種類"), (row) => (row.kind === "video" ? t("動画") : t("写真")));
+      add(t("公開状態"), (row) => badge(row.status));
       if (resource === "media_albums" || resource === "media_assets")
-        add("撮影日", (row) => dateLabel(row.captured_on), true);
-      add("最終更新", (row) => dateLabel(row.updated_at));
+        add(t("撮影日"), (row) => dateLabel(row.captured_on), true);
+      add(t("最終更新"), (row) => dateLabel(row.updated_at));
     }
-    add("操作", (row) => {
+    add(t("操作"), (row) => {
       const buttons = node("div", "", "admin-row-actions");
       buttons.append(
-        action("編集", "admin-secondary", () => options.open(row)),
+        action(t("編集"), "admin-secondary", () => options.open(row)),
       );
       if (
         ![
@@ -379,7 +390,7 @@ export function createList(options: Options): ListController {
         ].includes(resource)
       )
         buttons.append(
-          action("削除", "admin-danger", () => options.remove(row)),
+          action(t("削除"), "admin-danger", () => options.remove(row)),
         );
       return buttons;
     });
@@ -389,17 +400,17 @@ export function createList(options: Options): ListController {
     if (!rows.length) {
       body.replaceChildren(
         emptyState(
-          "該当する項目はありません",
+          t("該当する項目はありません"),
           filters.search ||
             filters.status ||
             filters.category ||
             filters.consent ||
             filters.schedule ||
             filters.after
-            ? "検索やフィルターを変更してお試しください。"
-            : config.singular + "を登録すると、ここに表示されます。",
+            ? t("検索やフィルターを変更してお試しください。")
+            : format("{0}を登録すると、ここに表示されます。", config.singular),
           action(
-            config.singular + "を登録",
+            format("{0}を登録", config.singular),
             "office-link-button",
             options.create,
             "plus",
@@ -409,7 +420,7 @@ export function createList(options: Options): ListController {
       return;
     }
     const table = node("table", "", "office-table");
-    table.setAttribute("aria-label", config.label + "一覧");
+    table.setAttribute("aria-label", config.label + t("一覧"));
     const head = node("thead");
     const heading = node("tr");
     const fields = columns();
@@ -448,13 +459,17 @@ export function createList(options: Options): ListController {
     header.append(
       node(
         "h2",
-        month.getUTCFullYear() + "年 " + (month.getUTCMonth() + 1) + "月",
+        new Intl.DateTimeFormat(intlLocales[currentLocale()], {
+          year: "numeric",
+          month: "long",
+          timeZone: "UTC",
+        }).format(month),
       ),
     );
     const controls = node("div");
     for (const [direction, label] of [
-      [-1, "前の月"],
-      [1, "次の月"],
+      [-1, t("前の月")],
+      [1, t("次の月")],
     ] as const)
       controls.append(
         action(label, "admin-secondary", () => {
@@ -470,7 +485,7 @@ export function createList(options: Options): ListController {
       );
     header.append(controls);
     const grid = node("div", "", "office-calendar-grid");
-    for (const day of ["日", "月", "火", "水", "木", "金", "土"])
+    for (const day of weekdayNames())
       grid.append(node("div", day, "office-calendar-weekday"));
     const dateField = resource === "fixtures" ? "kickoff_at" : "starts_at";
     const today = japanInput(new Date()).slice(0, 10);
@@ -512,8 +527,7 @@ export function createList(options: Options): ListController {
           "aria-label",
           dateLabel(row[dateField], true) +
             " " +
-            row[config.titleField] +
-            "を編集",
+            format("{0}を編集", row[config.titleField]),
         );
         cell.append(event);
       }
@@ -525,19 +539,23 @@ export function createList(options: Options): ListController {
       node(
         "p",
         count > calendarLimit
-          ? "予定が多いため、この月の先頭500件を表示しています。すべての予定は一覧で確認できます。"
+          ? t(
+              "予定が多いため、この月の先頭500件を表示しています。すべての予定は一覧で確認できます。",
+            )
           : resource === "fixtures"
-            ? "日時未定の試合は一覧で確認できます。予定を選択すると編集できます。"
-            : "練習予定を選択すると編集できます。",
+            ? t(
+                "日時未定の試合は一覧で確認できます。予定を選択すると編集できます。",
+              )
+            : t("練習予定を選択すると編集できます。"),
         "office-calendar-note",
       ),
     );
     if (!rows.length)
       body.append(
         emptyState(
-          "この月の予定はありません",
-          "別の月を選ぶか、新しい予定を登録してください。",
-          action("予定を登録", "office-link-button", options.create, "plus"),
+          t("この月の予定はありません"),
+          t("別の月を選ぶか、新しい予定を登録してください。"),
+          action(t("予定を登録"), "office-link-button", options.create, "plus"),
         ),
       );
   }
@@ -546,7 +564,7 @@ export function createList(options: Options): ListController {
     if (disposed || !options.isCurrent()) return;
     const version = ++sequence;
     body.setAttribute("aria-busy", "true");
-    countLabel.textContent = "読み込み中…";
+    countLabel.textContent = t("読み込み中…");
     try {
       let query = client
         .from(resource)
@@ -613,7 +631,7 @@ export function createList(options: Options): ListController {
         });
         if (releases.error) throw releases.error;
         if (!Array.isArray(releases.data))
-          throw new Error("予約情報を取得できませんでした。");
+          throw new Error(t("予約情報を取得できませんでした。"));
         for (const row of rows)
           row.office_release = (releases.data as Row[]).find(
             (release) => release.record_id === String(row.id),
@@ -668,25 +686,25 @@ export function createList(options: Options): ListController {
       const count = response.count ?? rows.length;
       countLabel.textContent =
         String(count) +
-        "件" +
+        t("件") +
         (view === "list" && count
           ? " · " +
             (page * pageSize + 1) +
             "–" +
             Math.min((page + 1) * pageSize, count) +
-            "件を表示"
+            t("件を表示")
           : "");
       if (view === "calendar") renderCalendar(rows, count);
       else renderTable(rows);
       pager.replaceChildren();
       pager.hidden = view === "calendar" || count <= pageSize;
       if (!pager.hidden) {
-        const previous = action("前のページ", "admin-secondary", () => {
+        const previous = action(t("前のページ"), "admin-secondary", () => {
           page--;
           void load();
         });
         previous.disabled = page === 0;
-        const next = action("次のページ", "admin-secondary", () => {
+        const next = action(t("次のページ"), "admin-secondary", () => {
           page++;
           void load();
         });
@@ -699,13 +717,13 @@ export function createList(options: Options): ListController {
       }
     } catch (error) {
       if (disposed || version !== sequence || !options.isCurrent()) return;
-      countLabel.textContent = "読み込みエラー";
+      countLabel.textContent = t("読み込みエラー");
       body.replaceChildren(
         emptyState(
-          "項目を読み込めませんでした",
-          "接続を確認し、もう一度お試しください。",
+          t("項目を読み込めませんでした"),
+          t("接続を確認し、もう一度お試しください。"),
           action(
-            "再読み込み",
+            t("再読み込み"),
             "office-link-button",
             () => {
               void load();

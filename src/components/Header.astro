@@ -1,12 +1,26 @@
 ---
+import {
+  forLocale,
+  localeFromUrl,
+  formatForLocale,
+  localizedPage,
+} from "../lib/i18n";
+// 화면 언어는 URL에서 결정합니다. 일본어 원문과 저장 데이터는 유지합니다.
+const locale = localeFromUrl(Astro.url);
+const t = forLocale(locale);
+import { clubForLocale } from "../data/locales/content";
+const club = clubForLocale(locale);
+const format = formatForLocale(locale);
+const page = (path = "") => localizedPage(path, locale);
 import Icon from "./Icon.astro";
-import { club } from "../data/club";
+import LanguageSwitcher from "./LanguageSwitcher.astro";
+
 import {
   headerNavigation,
   joinNavigation,
   navigation,
 } from "../data/navigation";
-import { asset, page } from "../lib/urls";
+import { asset } from "../lib/urls";
 // 메뉴 문구·순서는 data/navigation.ts에서 편집합니다. 로고·SNS 주소는 data/club.ts에 있습니다.
 ---
 
@@ -18,18 +32,23 @@ import { asset, page } from "../lib/urls";
       <span class="preview-description">／ OFFICIAL WEBSITE</span>
     </span>
     <a href={club.instagram} target="_blank" rel="noopener noreferrer">
-      公式Instagram <Icon name="external" size={12} />
+      {t("公式Instagram")}
+      <Icon name="external" size={12} />
     </a>
   </div>
 </div>
 <header class="site-header" id="top">
   <div class="shell header-inner">
-    <a href={page()} class="brand" aria-label={`${club.name} トップページ`}>
+    <a
+      href={page()}
+      class="brand"
+      aria-label={format("{0} トップページ", club.name)}
+    >
       <img
         src={asset(club.logo)}
         width="60"
         height="60"
-        alt={`${club.name} ロゴ`}
+        alt={format("{0} ロゴ", club.name)}
       />
       <!-- 영문 브랜드의 줄바꿈은 이곳에서 조정합니다. 일본어 구단명은 공통 데이터를 사용합니다. -->
       <span class="brand-words">
@@ -41,7 +60,7 @@ import { asset, page } from "../lib/urls";
         <small>{club.name}</small>
       </span>
     </a>
-    <nav class="desktop-navigation" aria-label="メインナビゲーション">
+    <nav class="desktop-navigation" aria-label={t("メインナビゲーション")}>
       {headerNavigation.map((item) => (
         <a
           href={page(item.path)}
@@ -52,7 +71,7 @@ import { asset, page } from "../lib/urls";
             Astro.url.pathname.startsWith(page(item.path)) ? "page" : undefined
           }
         >
-          <span>{item.label}</span>
+          <span>{t(item.label)}</span>
           <small>{item.english}</small>
         </a>
       ))}
@@ -61,19 +80,20 @@ import { asset, page } from "../lib/urls";
       <button
         type="button"
         class="icon-button search-open"
-        aria-label="ニュースを検索"
+        aria-label={t("ニュースを検索")}
       >
         <Icon name="search" />
       </button>
+      <LanguageSwitcher />
       <a class="join-nav" href={page(joinNavigation.path)}>
-        {joinNavigation.label} <Icon name="arrow" size={17} />
+        {t(joinNavigation.label)} <Icon name="arrow" size={17} />
       </a>
       <button
         type="button"
         class="icon-button mobile-menu-toggle"
         aria-expanded="false"
         aria-controls="mobile-navigation"
-        aria-label="メニューを開く"
+        aria-label={t("メニューを開く")}
       >
         <Icon name="menu" />
         <Icon name="close" class="menu-close-icon" />
@@ -83,12 +103,12 @@ import { asset, page } from "../lib/urls";
   <nav
     class="mobile-navigation"
     id="mobile-navigation"
-    aria-label="モバイルナビゲーション"
+    aria-label={t("モバイルナビゲーション")}
     hidden
   >
     {navigation.map((item) => (
       <a href={page(item.path)}>
-        <span>{item.label}</span>
+        <span>{t(item.label)}</span>
         <small>{item.english}</small>
         <Icon name="arrow" />
       </a>

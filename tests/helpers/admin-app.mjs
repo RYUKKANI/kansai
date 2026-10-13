@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { JSDOM } from "jsdom";
+import { browserScript } from "./browser-script.mjs";
 // UI는 빌드한 실제 SDK로 검사하고 서버 응답만 대체합니다. 실제 DB 권한은 supabase/tests에서 따로 검증합니다.
 const html = await readFile("dist/admin/index.html", "utf8");
 export const uid = "00000000-0000-4000-8000-000000000001";
@@ -244,7 +245,7 @@ export async function app(
   };
   for (const script of window.document.querySelectorAll("script[src]")) {
     const relative = new URL(script.src).pathname.replace("/kansai/", "");
-    window.eval(await readFile(path.join("dist", relative), "utf8"));
+    window.eval(await browserScript(path.join("dist", relative)));
   }
   await eventually(() => !window.document.querySelector("#login-panel").hidden);
   return { dom, window, tables, requests };

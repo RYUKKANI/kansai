@@ -1,4 +1,8 @@
 ---
+import { forLocale, localeFromUrl } from "../lib/i18n";
+// 화면 언어는 URL에서 결정합니다. 일본어 원문과 저장 데이터는 유지합니다.
+const locale = localeFromUrl(Astro.url);
+const t = forLocale(locale);
 import SiteLayout from "../layouts/SiteLayout.astro";
 import LeadStories from "../components/home/LeadStories.astro";
 import MatchCentre from "../components/home/MatchCentre.astro";
@@ -23,9 +27,9 @@ import ClubSchedule from "../components/home/ClubSchedule.astro";
       </h1>
     </div>
     <p class="intro-caption">
-      ニュース、活動の様子、クラブ情報。
+      {t("ニュース、活動の様子、クラブ情報。")}
       <br />
-      <span>関西ユナイテッドFCの今をお届けします。</span>
+      <span>{t("関西ユナイテッドFCの今をお届けします。")}</span>
     </p>
   </section>
 

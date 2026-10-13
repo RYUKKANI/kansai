@@ -1,6 +1,12 @@
 ---
+import { forLocale, localeFromUrl } from "../lib/i18n";
+// 화면 언어는 URL에서 결정합니다. 일본어 원문과 저장 데이터는 유지합니다.
+const locale = localeFromUrl(Astro.url);
+const t = forLocale(locale);
+import { clubForLocale } from "../data/locales/content";
+const club = clubForLocale(locale);
 import type { PublicFixture } from "../lib/content-types";
-import { club } from "../data/club";
+
 import { asset } from "../lib/urls";
 import { japanDate } from "../lib/dates";
 interface Props {
@@ -8,23 +14,23 @@ interface Props {
 }
 const { fixture } = Astro.props;
 const labels = {
-  scheduled: "開催予定",
-  completed: "試合終了",
-  postponed: "延期",
-  cancelled: "中止",
+  scheduled: t("開催予定"),
+  completed: t("試合終了"),
+  postponed: t("延期"),
+  cancelled: t("中止"),
 };
 ---
 
 <article class="fixture-card" id={"fixture-" + fixture.id}>
   <div class="fixture-card-meta">
-    <span class="eyebrow">{fixture.competition || "大会名 未発表"}</span>
+    <span class="eyebrow">{fixture.competition || t("大会名 未発表")}</span>
     <span class="fixture-status">
       {labels[fixture.status]} / {fixture.homeAway.toUpperCase()}
     </span>
   </div>
   <p class="fixture-date">
     <time datetime={fixture.kickoff ?? undefined}>
-      {japanDate(fixture.kickoff)}
+      {japanDate(fixture.kickoff, locale)}
     </time>
   </p>
   <div class="fixture-teams">
@@ -48,10 +54,10 @@ const labels = {
       <strong>{fixture.opponent}</strong>
     </div>
   </div>
-  <p class="fixture-venue">{fixture.venue || "会場 未発表"}</p>
+  <p class="fixture-venue">{fixture.venue || t("会場 未発表")}</p>
   {fixture.report.length > 0 && (
     <details class="fixture-report" id={"report-" + fixture.id}>
-      <summary>試合レポートを読む</summary>
+      <summary>{t("試合レポートを読む")}</summary>
       {fixture.report.map((p) => (
         <p>{p}</p>
       ))}

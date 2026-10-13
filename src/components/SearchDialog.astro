@@ -1,11 +1,15 @@
 ---
+import { forLocale, localeFromUrl, localizedPage } from "../lib/i18n";
+// 화면 언어는 URL에서 결정합니다. 일본어 원문과 저장 데이터는 유지합니다.
+const locale = localeFromUrl(Astro.url);
+const t = forLocale(locale);
+const page = (path = "") => localizedPage(path, locale);
 import Icon from "./Icon.astro";
 import { storyCategories } from "../data/club";
 import { loadPublicContent } from "../data/cms";
-import { page } from "../lib/urls";
 
 // 검색 대상은 빌드할 때 기사 데이터에서 생성됩니다. 브라우저는 표시 여부만 바꿉니다.
-const { stories } = await loadPublicContent();
+const { stories } = await loadPublicContent(locale);
 ---
 
 <dialog class="search-dialog" aria-labelledby="search-title">
@@ -15,19 +19,19 @@ const { stories } = await loadPublicContent();
       type="button"
       class="icon-button"
       data-close-dialog
-      aria-label="検索を閉じる"
+      aria-label={t("検索を閉じる")}
     >
       <Icon name="close" />
     </button>
   </div>
-  <h2 id="search-title">ニュースを検索</h2>
+  <h2 id="search-title">{t("ニュースを検索")}</h2>
   <label class="search-field">
     <Icon name="search" />
     <input
       type="search"
       id="news-search"
-      placeholder="キーワードを入力"
-      aria-label="ニュース検索キーワード"
+      placeholder={t("キーワードを入力")}
+      aria-label={t("ニュース検索キーワード")}
       autocomplete="off"
     />
   </label>
@@ -35,7 +39,7 @@ const { stories } = await loadPublicContent();
     {stories.map((story) => (
       <a
         href={page(`news/${story.id}/`)}
-        data-search-text={`${story.title} ${story.summary} ${story.label} ${storyCategories[story.category].searchTerms}`}
+        data-search-text={`${story.title} ${story.summary} ${story.label} ${t(storyCategories[story.category].searchTerms)}`}
       >
         <small>
           {story.label} / {story.published}
@@ -48,6 +52,6 @@ const { stories } = await loadPublicContent();
     ))}
   </div>
   <p class="search-empty" hidden>
-    一致するニュースはありません。
+    {t("一致するニュースはありません。")}
   </p>
 </dialog>

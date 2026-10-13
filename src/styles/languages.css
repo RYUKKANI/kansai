@@ -1,0 +1,129 @@
+/* 언어 선택의 공통 스타일입니다. 공개 사이트와 CLUB OFFICE가 같은 조작 방식을 사용합니다. */
+.language-switcher {
+  position: relative;
+  flex-shrink: 0;
+  color: var(--color-navy);
+}
+.language-switcher summary {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 44px;
+  padding: 8px 10px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  list-style: none;
+  border-radius: 4px;
+}
+.language-switcher summary::-webkit-details-marker {
+  display: none;
+}
+.language-switcher summary:hover,
+.language-switcher[open] summary {
+  background: var(--color-ice);
+}
+.language-options {
+  position: absolute;
+  top: calc(100% + 9px);
+  right: 0;
+  min-width: 160px;
+  padding: 6px;
+  background: white;
+  border: 1px solid #e1e8f0;
+  box-shadow: 0 8px 24px #0b244714;
+  border-radius: 8px;
+  z-index: 80;
+}
+.language-options a {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 44px;
+  padding: 10px 12px;
+  gap: 20px;
+  font-size: 13px;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+.language-options a:hover,
+.language-options a[aria-current] {
+  background: #eaf2fa;
+  color: #1168bc;
+}
+.language-options small {
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  color: #667990;
+}
+/* 한국어 본문에는 한글 시스템 글꼴을 우선 사용하고 긴 단어가 카드 밖으로 나가지 않게 합니다. */
+html[lang="ko"] {
+  --font-sans: Arial, "Malgun Gothic", "Apple SD Gothic Neo", sans-serif;
+}
+html[lang="en"] {
+  --font-sans: Arial, Helvetica, sans-serif;
+}
+html[lang="ko"] .admin-body,
+html[lang="en"] .admin-body {
+  font-family: var(--font-sans);
+}
+.translation-notice {
+  padding-block: 12px;
+  font-size: 13px;
+  color: #52677e;
+}
+html[lang="ko"] .display:not(.match-title),
+html[lang="ko"] h1,
+html[lang="ko"] h2 {
+  line-height: 1.15;
+}
+html[lang="en"] .lead-content h2 {
+  overflow-wrap: anywhere;
+}
+html[lang="en"] .desktop-navigation a small {
+  display: none;
+}
+html[lang="en"] .desktop-navigation {
+  gap: 20px;
+}
+.header-inner {
+  gap: 20px;
+}
+.header-actions {
+  gap: 10px;
+}
+@media (max-width: 1200px) and (min-width: 1025px) {
+  .desktop-navigation {
+    gap: 16px;
+  }
+  .brand {
+    gap: 10px;
+  }
+  .brand img {
+    width: 48px;
+    height: 48px;
+  }
+  .brand-words strong {
+    font-size: 22px;
+  }
+  .header-inner {
+    gap: 14px;
+  }
+}
+@media (max-width: 600px) {
+  .header-actions {
+    gap: 2px;
+  }
+  .language-switcher summary {
+    padding-inline: 7px;
+    gap: 4px;
+    font-size: 12px;
+  }
+  .admin-header {
+    gap: 8px;
+  }
+  .admin-header .office-public-link {
+    font-size: 11px;
+  }
+}

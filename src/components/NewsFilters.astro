@@ -1,4 +1,8 @@
 ---
+import { forLocale, localeFromUrl } from "../lib/i18n";
+// 화면 언어는 URL에서 결정합니다. 일본어 원문과 저장 데이터는 유지합니다.
+const locale = localeFromUrl(Astro.url);
+const t = forLocale(locale);
 import { storyCategories } from "../data/club";
 
 interface Props {
@@ -8,13 +12,13 @@ const { total } = Astro.props;
 // 필터 값은 NewsCard의 data-category와 연결됩니다. 분류 추가는 데이터 파일에서 처리합니다.
 ---
 
-<div class="news-filters" aria-label="ニュースのカテゴリ">
+<div class="news-filters" aria-label={t("ニュースのカテゴリ")}>
   <button type="button" data-filter="all" aria-pressed="true">
-    すべて
+    {t("すべて")}
   </button>
   {Object.entries(storyCategories).map(([id, category]) => (
     <button type="button" data-filter={id} aria-pressed="false">
-      {category.filterLabel}
+      {t(category.filterLabel)}
     </button>
   ))}
   <span data-news-count aria-live="polite">

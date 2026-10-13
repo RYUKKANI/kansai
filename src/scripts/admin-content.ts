@@ -1,3 +1,4 @@
+import { text as t } from "../lib/i18n";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { resources, type Resource } from "../lib/admin-config";
 import { action, dateLabel, node, roleLabels, type Row } from "../lib/admin-ui";
@@ -37,34 +38,41 @@ export function attachContentEditor(options: {
   let timer: ReturnType<typeof setTimeout> | undefined;
   let dirty = false;
   let refreshId = 0;
-  const status = node("p", "このブラウザ内の一時保存：変更待ち", "admin-help");
+  const status = node(
+    "p",
+    t("このブラウザ内の一時保存：変更待ち"),
+    "admin-help",
+  );
   status.setAttribute("role", "status");
   const section = node("section", "", "office-content-tools");
-  section.append(node("h3", "保存と履歴"), status);
+  section.append(node("h3", t("保存と履歴")), status);
   container.append(section);
   let stored: ReturnType<typeof readDraft> = null;
   try {
     stored = readDraft(localStorage, key);
   } catch {
-    status.textContent =
-      "このブラウザでは一時保存を利用できません。下書き保存をご利用ください。";
+    status.textContent = t(
+      "このブラウザでは一時保存を利用できません。下書き保存をご利用ください。",
+    );
   }
   if (stored) {
     const prompt = node("div", "", "office-draft-prompt");
     prompt.append(
       node(
         "p",
-        "前回の一時保存：" +
+        t("前回の一時保存：") +
           dateLabel(new Date(stored.savedAt), true) +
           (stored.expected !== expected
-            ? "。サーバーの内容が変更されています。復元後に内容を照合してください。"
+            ? t(
+                "。サーバーの内容が変更されています。復元後に内容を照合してください。",
+              )
             : ""),
         "admin-help",
       ),
     );
     const draft = stored;
     prompt.append(
-      action("一時保存を編集画面に戻す", "admin-secondary", () => {
+      action(t("一時保存を編集画面に戻す"), "admin-secondary", () => {
         for (const field of resources[resource].fields) {
           const controls = form.querySelectorAll<
             HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
@@ -91,7 +99,7 @@ export function attachContentEditor(options: {
         flush();
         prompt.remove();
       }),
-      action("一時保存を破棄", "admin-secondary", () => {
+      action(t("一時保存を破棄"), "admin-secondary", () => {
         try {
           localStorage.removeItem(key);
         } catch {}
@@ -103,18 +111,20 @@ export function attachContentEditor(options: {
   section.append(
     node(
       "p",
-      "自動保存はこのブラウザ内だけです。サーバーへの下書き保存・発行は上のボタンで行います。7日間有効で、期限切れは次回表示時、ログアウト時はその場で削除されます。",
+      t(
+        "自動保存はこのブラウザ内だけです。サーバーへの下書き保存・発行は上のボタンで行います。7日間有効で、期限切れは次回表示時、ログアウト時はその場で削除されます。",
+      ),
       "admin-help",
     ),
   );
   if (options.publisher) {
-    const label = node("label", "予約発行（日本時間）");
+    const label = node("label", t("予約発行（日本時間）"));
     const input = node("input");
     input.type = "datetime-local";
     input.name = "_publish_at";
     input.id = "scheduled-publish-at";
     label.append(input);
-    const button = action("承認して予約する", "admin-secondary");
+    const button = action(t("承認して予約する"), "admin-secondary");
     button.type = "submit";
     button.dataset.saveStatus = "scheduled";
     section.append(
@@ -122,7 +132,9 @@ export function attachContentEditor(options: {
       button,
       node(
         "p",
-        "予約日時以降に内容を確認して発行します。公式サイトへの反映は次の再構築後です。公開中の記事を予約すると一旦非公開になります。",
+        t(
+          "予約日時以降に内容を確認して発行します。公式サイトへの反映は次の再構築後です。公開中の記事を予約すると一旦非公開になります。",
+        ),
         "admin-help",
       ),
     );
@@ -130,7 +142,7 @@ export function attachContentEditor(options: {
     section.append(
       node(
         "p",
-        "予約発行は運営責任者による公開処理の有効化後に利用できます。",
+        t("予約発行は運営責任者による公開処理の有効化後に利用できます。"),
         "admin-help",
       ),
     );
@@ -139,12 +151,18 @@ export function attachContentEditor(options: {
   async function refreshHistory() {
     if (!row) {
       history.replaceChildren(
-        node("p", "下書きを保存すると修正履歴を確認できます。", "admin-help"),
+        node(
+          "p",
+          t("下書きを保存すると修正履歴を確認できます。"),
+          "admin-help",
+        ),
       );
       return;
     }
     const version = ++refreshId;
-    history.replaceChildren(node("p", "修正履歴を読み込み中…", "admin-help"));
+    history.replaceChildren(
+      node("p", t("修正履歴を読み込み中…"), "admin-help"),
+    );
     const response = await client.rpc("office_content_state", {
       p_entity: resource,
       p_id: String(row.id),
@@ -152,20 +170,20 @@ export function attachContentEditor(options: {
     if (disposed || version !== refreshId) return;
     if (response.error) {
       history.replaceChildren(
-        node("p", "修正履歴を取得できませんでした。", "admin-help"),
-        action("再試行", "admin-secondary", () => void refreshHistory()),
+        node("p", t("修正履歴を取得できませんでした。"), "admin-help"),
+        action(t("再試行"), "admin-secondary", () => void refreshHistory()),
       );
       return;
     }
-    history.replaceChildren(node("h4", "最近の修正履歴"));
+    history.replaceChildren(node("h4", t("最近の修正履歴")));
     const data = response.data as { release?: Row; revisions?: Row[] } | null;
     if (data?.release) {
       const release = data.release;
       const labels: Record<string, string> = {
-        queued: "予約済み",
-        published: "発行済み",
-        cancelled: "予約取消",
-        failed: "発行できませんでした",
+        queued: t("予約済み"),
+        published: t("発行済み"),
+        cancelled: t("予約取消"),
+        failed: t("発行できませんでした"),
       };
       history.append(
         node(
@@ -184,12 +202,14 @@ export function attachContentEditor(options: {
           history.append(
             node(
               "p",
-              "予約時刻を過ぎています。運営責任者に処理状況をご確認ください。",
+              t(
+                "予約時刻を過ぎています。運営責任者に処理状況をご確認ください。",
+              ),
               "admin-help",
             ),
           );
         history.append(
-          action("予約を取り消す", "admin-secondary", () => {
+          action(t("予約を取り消す"), "admin-secondary", () => {
             void (async () => {
               const response = await client.rpc("cancel_content_release", {
                 p_entity: resource,
@@ -205,7 +225,9 @@ export function attachContentEditor(options: {
         history.append(
           node(
             "p",
-            "掲載確認・写真・承認者の権限を確認し、内容を保存して予約し直してください。",
+            t(
+              "掲載確認・写真・承認者の権限を確認し、内容を保存して予約し直してください。",
+            ),
             "admin-help",
           ),
         );
@@ -214,7 +236,7 @@ export function attachContentEditor(options: {
       history.append(
         node(
           "p",
-          "この機能の導入後に保存した履歴はまだありません。",
+          t("この機能の導入後に保存した履歴はまだありません。"),
           "admin-help",
         ),
       );
@@ -222,26 +244,28 @@ export function attachContentEditor(options: {
       const item = node("div", "", "office-revision");
       const actor =
         revision.reason === "baseline"
-          ? "修正前の内容"
-          : (roleLabels[String(revision.actor_role)] ?? "システム");
+          ? t("修正前の内容")
+          : (roleLabels[String(revision.actor_role)] ?? t("システム"));
       item.append(
-        node("strong", String(revision.title ?? "名称未設定")),
+        node("strong", String(revision.title ?? t("名称未設定"))),
         node(
           "p",
           dateLabel(revision.captured_at, true) + " · " + actor,
           "admin-help",
         ),
       );
-      const ask = action("この版を下書きに復元", "admin-secondary", () => {
+      const ask = action(t("この版を下書きに復元"), "admin-secondary", () => {
         const confirmation = node("div", "", "office-restore-confirm");
         confirmation.append(
           node(
             "p",
-            "現在の編集を置き換え、この版を非公開の下書きとして保存します。発行には再確認が必要です。",
+            t(
+              "現在の編集を置き換え、この版を非公開の下書きとして保存します。発行には再確認が必要です。",
+            ),
             "admin-help",
           ),
         );
-        const confirm = action("復元を確定", "admin-danger", () => {
+        const confirm = action(t("復元を確定"), "admin-danger", () => {
           confirm.disabled = true;
           void (async () => {
             const response = await client.rpc("restore_content_revision", {
@@ -258,7 +282,7 @@ export function attachContentEditor(options: {
         });
         confirmation.append(
           confirm,
-          action("戻る", "admin-secondary", () => confirmation.remove()),
+          action(t("戻る"), "admin-secondary", () => confirmation.remove()),
         );
         item.append(confirmation);
         confirm.focus();
@@ -276,20 +300,20 @@ export function attachContentEditor(options: {
       );
       writeDraft(localStorage, key, { savedAt: Date.now(), expected, values });
       status.textContent =
-        "このブラウザ内に一時保存済み：" +
+        t("このブラウザ内に一時保存済み：") +
         dateLabel(new Date(), true) +
-        "（サーバー未送信）";
+        t("（サーバー未送信）");
       dirty = false;
     } catch (error) {
       status.textContent =
         error instanceof Error
           ? error.message
-          : "一時保存できません。下書き保存をご利用ください。";
+          : t("一時保存できません。下書き保存をご利用ください。");
     }
   }
   function changed() {
     dirty = true;
-    status.textContent = "このブラウザ内に一時保存中…";
+    status.textContent = t("このブラウザ内に一時保存中…");
     clearTimeout(timer);
     timer = setTimeout(flush, 700);
   }

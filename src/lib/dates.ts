@@ -1,7 +1,7 @@
 // 모든 경기·훈련 시각은 저장 시 UTC, 방문자 화면에서는 일본 시간으로 표시합니다.
-export function japanDate(value: string | null): string {
-  if (!value) return "日時 未発表";
-  return new Intl.DateTimeFormat("ja-JP", {
+export function japanDate(value: string | null, locale: Locale = "ja"): string {
+  if (!value) return translate("日時 未発表", locale);
+  return new Intl.DateTimeFormat(intlLocales[locale], {
     timeZone: "Asia/Tokyo",
     year: "numeric",
     month: "long",
@@ -24,3 +24,4 @@ export function japanPublicationDate(value: string | null): string {
     .format(new Date(value))
     .replaceAll("/", ".");
 }
+import { intlLocales, translate, type Locale } from "./i18n";

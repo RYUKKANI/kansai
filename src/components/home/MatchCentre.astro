@@ -1,11 +1,16 @@
 ---
+import { forLocale, localeFromUrl, localizedPage } from "../../lib/i18n";
+// 화면 언어는 URL에서 결정합니다. 일본어 원문과 저장 데이터는 유지합니다.
+const locale = localeFromUrl(Astro.url);
+const t = forLocale(locale);
+const page = (path = "") => localizedPage(path, locale);
 import Icon from "../Icon.astro";
 import MatchSummaryCard from "../MatchSummaryCard.astro";
 import { loadPublicContent } from "../../data/cms";
-import { page } from "../../lib/urls";
+
 import { selectMatchCentre } from "../../lib/match-centre";
 // [편집 안내] 왼쪽 제목과 오른쪽 경기 카드 3개로 구성합니다. 미정 문구는 공통 카드에서 편집합니다.
-const { fixtures } = await loadPublicContent();
+const { fixtures } = await loadPublicContent(locale);
 const { last, next, upcoming } = selectMatchCentre(fixtures);
 ---
 
@@ -15,38 +20,39 @@ const { last, next, upcoming } = selectMatchCentre(fixtures);
   aria-labelledby="match-title"
 >
   <div class="match-heading">
-    <p class="eyebrow">試合情報</p>
+    <p class="eyebrow">{t("試合情報")}</p>
     <h2 id="match-title" class="display">
       MATCH
       <br />
       CENTRE<span class="text-blue">.</span>
     </h2>
     <p class="match-intro">
-      直近の結果と
+      {t("直近の結果と")}
       <br />
-      これからの試合
+      {t("これからの試合")}
     </p>
     <a class="text-link match-all-link" href={page("matches/")}>
-      日程・結果一覧 <Icon name="arrow" size={18} />
+      {t("日程・結果一覧")}
+      <Icon name="arrow" size={18} />
     </a>
   </div>
-  <div class="match-cards" aria-label="直近の結果と今後の試合">
+  <div class="match-cards" aria-label={t("直近の結果と今後の試合")}>
     <MatchSummaryCard
       kind="last"
-      title="Last Match"
-      japanese="直近の試合"
+      title={t("Last Match")}
+      japanese={t("直近の試合")}
       fixture={last}
     />
     <MatchSummaryCard
       kind="next"
-      title="Next Match"
-      japanese="次の試合"
+      title={t("Next Match")}
+      japanese={t("次の試合")}
       fixture={next}
     />
     <MatchSummaryCard
       kind="upcoming"
-      title="Upcoming Match"
-      japanese="その次の試合"
+      title={t("Upcoming Match")}
+      japanese={t("その次の試合")}
       fixture={upcoming}
     />
   </div>

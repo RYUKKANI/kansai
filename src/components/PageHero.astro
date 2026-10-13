@@ -1,5 +1,10 @@
 ---
-import { page } from "../lib/urls";
+import { forLocale, localeFromUrl, localizedPage } from "../lib/i18n";
+// 화면 언어는 URL에서 결정합니다. 일본어 원문과 저장 데이터는 유지합니다.
+const locale = localeFromUrl(Astro.url);
+const t = forLocale(locale);
+const page = (path = "") => localizedPage(path, locale);
+
 // [편집 안내] 독립 페이지의 제목·소개를 공통으로 배치합니다. 내용은 각 페이지에서 전달합니다.
 interface Props {
   title: string;
@@ -11,8 +16,8 @@ const { title, japanese, description } = Astro.props;
 
 <section class="page-hero">
   <div class="shell page-hero-inner">
-    <nav class="page-breadcrumb" aria-label="パンくず">
-      <a href={page()}>HOME</a>
+    <nav class="page-breadcrumb" aria-label={t("パンくず")}>
+      <a href={page()}>{t("HOME")}</a>
       <span aria-hidden="true">/</span>
       <span>{title}</span>
     </nav>

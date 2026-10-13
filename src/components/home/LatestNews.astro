@@ -1,12 +1,16 @@
 ---
+import { forLocale, localeFromUrl, localizedPage } from "../../lib/i18n";
+// 화면 언어는 URL에서 결정합니다. 일본어 원문과 저장 데이터는 유지합니다.
+const locale = localeFromUrl(Astro.url);
+const t = forLocale(locale);
+const page = (path = "") => localizedPage(path, locale);
 import Icon from "../Icon.astro";
 import NewsCard from "../NewsCard.astro";
 import NewsFilters from "../NewsFilters.astro";
 import { loadPublicContent } from "../../data/cms";
-import { page } from "../../lib/urls";
 
 // 홈 뉴스와 목록 페이지가 같은 카드·필터를 사용합니다. 홈 전용 사진은 데이터에서 지정합니다.
-const { stories: allStories } = await loadPublicContent();
+const { stories: allStories } = await loadPublicContent(locale);
 const stories = allStories.slice(0, 6);
 ---
 
@@ -18,13 +22,14 @@ const stories = allStories.slice(0, 6);
 >
   <div class="section-heading">
     <div>
-      <p class="eyebrow">ニュース & ストーリー</p>
+      <p class="eyebrow">{t("ニュース & ストーリー")}</p>
       <h2 id="news-title" class="display">
         LATEST NEWS<span class="text-blue">.</span>
       </h2>
     </div>
     <a class="text-link" href={page("news/")}>
-      すべてのニュース <Icon name="arrow" />
+      {t("すべてのニュース")}
+      <Icon name="arrow" />
     </a>
   </div>
   <NewsFilters total={stories.length} />
@@ -34,6 +39,6 @@ const stories = allStories.slice(0, 6);
     ))}
   </div>
   {stories.length === 0 && (
-    <p class="content-empty">ニュースは、公開をお待ちください。</p>
+    <p class="content-empty">{t("ニュースは、公開をお待ちください。")}</p>
   )}
 </section>

@@ -1,19 +1,23 @@
 ---
+import { forLocale, localeFromUrl } from "../../lib/i18n";
+// 화면 언어는 URL에서 결정합니다. 일본어 원문과 저장 데이터는 유지합니다.
+const locale = localeFromUrl(Astro.url);
+const t = forLocale(locale);
 import { loadPublicContent } from "../../data/cms";
 import { dateLabel } from "../../lib/admin-ui";
 // 공개 전용 읽기 모델에는 내부 운영 메모가 포함되지 않습니다.
 const enabled = import.meta.env.PUBLIC_SCHEDULE_ENABLED === "true";
-const { schedules } = await loadPublicContent();
+const { schedules } = await loadPublicContent(locale);
 const labels = {
-  fixtures: "試合",
-  training_sessions: "練習",
-  club_events: "クラブ行事",
+  fixtures: t("試合"),
+  training_sessions: t("練習"),
+  club_events: t("クラブ行事"),
 };
 const states: Record<string, string> = {
-  scheduled: "開催予定",
-  completed: "終了",
-  cancelled: "中止",
-  postponed: "延期",
+  scheduled: t("開催予定"),
+  completed: t("終了"),
+  cancelled: t("中止"),
+  postponed: t("延期"),
 };
 const upcoming = schedules
   .filter((item) => item.starts_at && new Date(item.starts_at) >= new Date())
@@ -24,9 +28,9 @@ const upcoming = schedules
   <section class="shell club-schedule" aria-labelledby="club-schedule-title">
     <p class="eyebrow">CLUB SCHEDULE</p>
     <h2 id="club-schedule-title" class="display">
-      これからの予定
+      {t("これからの予定")}
     </h2>
-    <p>日時は日本時間（JST）です。</p>
+    <p>{t("日時は日本時間（JST）です。")}</p>
     {upcoming.length ? (
       <div class="schedule-cards">
         {upcoming.map((item) => (
@@ -36,14 +40,14 @@ const upcoming = schedules
               {states[item.schedule_status] ?? item.schedule_status}
             </p>
             <h3>{item.title}</h3>
-            <p>{dateLabel(item.starts_at, true)}</p>
-            <p>{item.venue || "場所未定"}</p>
+            <p>{dateLabel(item.starts_at, true, locale)}</p>
+            <p>{item.venue || t("場所未定")}</p>
             <p>{item.description}</p>
           </article>
         ))}
       </div>
     ) : (
-      <p>公開する予定は、決まり次第お知らせします。</p>
+      <p>{t("公開する予定は、決まり次第お知らせします。")}</p>
     )}
   </section>
 )}

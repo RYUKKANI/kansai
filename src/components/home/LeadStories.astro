@@ -1,12 +1,16 @@
 ---
+import { forLocale, localeFromUrl, localizedPage } from "../../lib/i18n";
+// 화면 언어는 URL에서 결정합니다. 일본어 원문과 저장 데이터는 유지합니다.
+const locale = localeFromUrl(Astro.url);
+const t = forLocale(locale);
+const page = (path = "") => localizedPage(path, locale);
 import Icon from "../Icon.astro";
 import Photo from "../Photo.astro";
 import { storyCategories } from "../../data/club";
 import { loadPublicContent } from "../../data/cms";
-import { page } from "../../lib/urls";
 
 // 관리자에서 추천한 기사를 우선하고, 없으면 최신 기사를 대표 기사로 사용합니다.
-const { stories } = await loadPublicContent();
+const { stories } = await loadPublicContent(locale);
 const feature = stories.find((story) => story.featured) ?? stories[0];
 const primary = feature
   ? { titleLines: [feature.title], summaryLines: [feature.summary] }
@@ -18,7 +22,7 @@ const secondary = stories
 ---
 
 {feature && primary ? (
-  <section class="shell lead-grid" aria-label="注目のニュース">
+  <section class="shell lead-grid" aria-label={t("注目のニュース")}>
     <a class="lead-story lead-primary" href={page(`news/${feature.id}/`)}>
       <Photo src={feature.image} alt={feature.alt} priority />
       <div class="story-shade"></div>
@@ -32,7 +36,7 @@ const secondary = stories
       </span>
       <div class="lead-content">
         <p class="story-meta">
-          <span>{storyCategories[feature.category].badge}</span>
+          <span>{t(storyCategories[feature.category].badge)}</span>
           <time datetime={feature.published.replaceAll(".", "-")}>
             {feature.published}
           </time>
@@ -54,7 +58,7 @@ const secondary = stories
           ))}
         </p>
         <span class="read-story">
-          READ THE STORY{" "}
+          {t("READ THE STORY")}{" "}
           <span class="round-arrow">
             <Icon name="arrow" size={23} />
           </span>
@@ -70,7 +74,7 @@ const secondary = stories
           <div class="story-shade"></div>
           <div class="lead-content">
             <p class="story-meta">
-              <span>{storyCategories[story.category].badge}</span>
+              <span>{t(storyCategories[story.category].badge)}</span>
               <time datetime={story.published.replaceAll(".", "-")}>
                 {story.published}
               </time>
@@ -94,6 +98,6 @@ const secondary = stories
 ) : (
   <section class="shell content-empty">
     <p class="eyebrow">UNITED TODAY</p>
-    <h2>ニュースは、公開をお待ちください。</h2>
+    <h2>{t("ニュースは、公開をお待ちください。")}</h2>
   </section>
 )}

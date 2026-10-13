@@ -1,4 +1,5 @@
 ---
+// data-i18n 문구는 로그인 세션을 읽기 전에 선택 언어로 표시합니다. 입력된 콘텐츠는 번역하지 않습니다.
 import AdminLayout from "../../layouts/AdminLayout.astro";
 // 양식·목록은 브라우저에서 확인한 세션과 DB 역할에 따라 구성합니다. 실제 접근 권한은 RLS가 결정합니다.
 ---
@@ -12,19 +13,27 @@ import AdminLayout from "../../layouts/AdminLayout.astro";
   ></div>
   <section class="admin-login" id="login-panel">
     <p class="eyebrow">CLUB OFFICE</p>
-    <h1>運営メンバーのログイン</h1>
-    <p>招待されたメールアドレスでログインしてください。</p>
+    <h1>
+      <span data-i18n="運営メンバーのログイン">運営メンバーのログイン</span>
+    </h1>
+    <p>
+      <span data-i18n="招待されたメールアドレスでログインしてください。">
+        招待されたメールアドレスでログインしてください。
+      </span>
+    </p>
     <!-- 초대만 받은 계정에는 아직 비밀번호가 없습니다. 첫 인증과 이후 로그인을 구분해 안내합니다. -->
     <p class="admin-help">
-      初回は招待メールの確認リンクを開いてください。メールが見つからない・期限切れの場合は、下のメールリンク送信をお試しください。
+      <span data-i18n="初回は招待メールの確認リンクを開いてください。メールが見つからない・期限切れの場合は、下のメールリンク送信をお試しください。">
+        初回は招待メールの確認リンクを開いてください。メールが見つからない・期限切れの場合は、下のメールリンク送信をお試しください。
+      </span>
     </p>
     <form id="login-form">
       <label>
-        メールアドレス
+        <span data-i18n="メールアドレス">メールアドレス</span>
         <input type="email" name="email" autocomplete="email" required />
       </label>
       <label>
-        パスワード
+        <span data-i18n="パスワード">パスワード</span>
         <input
           type="password"
           name="password"
@@ -32,17 +41,23 @@ import AdminLayout from "../../layouts/AdminLayout.astro";
         />
       </label>
       <button type="submit" class="admin-primary">
-        ログイン
+        <span data-i18n="ログイン">ログイン</span>
       </button>
       <button type="button" id="magic-link-button" class="admin-secondary">
-        メールのログインリンクを送信
+        <span data-i18n="メールのログインリンクを送信">
+          メールのログインリンクを送信
+        </span>
       </button>
       <p class="admin-help">
-        メールリンクではパスワードを入力する必要はありません。新規登録は受け付けていません。
+        <span data-i18n="メールリンクではパスワードを入力する必要はありません。新規登録は受け付けていません。">
+          メールリンクではパスワードを入力する必要はありません。新規登録は受け付けていません。
+        </span>
       </p>
     </form>
     <p id="config-warning" class="admin-help" hidden>
-      管理システムの接続は準備中です。
+      <span data-i18n="管理システムの接続は準備中です。">
+        管理システムの接続は準備中です。
+      </span>
     </p>
   </section>
   <div class="admin-workspace" id="workspace" hidden>
@@ -51,17 +66,21 @@ import AdminLayout from "../../layouts/AdminLayout.astro";
       class="admin-sidebar"
       id="admin-sidebar"
       aria-label="クラブ運営メニュー"
+      data-i18n-aria-label="クラブ運営メニュー"
     >
       <div class="office-sidebar-heading">
         <div>
           <strong>CLUB OFFICE</strong>
-          <span>クラブ運営管理</span>
+          <span>
+            <span data-i18n="クラブ運営管理">クラブ運営管理</span>
+          </span>
         </div>
         <button
           type="button"
           id="sidebar-close"
           class="office-icon-button"
           aria-label="管理メニューを閉じる"
+          data-i18n-aria-label="管理メニューを閉じる"
         >
           ✕
         </button>
@@ -71,13 +90,18 @@ import AdminLayout from "../../layouts/AdminLayout.astro";
         id="sidebar-collapse"
         class="office-collapse"
         aria-label="サイドバーを折りたたむ"
+        data-i18n-aria-label="サイドバーを折りたたむ"
         aria-expanded="true"
       ></button>
-      <nav id="admin-navigation" aria-label="管理メニュー"></nav>
+      <nav
+        id="admin-navigation"
+        aria-label="管理メニュー"
+        data-i18n-aria-label="管理メニュー"
+      ></nav>
       <div class="office-sidebar-footer">
         <span class="office-sidebar-caption">KANSAI UNITED FC</span>
         <button type="button" id="logout-button" class="admin-secondary">
-          ログアウト
+          <span data-i18n="ログアウト">ログアウト</span>
         </button>
       </div>
     </aside>
@@ -88,12 +112,12 @@ import AdminLayout from "../../layouts/AdminLayout.astro";
             OVERVIEW / DASHBOARD
           </p>
           <h1 id="resource-title" tabindex="-1">
-            ダッシュボード
+            <span data-i18n="ダッシュボード">ダッシュボード</span>
           </h1>
           <p class="office-page-description" id="page-description"></p>
         </div>
         <button type="button" id="new-button" class="admin-primary" hidden>
-          新規登録
+          <span data-i18n="新規登録">新規登録</span>
         </button>
       </div>
       <div id="publication-status" class="publication-status"></div>
@@ -106,8 +130,15 @@ import AdminLayout from "../../layouts/AdminLayout.astro";
     aria-labelledby="editor-title"
   >
     <div class="admin-dialog-heading">
-      <h2 id="editor-title">編集</h2>
-      <button type="button" id="editor-close" aria-label="編集画面を閉じる">
+      <h2 id="editor-title">
+        <span data-i18n="編集">編集</span>
+      </h2>
+      <button
+        type="button"
+        id="editor-close"
+        aria-label="編集画面を閉じる"
+        data-i18n-aria-label="編集画面を閉じる"
+      >
         ✕
       </button>
     </div>
@@ -129,14 +160,22 @@ import AdminLayout from "../../layouts/AdminLayout.astro";
     class="admin-dialog admin-confirm"
     aria-labelledby="unsaved-title"
   >
-    <h2 id="unsaved-title">編集内容が保存されていません</h2>
-    <p>変更を破棄して編集画面を閉じますか？</p>
+    <h2 id="unsaved-title">
+      <span data-i18n="編集内容が保存されていません">
+        編集内容が保存されていません
+      </span>
+    </h2>
+    <p>
+      <span data-i18n="変更を破棄して編集画面を閉じますか？">
+        変更を破棄して編集画面を閉じますか？
+      </span>
+    </p>
     <div class="admin-editor-actions">
       <button type="button" id="unsaved-continue" class="admin-secondary">
-        編集を続ける
+        <span data-i18n="編集を続ける">編集を続ける</span>
       </button>
       <button type="button" id="unsaved-discard" class="admin-danger">
-        変更を破棄する
+        <span data-i18n="変更を破棄する">変更を破棄する</span>
       </button>
     </div>
   </dialog>
@@ -148,14 +187,23 @@ import AdminLayout from "../../layouts/AdminLayout.astro";
     <div class="admin-dialog-heading">
       <div>
         <p class="office-kicker">NEWS PREVIEW</p>
-        <h2 id="preview-title">公開前プレビュー</h2>
+        <h2 id="preview-title">
+          <span data-i18n="公開前プレビュー">公開前プレビュー</span>
+        </h2>
       </div>
-      <button type="button" id="preview-close" aria-label="プレビューを閉じる">
+      <button
+        type="button"
+        id="preview-close"
+        aria-label="プレビューを閉じる"
+        data-i18n-aria-label="プレビューを閉じる"
+      >
         ✕
       </button>
     </div>
     <p class="admin-help">
-      編集中の内容を確認する画面です。保存・発行はまだ行われていません。
+      <span data-i18n="編集中の内容を確認する画面です。保存・発行はまだ行われていません。">
+        編集中の内容を確認する画面です。保存・発行はまだ行われていません。
+      </span>
     </p>
     <div id="article-preview-content"></div>
   </dialog>
@@ -164,15 +212,21 @@ import AdminLayout from "../../layouts/AdminLayout.astro";
     class="admin-dialog admin-confirm"
     aria-labelledby="delete-title"
   >
-    <h2 id="delete-title">削除の確認</h2>
+    <h2 id="delete-title">
+      <span data-i18n="削除の確認">削除の確認</span>
+    </h2>
     <p id="delete-description"></p>
-    <p>この操作は取り消せません。必要な記事や写真を確認してください。</p>
+    <p>
+      <span data-i18n="この操作は取り消せません。必要な記事や写真を確認してください。">
+        この操作は取り消せません。必要な記事や写真を確認してください。
+      </span>
+    </p>
     <div class="admin-editor-actions">
       <button type="button" id="delete-cancel" class="admin-secondary">
-        キャンセル
+        <span data-i18n="キャンセル">キャンセル</span>
       </button>
       <button type="button" id="delete-confirm" class="admin-danger">
-        削除する
+        <span data-i18n="削除する">削除する</span>
       </button>
     </div>
   </dialog>
@@ -181,14 +235,16 @@ import AdminLayout from "../../layouts/AdminLayout.astro";
     class="admin-dialog admin-confirm"
     aria-labelledby="invite-title"
   >
-    <h2 id="invite-title">運営メンバーを招待</h2>
+    <h2 id="invite-title">
+      <span data-i18n="運営メンバーを招待">運営メンバーを招待</span>
+    </h2>
     <form id="invite-form">
       <label>
-        メールアドレス
+        <span data-i18n="メールアドレス">メールアドレス</span>
         <input type="email" name="email" required />
       </label>
       <label>
-        権限
+        <span data-i18n="権限">権限</span>
         <select name="role">
           <option value="administrator">Administrator</option>
           <option value="editor">Editor</option>
@@ -198,17 +254,19 @@ import AdminLayout from "../../layouts/AdminLayout.astro";
       </label>
       <div class="admin-editor-actions">
         <button type="button" id="invite-cancel" class="admin-secondary">
-          キャンセル
+          <span data-i18n="キャンセル">キャンセル</span>
         </button>
         <button type="submit" class="admin-primary">
-          招待メールを送信
+          <span data-i18n="招待メールを送信">招待メールを送信</span>
         </button>
       </div>
     </form>
   </dialog>
   <noscript>
     <p class="content-empty">
-      管理画面を利用するにはJavaScriptを有効にしてください。
+      <span data-i18n="管理画面を利用するにはJavaScriptを有効にしてください。">
+        管理画面を利用するにはJavaScriptを有効にしてください。
+      </span>
     </p>
   </noscript>
 </AdminLayout>

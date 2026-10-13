@@ -1,3 +1,4 @@
+import { text as t, format, currentLocale, intlLocales } from "../lib/i18n";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { resources, type Resource } from "../lib/admin-config";
 import {
@@ -43,23 +44,23 @@ export function createSchedule(options: {
   const date = node("input");
   date.type = "date";
   date.value = day;
-  date.setAttribute("aria-label", "表示する日付");
+  date.setAttribute("aria-label", t("表示する日付"));
   const type = node("select");
-  type.setAttribute("aria-label", "予定の種類");
+  type.setAttribute("aria-label", t("予定の種類"));
   for (const kind of ["", ...kinds]) {
     const option = node(
       "option",
-      kind ? resources[kind as ScheduleResource].label : "すべての予定",
+      kind ? resources[kind as ScheduleResource].label : t("すべての予定"),
     );
     option.value = kind;
     type.append(option);
   }
   const visibility = node("select");
-  visibility.setAttribute("aria-label", "公開状態");
+  visibility.setAttribute("aria-label", t("公開状態"));
   for (const [value, label] of [
-    ["", "公開・非公開すべて"],
-    ["public", "公開"],
-    ["private", "非公開"],
+    ["", t("公開・非公開すべて")],
+    ["public", t("公開")],
+    ["private", t("非公開")],
   ] as const) {
     const option = node("option", label);
     option.value = value;
@@ -68,9 +69,9 @@ export function createSchedule(options: {
   const controls = node("div", "", "office-view-switch");
   const views = new Map<ScheduleView, HTMLButtonElement>();
   for (const [key, label] of [
-    ["month", "月"],
-    ["week", "週"],
-    ["list", "一覧"],
+    ["month", t("月")],
+    ["week", t("週")],
+    ["list", t("一覧")],
   ] as const) {
     const button = action(label, "admin-secondary", () => {
       view = key;
@@ -83,15 +84,15 @@ export function createSchedule(options: {
   const period = node("h3");
   period.setAttribute("aria-live", "polite");
   toolbar.append(
-    action("前へ", "admin-secondary", () => {
+    action(t("前へ"), "admin-secondary", () => {
       day = shiftPeriod(day, view, -1);
       void refresh();
     }),
-    action("今日", "admin-secondary", () => {
+    action(t("今日"), "admin-secondary", () => {
       day = jstDay(new Date());
       void refresh();
     }),
-    action("次へ", "admin-secondary", () => {
+    action(t("次へ"), "admin-secondary", () => {
       day = shiftPeriod(day, view, 1);
       void refresh();
     }),
@@ -104,7 +105,7 @@ export function createSchedule(options: {
   for (const kind of kinds)
     actions.append(
       action(
-        resources[kind].singular + "を追加",
+        format("{0}を追加", resources[kind].singular),
         "admin-secondary",
         () => options.create(kind),
         "plus",
@@ -119,7 +120,7 @@ export function createSchedule(options: {
     body,
     node(
       "p",
-      "時刻はすべて日本時間（JST）です。中止の予定も履歴として表示します。",
+      t("時刻はすべて日本時間（JST）です。中止の予定も履歴として表示します。"),
       "admin-help",
     ),
   );
@@ -139,7 +140,7 @@ export function createSchedule(options: {
       button.setAttribute("aria-pressed", String(key === view)),
     );
     period.textContent = range.start + " — " + addDays(range.end, -1);
-    body.replaceChildren(node("p", "予定を読み込み中…", "office-loading"));
+    body.replaceChildren(node("p", t("予定を読み込み中…"), "office-loading"));
     body.setAttribute("aria-busy", "true");
     try {
       const groups = await Promise.all(
@@ -165,14 +166,16 @@ export function createSchedule(options: {
             if (response.error) throw response.error;
             if ((response.count ?? 0) > 500)
               throw new Error(
-                "予定が多いため表示できません。週表示または種類を絞ってください。",
+                t(
+                  "予定が多いため表示できません。週表示または種類を絞ってください。",
+                ),
               );
             const rows: unknown = response.data;
             if (
               !Array.isArray(rows) ||
               rows.some((row) => !row || typeof row !== "object")
             )
-              throw new Error("予定の形式を確認できません。");
+              throw new Error(t("予定の形式を確認できません。"));
             return (rows as Row[]).map((row) => ({ resource, row }));
           }),
       );
@@ -193,8 +196,8 @@ export function createSchedule(options: {
       if (!items.length)
         body.append(
           emptyState(
-            "この期間の予定はありません。",
-            "上の追加ボタンから日程を登録できます。",
+            t("この期間の予定はありません。"),
+            t("上の追加ボタンから日程を登録できます。"),
           ),
         );
       if (view === "list") {
@@ -222,7 +225,7 @@ export function createSchedule(options: {
           );
           const heading = node(
             "h4",
-            new Intl.DateTimeFormat("ja-JP", {
+            new Intl.DateTimeFormat(intlLocales[currentLocale()], {
               month: "numeric",
               day: "numeric",
               weekday: "short",
@@ -245,9 +248,10 @@ export function createSchedule(options: {
         body.append(
           node(
             "p",
-            "日時未定の試合が" +
-              undated.count +
-              "件あります。試合メニューで確認できます。",
+            format(
+              "日時未定の試合が{0}件あります。試合メニューで確認できます。",
+              undated.count,
+            ),
             "admin-help",
           ),
         );
@@ -258,10 +262,10 @@ export function createSchedule(options: {
             "p",
             error instanceof Error
               ? error.message
-              : "予定を取得できませんでした。",
+              : t("予定を取得できませんでした。"),
             "admin-help",
           ),
-          action("再試行", "admin-secondary", () => void refresh()),
+          action(t("再試行"), "admin-secondary", () => void refresh()),
         );
       }
     } finally {
@@ -290,13 +294,13 @@ export function createSchedule(options: {
       ),
     );
     button.append(
-      node("small", String(row.venue || "場所未定")),
+      node("small", String(row.venue || t("場所未定"))),
       badge(row[stateField(resource)]),
       node(
         "small",
         (resource === "fixtures" ? row.status === "published" : row.is_public)
-          ? "公開"
-          : "非公開",
+          ? t("公開")
+          : t("非公開"),
       ),
     );
     return button;
@@ -314,11 +318,11 @@ export function createSchedule(options: {
 // 반복 정보는 저장할 DB 열과 구분해 양식에 붙입니다. 취소는 상태를 '中止'로 저장합니다.
 export function recurrenceControls(row: Row | null): HTMLElement {
   const group = node("fieldset", "", "office-field-group");
-  group.append(node("legend", "繰り返し・変更範囲"));
+  group.append(node("legend", t("繰り返し・変更範囲")));
   if (!row) {
     for (const [name, label, min, max, value] of [
-      ["_repeat_count", "回数（1＝単発）", 1, 52, 1],
-      ["_repeat_weeks", "間隔（週）", 1, 12, 1],
+      ["_repeat_count", t("回数（1＝単発）"), 1, 52, 1],
+      ["_repeat_weeks", t("間隔（週）"), 1, 12, 1],
     ] as const) {
       const wrap = node("label", label);
       const input = node("input");
@@ -333,17 +337,19 @@ export function recurrenceControls(row: Row | null): HTMLElement {
     group.append(
       node(
         "p",
-        "初回と同じ曜日・時刻で繰り返します。最大52回・1年以内。曜日が複数の場合は曜日ごとに登録してください。",
+        t(
+          "初回と同じ曜日・時刻で繰り返します。最大52回・1年以内。曜日が複数の場合は曜日ごとに登録してください。",
+        ),
         "admin-help",
       ),
     );
   } else if (row.series_id) {
-    const label = node("label", "変更する範囲");
+    const label = node("label", t("変更する範囲"));
     const select = node("select");
     select.name = "_repeat_scope";
     for (const [value, text] of [
-      ["single", "この回だけ"],
-      ["series", "このシリーズの未実施回すべて"],
+      ["single", t("この回だけ")],
+      ["series", t("このシリーズの未実施回すべて")],
     ] as const) {
       const option = node("option", text);
       option.value = value;
@@ -354,10 +360,12 @@ export function recurrenceControls(row: Row | null): HTMLElement {
       label,
       node(
         "p",
-        "全体変更は過去・実施済みを除き、個別変更した回も含めて内容を置き換えます。日時は今回からの差分で移動します。中止も選択した範囲に適用されます。",
+        t(
+          "全体変更は過去・実施済みを除き、個別変更した回も含めて内容を置き換えます。日時は今回からの差分で移動します。中止も選択した範囲に適用されます。",
+        ),
         "admin-help",
       ),
     );
-  } else group.append(node("p", "単発の予定です。", "admin-help"));
+  } else group.append(node("p", t("単発の予定です。"), "admin-help"));
   return group;
 }

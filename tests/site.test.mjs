@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { JSDOM } from "jsdom";
+import { browserScript } from "./helpers/browser-script.mjs";
 // 빌드된 실제 HTML·스크립트를 검사합니다. 화면 배치는 별도의 브라우저 검증 대상입니다.
 const root = process.cwd();
 const file = async (name) => readFile(path.join(root, "dist", name), "utf8");
@@ -25,13 +26,12 @@ async function interactive(name, url = "https://ryukkani.github.io/kansai/") {
   dialogSupport(dom.window);
   for (const script of dom.window.document.querySelectorAll("script")) {
     const code = script.src
-      ? await readFile(
+      ? await browserScript(
           path.join(
             root,
             "dist",
             new URL(script.src).pathname.replace("/kansai/", ""),
           ),
-          "utf8",
         )
       : script.textContent;
     if (code) dom.window.eval(code);

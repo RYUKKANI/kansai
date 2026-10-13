@@ -1,8 +1,16 @@
 ---
-import { club } from "../data/club";
-import { asset, page } from "../lib/urls";
+import { localeFromUrl, localizedPage } from "../lib/i18n";
+// 화면 언어는 URL에서 결정합니다. 일본어 원문과 저장 데이터는 유지합니다.
+const locale = localeFromUrl(Astro.url);
+import { clubForLocale } from "../data/locales/content";
+const club = clubForLocale(locale);
+const page = (path = "") => localizedPage(path, locale);
+
+import { asset } from "../lib/urls";
 import "../styles/global.css";
 import "../styles/admin.css";
+import "../styles/languages.css";
+import LanguageSwitcher from "../components/LanguageSwitcher.astro";
 // [편집 안내] 공개 메뉴와 분리한 관리자 전용 화면입니다. 로그인과 권한 검사 전에는 데이터를 표시하지 않습니다.
 ---
 
@@ -18,7 +26,7 @@ import "../styles/admin.css";
   </head>
   <body class="admin-body">
     <a class="skip-link" href="#admin-main">
-      管理画面へ移動
+      <span data-i18n="管理画面へ移動">管理画面へ移動</span>
     </a>
     <header class="admin-header">
       <button
@@ -26,6 +34,7 @@ import "../styles/admin.css";
         class="office-icon-button"
         type="button"
         aria-label="管理メニューを開く"
+        data-i18n-aria-label="管理メニューを開く"
         aria-controls="admin-sidebar"
         aria-expanded="false"
         hidden
@@ -52,7 +61,9 @@ import "../styles/admin.css";
       <div id="office-breadcrumb" class="office-breadcrumb" hidden>
         <span>CLUB OFFICE</span>
         <span aria-hidden="true">/</span>
-        <strong id="header-page-title">ダッシュボード</strong>
+        <strong id="header-page-title">
+          <span data-i18n="ダッシュボード">ダッシュボード</span>
+        </strong>
       </div>
       <div id="header-account" class="office-header-account" hidden>
         <span id="account-avatar" class="office-avatar"></span>
@@ -61,13 +72,14 @@ import "../styles/admin.css";
           <span id="account-role"></span>
         </div>
       </div>
+      <LanguageSwitcher />
       <a
         class="office-public-link"
         href={page()}
         target="_blank"
         rel="noopener"
       >
-        公開サイトを見る ↗
+        <span data-i18n="公開サイトを見る ↗">公開サイトを見る ↗</span>
       </a>
     </header>
     <main id="admin-main">
