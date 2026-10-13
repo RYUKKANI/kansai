@@ -1,13 +1,24 @@
 ---
 import Icon from './Icon.astro';
 import { club } from '../data/club';
+import { navigation } from '../data/navigation';
 import { asset, page } from '../lib/urls';
+// 푸터 메뉴는 헤더와 같은 데이터를 사용하고, footerLabel로 푸터 문구만 지정합니다.
 ---
 <footer class="site-footer">
   <div class="shell footer-top">
-    <a href={page()} class="footer-brand"><img src={asset(club.logo)} width="76" height="76" alt="関西ユナイテッドFC ロゴ" /><span>KANSAI<br />UNITED FC.</span></a>
-    <div class="footer-links"><a href={page('news/')}>ニュース</a><a href={page('#matches')}>試合情報</a><a href={page('#team')}>選手・スタッフ</a><a href={page('#media')}>メディア</a><a href={page('#club')}>クラブについて</a><a href={page('#join')}>参加・お問い合わせ</a></div>
+    <a href={page()} class="footer-brand">
+      <img src={asset(club.logo)} width="76" height="76" alt={`${club.name} ロゴ`} />
+      <span>KANSAI<br />UNITED FC.</span>
+    </a>
+    <div class="footer-links">
+      {navigation.map(item => <a href={page(item.path)}>{item.footerLabel}</a>)}
+    </div>
     <a href={club.instagram} class="social-button" target="_blank" rel="noopener noreferrer" aria-label="公式Instagramを開く"><Icon name="instagram" size={24} /></a>
   </div>
-  <div class="shell footer-bottom"><span>© {new Date().getFullYear()} KANSAI UNITED FC. <span class="footer-preview">Design preview.</span></span><span>写真：公式Instagram @kansai_united_fc</span><a href="#top">PAGE TOP ↑</a></div>
+  <div class="shell footer-bottom">
+    <span>© {new Date().getFullYear()} {club.englishName}. <span class="footer-preview">Design preview.</span></span>
+    <span>写真：公式Instagram {club.instagramHandle}</span>
+    <a href="#top">PAGE TOP ↑</a>
+  </div>
 </footer>

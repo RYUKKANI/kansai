@@ -1,0 +1,38 @@
+---
+// [편집 안내] 실제 선수 프로필이 준비되기 전의 안내 화면입니다.
+// 포지션의 이름과 약어를 같은 항목에 묶어, 별도 배열의 순서가 어긋나지 않게 합니다.
+const positions = [
+  { name: 'GOALKEEPER', abbreviation: 'GK' },
+  { name: 'DEFENDER', abbreviation: 'DF' },
+  { name: 'MIDFIELDER', abbreviation: 'MF' },
+  { name: 'FORWARD', abbreviation: 'FW' },
+];
+---
+
+<section class="team-section section-anchor" id="team" aria-labelledby="team-title">
+  <div class="shell team-inner">
+    <div class="team-copy">
+      <p class="eyebrow">選手・スタッフ</p>
+      <h2 id="team-title" class="display">OUR<br />UNITED<span>.</span></h2>
+      <p>ピッチでプレーする人。<br />チームを支える人。</p>
+      <p class="team-note">選手・スタッフのプロフィールは、<br />公式情報を確認してからご紹介します。</p>
+      <span class="team-status"><span class="status-dot"></span> プロフィール掲載準備中</span>
+    </div>
+    <div class="player-previews" aria-label="選手プロフィールの掲載予定エリア">
+      {positions.map(position => (
+        <div class="player-placeholder">
+          <span class="player-position">{position.name}</span>
+          <span class="player-line"></span>
+          <svg viewBox="0 0 200 230" fill="none" aria-hidden="true">
+            <circle cx="100" cy="75" r="34" />
+            <path d="M22 230v-26c0-44 35-70 78-70s78 26 78 70v26Z" />
+          </svg>
+          <div class="player-caption">
+            <span class="display">COMING<br />SOON<span class="text-blue">.</span></span>
+            <small>{position.abbreviation} / 選手情報は準備中</small>
+          </div>
+        </div>
+      ))}
+    </div>
+  </div>
+</section>

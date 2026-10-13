@@ -1,0 +1,132 @@
+/* 뉴스 목록·기사 상세 페이지
+ * 기사 원고는 src/data/club.ts에서 편집합니다. 공통 카드는 home.css의 뉴스 구간을 사용합니다.
+ */
+
+.news-archive {
+  padding-top: 34px;
+  padding-bottom: 90px;
+  min-height: 75vh;
+}
+.breadcrumbs {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  color: #73869c;
+  font-size: 9px;
+  letter-spacing: 0.07em;
+  margin-bottom: 46px;
+}
+.breadcrumbs a:hover {
+  color: var(--color-blue);
+}
+.archive-title {
+  font-size: clamp(42px, 6vw, 76px);
+  margin: 0 0 20px;
+}
+.archive-intro {
+  font-size: 13px;
+  color: #6e8094;
+  margin-bottom: 38px;
+}
+.news-archive .news-card h2 {
+  font-size: 18px;
+}
+.story-page {
+  padding-top: 34px;
+  padding-bottom: 65px;
+}
+.story-page-heading {
+  max-width: 860px;
+  margin: 0 auto 36px;
+}
+.story-page-heading .eyebrow {
+  color: var(--color-blue);
+  font-size: 10px;
+}
+.story-page-heading .eyebrow span {
+  color: #b5c5d6;
+  margin-inline: 5px;
+}
+.story-page-heading h1 {
+  font-size: clamp(25px, 3vw, 42px);
+  font-weight: 700;
+  line-height: 1.65;
+  margin: 20px 0 17px;
+}
+.story-page-heading > p:last-child {
+  color: #6e8094;
+  font-size: 14px;
+  line-height: 1.95;
+}
+.article-hero {
+  aspect-ratio: 2.05;
+}
+.article-body {
+  max-width: 740px;
+  margin: 0 auto;
+}
+.article-credit {
+  font-size: 9px !important;
+  color: #718198;
+  text-align: right;
+  margin: 13px 0 34px !important;
+}
+.article-body > p {
+  font-size: 15px;
+  line-height: 2.25;
+  margin-bottom: 23px;
+}
+.activity-date {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 11px !important;
+  font-weight: 700;
+  color: var(--color-blue);
+}
+.source-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 14px;
+  border: 1px solid #bcd1e6;
+  padding: 16px 23px;
+  font-size: 12px;
+  font-weight: 700;
+  margin-top: 12px;
+}
+.source-button:hover {
+  background: var(--color-ice);
+}
+.article-source-note {
+  font-size: 10px !important;
+  color: #718198;
+  margin-top: 16px;
+}
+.article-gallery {
+  margin-top: 55px;
+}
+.article-gallery-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+.gallery-button {
+  position: relative;
+  padding: 0;
+  border: 0;
+}
+.gallery-button .photo {
+  aspect-ratio: 1.5;
+}
+.back-link {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  font-size: 12px;
+  font-weight: 700;
+  margin-top: 44px;
+  color: var(--color-blue);
+}
+.back-link span {
+  font-size: 20px;
+}

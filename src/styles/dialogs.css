@@ -1,0 +1,111 @@
+/* 검색·사진 확대 대화상자
+ * 열고 닫는 동작은 src/scripts/site.ts에서 편집합니다.
+ */
+
+dialog {
+  color: var(--color-navy);
+  border: 0;
+  margin: auto;
+  padding: 28px;
+  width: min(680px, calc(100vw - 32px));
+  max-height: calc(100dvh - 48px);
+  box-shadow: 0 10px 90px #0004;
+}
+dialog::backdrop {
+  background: #071a33c9;
+  backdrop-filter: blur(5px);
+}
+body:has(dialog[open]) {
+  overflow: hidden;
+}
+.dialog-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+.dialog-top .eyebrow {
+  margin: 0;
+  color: var(--color-blue);
+}
+.dialog-top .icon-button {
+  margin: -10px -10px -10px 0;
+}
+.search-dialog h2 {
+  font-size: 25px;
+  font-weight: 700;
+  margin: 15px 0 24px;
+}
+.search-field {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  padding: 14px 16px;
+  background: var(--color-ice);
+  border: 1px solid #c4d9ed;
+}
+.search-field input {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  outline: 0;
+  font-size: 14px;
+}
+.search-field:focus-within {
+  outline: 2px solid var(--color-blue);
+}
+.search-results {
+  margin-top: 19px;
+}
+.search-results a {
+  display: block;
+  padding: 19px 0;
+  border-bottom: 1px solid #e2eaf3;
+}
+.search-results small {
+  display: block;
+  font-size: 9px;
+  color: #6e8094;
+  margin-bottom: 10px;
+}
+.search-results a span {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  font-size: 15px;
+  line-height: 1.7;
+  font-weight: 700;
+}
+.search-results a:hover {
+  color: var(--color-blue);
+}
+.search-empty {
+  font-size: 13px;
+  padding: 22px 0;
+  color: #6e8094;
+}
+.photo-dialog {
+  width: min(1040px, calc(100vw - 32px), calc(90.6667dvh + 56px));
+}
+.dialog-photo {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  max-height: 68dvh;
+}
+.lightbox-bottom {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 20px;
+  margin-top: 20px;
+  font-size: 11px;
+}
+.lightbox-bottom p {
+  font-weight: 700;
+}
+.lightbox-bottom a {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--color-blue);
+}

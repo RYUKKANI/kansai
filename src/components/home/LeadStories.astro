@@ -1,0 +1,53 @@
+---
+import Icon from '../Icon.astro';
+import Photo from '../Photo.astro';
+import { homeHighlights, storyCategories } from '../../data/club';
+import { page } from '../../lib/urls';
+
+// 추천 기사와 줄바꿈 문구는 data/club.ts의 homeHighlights에서 지정합니다.
+const { primary, secondary } = homeHighlights;
+const feature = primary.story;
+---
+
+<section class="shell lead-grid" aria-label="注目のニュース">
+  <a class="lead-story lead-primary" href={page(`news/${feature.id}/`)}>
+    <Photo src={feature.image} alt={feature.alt} priority />
+    <div class="story-shade"></div>
+    <span class="pick-up"><span class="status-dot"></span> PICK UP</span>
+    <span class="photo-count">
+      <Icon name="photo" size={15} />
+      {String(feature.gallery.length).padStart(2, '0')} {feature.gallery.length === 1 ? 'PHOTO' : 'PHOTOS'}
+    </span>
+    <div class="lead-content">
+      <p class="story-meta">
+        <span>{storyCategories[feature.category].badge}</span>
+        <time datetime={feature.published.replaceAll('.', '-')}>{feature.published}</time>
+      </p>
+      <h2>{primary.titleLines.map((line, index) => <>{index > 0 && <br />}{line}</>)}</h2>
+      <p class="lead-summary">
+        {primary.summaryLines.map((line, index) => <>{index > 0 && <br />}{line}</>)}
+      </p>
+      <span class="read-story">
+        READ THE STORY <span class="round-arrow"><Icon name="arrow" size={23} /></span>
+      </span>
+    </div>
+  </a>
+
+  <div class="secondary-stories">
+    {secondary.map(({ story, titleLines }) => (
+      <a class="lead-story lead-secondary" href={page(`news/${story.id}/`)}>
+        <!-- 보조 사진은 즉시 읽되 대표 사진과 높은 로딩 우선순위를 경쟁하지 않습니다. -->
+        <Photo src={story.image} alt={story.alt} eager />
+        <div class="story-shade"></div>
+        <div class="lead-content">
+          <p class="story-meta">
+            <span>{storyCategories[story.category].badge}</span>
+            <time datetime={story.published.replaceAll('.', '-')}>{story.published}</time>
+          </p>
+          <h2>{titleLines.map((line, index) => <>{index > 0 && <br />}{line}</>)}</h2>
+          <span class="secondary-arrow"><Icon name="arrow" /></span>
+        </div>
+      </a>
+    ))}
+  </div>
+</section>
