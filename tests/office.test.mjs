@@ -332,7 +332,8 @@ test("news preview is safe and unsaved changes can be continued or discarded", a
       requests.some(
         (request) =>
           ["POST", "PATCH"].includes(request.method) &&
-          request.url.includes("/rest/v1/"),
+          request.url.includes("/rest/v1/") &&
+          !request.url.includes("/rpc/office_capabilities"),
       ),
       false,
     );

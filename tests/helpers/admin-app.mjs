@@ -143,6 +143,7 @@ export async function app(
         : Response.json({});
     }
     const name = url.pathname.split("/").pop();
+    if (name === "office_capabilities") return Response.json({ schedule: Boolean(authResponses.schedule), content: Boolean(authResponses.content) });
     if (authResponses.beforeRead) await authResponses.beforeRead(name, url);
     const matches = (row, field, expression) => {
       const [operator, ...pieces] = expression.split(".");

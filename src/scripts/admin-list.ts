@@ -133,7 +133,7 @@ export function createList(options: Options): ListController {
       { value: "disabled", label: "無効" },
     ]);
   const scheduleResource =
-    resource === "fixtures" || resource === "training_sessions";
+    resource === "fixtures" || resource === "training_sessions" || resource === "club_events";
   if (scheduleResource) {
     filterSelect("schedule", "開催状態", [
       { value: "scheduled", label: "開催予定" },

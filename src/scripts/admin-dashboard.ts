@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { resources, type Resource } from "../lib/admin-config";
 import type { StaffRole } from "../lib/content-types";
+import { resourceAvailable, scheduleEnabled } from "../lib/office-features";
 import {
   action,
   badge,
@@ -57,8 +58,9 @@ export async function buildDashboard({
   create,
   open,
 }: Options): Promise<HTMLElement> {
-  const visible = (Object.keys(resources) as Resource[]).filter((resource) =>
-    resources[resource].roles.includes(role),
+  const visible = (Object.keys(resources) as Resource[]).filter(
+    (resource) =>
+      resources[resource].roles.includes(role) && resourceAvailable(resource),
   );
   const allowed = (resource: Resource) => visible.includes(resource);
   const publishable = visible.filter(
@@ -66,7 +68,11 @@ export async function buildDashboard({
   );
   const now = new Date().toISOString();
   const blank: ReadResult = { data: [], error: null, count: 0 };
-  const schedules = ["fixtures", "training_sessions"] as const;
+  const schedules: ("fixtures" | "training_sessions" | "club_events")[] = [
+    "fixtures",
+    "training_sessions",
+    ...(scheduleEnabled ? ["club_events" as const] : []),
+  ];
   // 독립적인 조회는 동시에 실행합니다. 날짜가 지났거나 취소된 일정은 '향후 일정'에 포함하지 않습니다.
   const [
     news,

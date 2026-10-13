@@ -15,11 +15,12 @@ import type {
   PublicMedia,
   PublicPlayer,
 } from "../lib/content-types";
-import type { Database } from "../lib/database.types";
+import type { OfficeDatabase, PublicSchedule } from "../lib/office-database";
 
 // [편집 안내] Astro 빌드에서만 실행합니다. 공개 키 + 익명 RLS로 승인된 데이터만 읽습니다.
 // CMS 활성화 후에는 조회 실패를 숨기거나 이전 초안을 대신 발행하지 않고 빌드를 중단합니다.
 export interface PublicContent {
+  schedules: PublicSchedule[];
   stories: Story[];
   players: PublicPlayer[];
   fixtures: PublicFixture[];
@@ -51,6 +52,7 @@ const defaultPages: ClubPage[] = [
 ];
 function localContent(): PublicContent {
   return {
+    schedules: [],
     stories: [...originalStories],
     players: [],
     fixtures: [],
@@ -131,7 +133,7 @@ async function readPublishedContent(): Promise<PublicContent> {
   const key = import.meta.env.PUBLIC_SUPABASE_PUBLISHABLE_KEY;
   if (!url || !key || !key.startsWith("sb_publishable_"))
     throw new Error("CMS 공개 연결 설정을 확인하세요.");
-  const client = createClient<Database>(url, key, {
+  const client = createClient<OfficeDatabase>(url, key, {
     auth: { persistSession: false, autoRefreshToken: false },
   });
   // 읽는 동안 발행이 바뀌면 이전 내용에 새 버전 번호가 붙지 않도록 빌드를 중단합니다.
@@ -201,6 +203,13 @@ async function readPublishedContent(): Promise<PublicContent> {
   const mediaRows = results[3].data ?? [];
   const albumRows = results[4].data ?? [];
   const pageRows = results[5].data ?? [];
+  // 새 마이그레이션 승인 전에는 운영 DB의 없는 테이블을 읽지 않습니다.
+  let schedules: PublicSchedule[] = [];
+  if (import.meta.env.PUBLIC_SCHEDULE_ENABLED === "true") {
+    const response = await client.from("published_schedule").select("resource,id,title,starts_at,ends_at,venue,schedule_status,description").order("starts_at").limit(500);
+    if (response.error || response.data?.length === 500) throw new Error("공개 일정 조회 실패 또는 페이지 수 제한 도달");
+    schedules = response.data ?? [];
+  }
   const downloaded = new Map<string, Promise<string>>();
   function image(reference: string | null): Promise<string> {
     if (!reference) return Promise.resolve("");
@@ -259,6 +268,7 @@ async function readPublishedContent(): Promise<PublicContent> {
   );
   const content: PublicContent = {
     fromCms: true,
+    schedules,
     version: Number(before.data.version),
     stories,
     players: await Promise.all(

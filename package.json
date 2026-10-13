@@ -9,7 +9,7 @@
     "preview": "astro preview --host 127.0.0.1",
     "check": "astro check",
     "export:preview": "node scripts/export-preview.mjs",
-    "test": "node supabase/tests/rls.test.mjs && node --test tests/*.test.mjs"
+    "test": "node supabase/tests/rls.test.mjs && node supabase/tests/schedule.test.mjs && node --test tests/*.test.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "2.117.3",

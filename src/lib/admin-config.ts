@@ -6,6 +6,7 @@ export type Resource =
   | "public_player_profiles"
   | "fixtures"
   | "training_sessions"
+  | "club_events"
   | "media_albums"
   | "media_assets"
   | "site_pages"
@@ -266,6 +267,42 @@ export const resources: Record<Resource, ResourceConfig> = {
           { value: "cancelled", label: "中止" },
         ],
       },
+      { name: "notes", label: "運営メモ（内部専用）", type: "textarea" },
+    ],
+  },
+  club_events: {
+    label: "クラブ行事",
+    singular: "行事",
+    titleField: "title",
+    key: "id",
+    roles: footballRoles,
+    canPublish: [],
+    fields: [
+      title,
+      {
+        name: "starts_at",
+        label: "開始（日本時間）",
+        type: "datetime-local",
+        required: true,
+      },
+      { name: "ends_at", label: "終了（日本時間）", type: "datetime-local" },
+      { name: "venue", label: "場所" },
+      {
+        name: "session_status",
+        label: "状態",
+        type: "select",
+        options: [
+          { value: "scheduled", label: "開催予定" },
+          { value: "completed", label: "実施済み" },
+          { value: "cancelled", label: "中止" },
+        ],
+      },
+      {
+        name: "is_public",
+        label: "公式サイトに日程を公開する",
+        type: "checkbox",
+      },
+      { name: "public_description", label: "公開する案内", type: "textarea" },
       { name: "notes", label: "運営メモ（内部専用）", type: "textarea" },
     ],
   },
