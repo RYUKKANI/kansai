@@ -29,6 +29,7 @@ async function eventually(condition) {
 async function app(
   staffRole = "owner",
   appUrl = "https://ryukkani.github.io/kansai/admin/",
+  authResponses = {},
 ) {
   const dom = new JSDOM(html, {
     url: appUrl,
@@ -117,6 +118,24 @@ async function app(
     if (url.pathname.endsWith("/auth/v1/user")) return Response.json(user);
     if (url.pathname.endsWith("/auth/v1/logout"))
       return new Response(null, { status: 204 });
+    // 실제 SDK의 회원가입 차단, 확인 메일 재전송, 발송 제한 처리를 검사합니다.
+    if (
+      url.pathname.endsWith("/auth/v1/otp") ||
+      url.pathname.endsWith("/auth/v1/resend")
+    ) {
+      const code = url.pathname.endsWith("/otp")
+        ? authResponses.otpError
+        : authResponses.resendError;
+      return code
+        ? Response.json(
+            { code, msg: "Auth request rejected" },
+            {
+              status: code.includes("rate_limit") ? 429 : 422,
+              headers: { "x-supabase-api-version": "2024-01-01" },
+            },
+          )
+        : Response.json({});
+    }
     const name = url.pathname.split("/").pop();
     let data = tables[name] ?? [];
     if (method === "HEAD")
@@ -170,6 +189,137 @@ async function login(window) {
       document.querySelectorAll(".admin-stat").length > 0,
   );
 }
+test("confirmed member receives a login link without signup or confirmation resend", async () => {
+  const { dom, window, requests } = await app();
+  try {
+    const document = window.document;
+    document.querySelector('#login-form input[name="email"]').value =
+      "TEST@EXAMPLE.INVALID";
+    const button = document.querySelector("#magic-link-button");
+    button.click();
+    assert.equal(button.disabled, true);
+    assert.equal(
+      document.querySelector('#login-form button[type="submit"]').disabled,
+      true,
+    );
+    button.click();
+    await eventually(() =>
+      document
+        .querySelector("#admin-notice")
+        .textContent.includes("ログインリンクを送信しました"),
+    );
+    const otpRequests = requests.filter((r) =>
+      new URL(r.url).pathname.endsWith("/auth/v1/otp"),
+    );
+    assert.equal(otpRequests.length, 1);
+    assert.equal(JSON.parse(otpRequests[0].body).create_user, false);
+    assert.equal(JSON.parse(otpRequests[0].body).email, "test@example.invalid");
+    assert.equal(
+      new URL(otpRequests[0].url).searchParams.get("redirect_to"),
+      "https://ryukkani.github.io/kansai/admin/",
+    );
+    assert.equal(
+      requests.some((r) => new URL(r.url).pathname.endsWith("/auth/v1/resend")),
+      false,
+    );
+    assert.equal(document.querySelector("#workspace").hidden, true);
+    assert.equal(button.disabled, false);
+  } finally {
+    dom.window.close();
+  }
+});
+
+test("unconfirmed invitation resends confirmation and keeps signup disabled", async () => {
+  const { dom, window, requests } = await app("owner", undefined, {
+    otpError: "signup_disabled",
+  });
+  try {
+    const document = window.document;
+    document.querySelector('#login-form input[name="email"]').value =
+      "TEST@EXAMPLE.INVALID";
+    document.querySelector("#magic-link-button").click();
+    await eventually(() =>
+      document
+        .querySelector("#admin-notice")
+        .textContent.includes("確認メールの送信を受け付けました"),
+    );
+    const authRequests = requests.filter((r) =>
+      /\/auth\/v1\/(otp|resend)$/.test(new URL(r.url).pathname),
+    );
+    assert.equal(authRequests.length, 2);
+    assert.equal(JSON.parse(authRequests[0].body).create_user, false);
+    const confirmation = authRequests[1];
+    assert.equal(JSON.parse(confirmation.body).type, "signup");
+    assert.equal(JSON.parse(confirmation.body).email, "test@example.invalid");
+    assert.equal(
+      new URL(confirmation.url).searchParams.get("redirect_to"),
+      "https://ryukkani.github.io/kansai/admin/",
+    );
+    assert.equal(
+      requests.some((r) => new URL(r.url).pathname.endsWith("/auth/v1/signup")),
+      false,
+    );
+    assert.equal(
+      document.querySelector("#admin-notice").dataset.error,
+      "false",
+    );
+    assert.equal(document.querySelector("#workspace").hidden, true);
+  } finally {
+    dom.window.close();
+  }
+});
+
+for (const [name, authResponses] of [
+  ["login link", { otpError: "over_email_send_rate_limit" }],
+  [
+    "confirmation",
+    { otpError: "signup_disabled", resendError: "over_email_send_rate_limit" },
+  ],
+]) {
+  test(
+    name + " send failure shows Japanese guidance and unlocks retry",
+    async () => {
+      const { dom, window, requests } = await app(
+        "owner",
+        undefined,
+        authResponses,
+      );
+      try {
+        const document = window.document;
+        document.querySelector('#login-form input[name="email"]').value =
+          "test@example.invalid";
+        document.querySelector("#magic-link-button").click();
+        await eventually(
+          () =>
+            document.querySelector("#admin-notice").dataset.error === "true",
+        );
+        assert.ok(
+          document
+            .querySelector("#admin-notice")
+            .textContent.includes("少し時間をおいて"),
+        );
+        assert.equal(
+          document.querySelector("#magic-link-button").disabled,
+          false,
+        );
+        assert.equal(
+          document.querySelector("#login-form").hasAttribute("aria-busy"),
+          false,
+        );
+        assert.equal(document.querySelector("#workspace").hidden, true);
+        assert.equal(
+          requests.some((r) =>
+            new URL(r.url).pathname.endsWith("/auth/v1/signup"),
+          ),
+          false,
+        );
+      } finally {
+        dom.window.close();
+      }
+    },
+  );
+}
+
 test("owner can create drafts and published URL stays locked in editor", async () => {
   const { dom, window, tables, requests } = await app();
   try {
