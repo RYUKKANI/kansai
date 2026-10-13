@@ -195,7 +195,7 @@ test("dashboard counts real statuses, separates internal players and exposes per
     dom.window.close();
   }
 });
-test("all nine existing resource views retain edit and registration forms", async () => {
+test("existing resource forms remain available with profiles inside the player office", async () => {
   const { dom, window } = await app("owner", undefined, {}, data);
   try {
     await login(window);
@@ -203,7 +203,6 @@ test("all nine existing resource views retain edit and registration forms", asyn
     for (const resource of [
       "articles",
       "players",
-      "public_player_profiles",
       "fixtures",
       "training_sessions",
       "media_albums",
@@ -231,6 +230,11 @@ test("all nine existing resource views retain edit and registration forms", asyn
       doc.querySelector("#editor-close").click();
       assert.equal(doc.querySelector("#editor-dialog").open, false);
     }
+    navigate(window, "players");
+    await listReady(window, "players");
+    doc.querySelector('[data-player-action="profile"]').click();
+    await eventually(() => doc.querySelector("#editor-dialog").open);
+    assert.ok(doc.querySelector("#field-display_name"));
   } finally {
     dom.window.close();
   }
@@ -354,9 +358,7 @@ test("missing player consent blocks publish UI while internal and public registr
     assert.ok(
       doc.querySelector(".office-table").textContent.includes("MF / 8"),
     );
-    navigate(window, "public_player_profiles");
-    await listReady(window, "public_player_profiles");
-    doc.querySelector(".admin-list-row button").click();
+    doc.querySelector('[data-player-action="profile"]').click();
     await eventually(() => doc.querySelector("#editor-dialog").open);
     assert.equal(doc.querySelector("#field-player_id").disabled, true);
     assert.equal(

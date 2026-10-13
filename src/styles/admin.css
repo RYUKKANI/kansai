@@ -1699,3 +1699,47 @@
   width: auto;
   min-width: 130px;
 }
+.admin-body [hidden] {
+  display: none !important;
+}
+.office-player-guide {
+  padding: 20px;
+  background: #f3f6fa;
+  border-bottom: 1px solid #e1e8f0;
+}
+.office-player-guide strong {
+  color: #1168bc;
+  letter-spacing: 0.08em;
+}
+.office-player-guide p {
+  margin: 6px 0 0;
+  color: #607086;
+}
+.office-player-tabs {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 18px;
+  padding: 14px;
+  border: 1px solid #e1e8f0;
+  border-radius: 8px;
+  background: #f3f6fa;
+}
+.office-player-tabs strong {
+  flex: 1 1 100%;
+}
+.office-player-tabs [aria-current="page"] {
+  background: #1168bc;
+  color: white;
+  border-color: #1168bc;
+}
+.office-repository-link {
+  flex-basis: 100%;
+  font-size: 12px;
+  margin-left: auto;
+  color: #1168bc;
+  font-weight: 600;
+  text-decoration: underline;
+}
+#publication-status { flex-wrap: wrap; }
