@@ -3,7 +3,8 @@ on:
   push:
     branches: [main]
   pull_request:
-    branches: [main]
+    # 기능별 PR을 순서대로 검토하는 경우에도 검사하며, 배포는 아래 main 조건만 통과합니다.
+    branches: [main, 'feature/**']
   workflow_dispatch:
   # CMS 발행을 정적 기사 주소로 반영합니다. 변경이 없으면 빌드를 생략합니다.
   schedule:

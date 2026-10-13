@@ -11,7 +11,7 @@ import AdminLayout from "../../layouts/AdminLayout.astro";
     aria-live="polite"
   ></div>
   <section class="admin-login" id="login-panel">
-    <p class="eyebrow">UNITED OPERATIONS</p>
+    <p class="eyebrow">CLUB OFFICE</p>
     <h1>運営メンバーのログイン</h1>
     <p>招待されたメールアドレスでログインしてください。</p>
     <!-- 초대만 받은 계정에는 아직 비밀번호가 없습니다. 첫 인증과 이후 로그인을 구분해 안내합니다. -->
@@ -46,21 +46,51 @@ import AdminLayout from "../../layouts/AdminLayout.astro";
     </p>
   </section>
   <div class="admin-workspace" id="workspace" hidden>
-    <aside class="admin-sidebar">
-      <div class="admin-account">
-        <strong id="account-email"></strong>
-        <span id="account-role"></span>
+    <div id="sidebar-backdrop" class="office-sidebar-backdrop" hidden></div>
+    <aside
+      class="admin-sidebar"
+      id="admin-sidebar"
+      aria-label="クラブ運営メニュー"
+    >
+      <div class="office-sidebar-heading">
+        <div>
+          <strong>CLUB OFFICE</strong>
+          <span>クラブ運営管理</span>
+        </div>
+        <button
+          type="button"
+          id="sidebar-close"
+          class="office-icon-button"
+          aria-label="管理メニューを閉じる"
+        >
+          ✕
+        </button>
       </div>
+      <button
+        type="button"
+        id="sidebar-collapse"
+        class="office-collapse"
+        aria-label="サイドバーを折りたたむ"
+        aria-expanded="true"
+      ></button>
       <nav id="admin-navigation" aria-label="管理メニュー"></nav>
-      <button type="button" id="logout-button" class="admin-secondary">
-        ログアウト
-      </button>
+      <div class="office-sidebar-footer">
+        <span class="office-sidebar-caption">KANSAI UNITED FC</span>
+        <button type="button" id="logout-button" class="admin-secondary">
+          ログアウト
+        </button>
+      </div>
     </aside>
     <div class="admin-main-panel">
       <div class="admin-page-heading">
         <div>
-          <p class="eyebrow">CLUB MANAGEMENT</p>
-          <h1 id="resource-title">ダッシュボード</h1>
+          <p class="eyebrow" id="page-eyebrow">
+            OVERVIEW / DASHBOARD
+          </p>
+          <h1 id="resource-title" tabindex="-1">
+            ダッシュボード
+          </h1>
+          <p class="office-page-description" id="page-description"></p>
         </div>
         <button type="button" id="new-button" class="admin-primary" hidden>
           新規登録
@@ -82,9 +112,50 @@ import AdminLayout from "../../layouts/AdminLayout.astro";
       </button>
     </div>
     <form id="editor-form">
-      <div id="editor-fields" class="admin-form-grid"></div>
-      <div class="admin-editor-actions" id="editor-actions"></div>
+      <div class="office-editor-layout">
+        <div id="editor-fields" class="admin-form-grid"></div>
+        <aside class="office-editor-sidebar">
+          <div id="editor-meta"></div>
+          <div class="admin-editor-actions" id="editor-actions"></div>
+          <div id="editor-preview-actions"></div>
+        </aside>
+      </div>
     </form>
+  </dialog>
+  <dialog
+    id="unsaved-dialog"
+    class="admin-dialog admin-confirm"
+    aria-labelledby="unsaved-title"
+  >
+    <h2 id="unsaved-title">編集内容が保存されていません</h2>
+    <p>変更を破棄して編集画面を閉じますか？</p>
+    <div class="admin-editor-actions">
+      <button type="button" id="unsaved-continue" class="admin-secondary">
+        編集を続ける
+      </button>
+      <button type="button" id="unsaved-discard" class="admin-danger">
+        変更を破棄する
+      </button>
+    </div>
+  </dialog>
+  <dialog
+    id="article-preview-dialog"
+    class="admin-dialog office-preview-dialog"
+    aria-labelledby="preview-title"
+  >
+    <div class="admin-dialog-heading">
+      <div>
+        <p class="office-kicker">NEWS PREVIEW</p>
+        <h2 id="preview-title">公開前プレビュー</h2>
+      </div>
+      <button type="button" id="preview-close" aria-label="プレビューを閉じる">
+        ✕
+      </button>
+    </div>
+    <p class="admin-help">
+      編集中の内容を確認する画面です。保存・発行はまだ行われていません。
+    </p>
+    <div id="article-preview-content"></div>
   </dialog>
   <dialog
     id="delete-dialog"

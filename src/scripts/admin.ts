@@ -6,10 +6,27 @@ import {
   type ResourceConfig,
 } from "../lib/admin-config";
 import type { StaffRole } from "../lib/content-types";
+import {
+  action,
+  node,
+  icon,
+  badge,
+  dateLabel,
+  japanInput,
+  imageSources,
+  editorGroups,
+  officeGroups,
+  officePages,
+  roleLabels,
+  type Row,
+  type OfficePage,
+  type ListFilter,
+} from "../lib/admin-ui";
+import { buildDashboard } from "./admin-dashboard";
+import { createList, type ListController } from "./admin-list";
 
 // [편집 안내] 로그인 → 역할 확인 → 목록/대시보드 → 양식 저장 순서입니다.
 // 화면을 숨기는 것과 별개로 모든 데이터 작업은 Supabase RLS로 다시 제한됩니다.
-type Row = Record<string, unknown>;
 const base = import.meta.env.BASE_URL.replace(/\/?$/, "/");
 const url = import.meta.env.PUBLIC_SUPABASE_URL;
 const key = import.meta.env.PUBLIC_SUPABASE_PUBLISHABLE_KEY;
@@ -33,42 +50,29 @@ const client =
     : null;
 let role: StaffRole | null = null;
 let userId: string | null = null;
-let current: Resource | "dashboard" = "dashboard";
+let current: OfficePage = "dashboard";
+let currentList: ListController | null = null;
+let editorBaseline = "";
+let editorDirty = false;
+let drawerOpen = false;
+const playerConsents = new Map<string, Row>();
 let editing: Row | null = null;
 let editResource: Resource | null = null;
 let removing: Row | null = null;
 let removeResource: Resource | null = null;
-let rows: Row[] = [];
-let pageIndex = 0;
 let requestId = 0;
-const pageSize = 50;
 const editor = $<HTMLDialogElement>("#editor-dialog");
 const editorForm = $<HTMLFormElement>("#editor-form");
-const statuses: Record<string, string> = {
-  draft: "下書き",
-  pending: "承認待ち",
-  published: "発行済み",
-};
-
-function node<K extends keyof HTMLElementTagNameMap>(
-  tag: K,
-  text = "",
-  className = "",
-): HTMLElementTagNameMap[K] {
-  const element = document.createElement(tag);
-  element.textContent = text;
-  element.className = className;
-  return element;
-}
-function action(text: string, className: string, callback?: () => void) {
-  const button = node("button", text, className);
-  button.type = "button";
-  if (callback) button.addEventListener("click", callback);
-  return button;
-}
 function notice(text: string, error = false) {
   const element = $("#admin-notice");
-  element.textContent = text;
+  element.replaceChildren();
+  if (text) {
+    const close = action("閉じる", "office-notice-close", () =>
+      element.replaceChildren(),
+    );
+    close.setAttribute("aria-label", "通知を閉じる");
+    element.append(node("span", text), close);
+  }
   element.dataset.error = String(error);
 }
 // Auth 오류는 code로 구분합니다. DB 권한과 이메일 인증을 건너뛰지 않습니다.
@@ -157,26 +161,43 @@ async function result<T extends { error: unknown }>(
   if (response.error) throw response.error;
   return response;
 }
+// 로그아웃·권한 상실 시 비공개 DOM과 열린 편집 화면을 함께 정리합니다.
 function resetLogin() {
   role = null;
   userId = null;
-  rows = [];
   editing = null;
   removing = null;
   requestId++;
+  currentList?.dispose();
+  currentList = null;
   editResource = null;
   removeResource = null;
+  editorDirty = false;
+  editorBaseline = "";
+  playerConsents.clear();
   $("#workspace").hidden = true;
   $("#login-panel").hidden = false;
+  $("#header-account").hidden = true;
+  $("#office-breadcrumb").hidden = true;
+  document.body.dataset.authenticated = "false";
   $("#admin-content").replaceChildren();
+  $("#publication-status").replaceChildren();
+  $("#admin-navigation").replaceChildren();
   editor.close();
   editorForm.reset();
   $("#editor-fields").replaceChildren();
   $("#account-email").textContent = "";
   $("#account-role").textContent = "";
   $<HTMLFormElement>("#invite-form").reset();
-  $<HTMLDialogElement>("#invite-dialog").close();
-  $<HTMLDialogElement>("#delete-dialog").close();
+  for (const name of [
+    "invite-dialog",
+    "delete-dialog",
+    "unsaved-dialog",
+    "article-preview-dialog",
+  ])
+    $<HTMLDialogElement>("#" + name).close();
+  drawerOpen = false;
+  syncSidebar();
 }
 async function authenticate() {
   if (!client) return;
@@ -202,33 +223,66 @@ async function authenticate() {
     notice("このアカウントには運営メンバーのアクセス権がありません。", true);
     return;
   }
+  const unchanged =
+    role === membership.data.role &&
+    userId === data.user.id &&
+    !$("#workspace").hidden;
+  if (role && role !== membership.data.role) resetLogin();
   role = membership.data.role as StaffRole;
   userId = data.user.id;
   $("#account-email").textContent = data.user.email ?? membership.data.email;
-  $("#account-role").textContent = role;
+  $("#account-role").textContent = roleLabels[role] ?? role;
+  $("#account-avatar").textContent = (data.user.email ?? "KU")
+    .slice(0, 2)
+    .toUpperCase();
+  $("#header-account").hidden = false;
+  $("#office-breadcrumb").hidden = false;
+  document.body.dataset.authenticated = "true";
   $("#login-panel").hidden = true;
   $("#workspace").hidden = false;
+  syncSidebar();
+  // 토큰 갱신 때 진행 중인 검색·달력·편집 화면을 덮어쓰지 않습니다.
+  if (unchanged) return;
   navigation();
   await show("dashboard");
 }
 function navigation() {
   const navigation = $("#admin-navigation");
   navigation.replaceChildren();
-  const dashboard = action("ダッシュボード", "", () => {
-    void run(() => show("dashboard"));
-  });
-  dashboard.dataset.resource = "dashboard";
-  navigation.append(dashboard);
-  for (const [name, config] of Object.entries(resources)) {
-    if (!role || !config.roles.includes(role)) continue;
-    const button = action(config.label, "", () => {
-      void run(() => show(name as Resource));
-    });
-    button.dataset.resource = name;
-    navigation.append(button);
+  for (const group of officeGroups) {
+    const section = node("div", "", "office-nav-group");
+    section.append(node("p", group));
+    for (const name of [
+      "dashboard",
+      ...Object.keys(resources),
+    ] as OfficePage[]) {
+      const info = officePages[name];
+      if (
+        info.group !== group ||
+        (name !== "dashboard" &&
+          (!role || !resources[name].roles.includes(role)))
+      )
+        continue;
+      const label =
+        name === "dashboard" ? "ダッシュボード" : resources[name].label;
+      const button = action(
+        label,
+        "",
+        () => {
+          closeDrawer(false);
+          void run(() => show(name));
+        },
+        info.icon,
+      );
+      button.dataset.resource = name;
+      button.title = label;
+      button.setAttribute("aria-label", label);
+      section.append(button);
+    }
+    if (section.children.length > 1) navigation.append(section);
   }
 }
-async function publicationStatus() {
+async function publicationStatus(version = requestId) {
   if (!client) return;
   const state = await result(
     client
@@ -237,42 +291,77 @@ async function publicationStatus() {
       .eq("id", 1)
       .single(),
   );
-  const element = $("#publication-status");
-  element.textContent =
+  let text =
     "発行した内容は次のサイト再構築で反映されます（通常15分間隔。処理待ちで遅れる場合があります）。";
+  let status = "unknown";
   try {
     const response = await fetch(base + "build.json", { cache: "no-store" });
-    if (!response.ok) return;
-    const deployed = await response.json();
-    if (!deployed.fromCms)
-      element.textContent =
-        "公開サイトはV2検討中です。CMSの発行内容の反映は、公開接続の有効化後に開始します。";
-    else if (Number(deployed.version) < Number(state.data?.version))
-      element.textContent =
-        "発行内容のサイト反映待ちです。次の再構築で更新されます（通常15分間隔。遅れる場合があります）。";
-    else
-      element.textContent =
-        "発行内容は公開サイトに反映済みです。最終更新：" +
-        new Date(deployed.builtAt).toLocaleString("ja-JP", {
-          timeZone: "Asia/Tokyo",
-        });
+    if (response.ok) {
+      const deployed = await response.json();
+      if (!deployed.fromCms)
+        text =
+          "公開サイトへの接続は準備中です。発行した内容はまだ反映されていません。";
+      else if (Number(deployed.version) < Number(state.data?.version)) {
+        status = "waiting";
+        text =
+          "発行内容のサイト反映待ちです。次の再構築で更新されます（通常15分間隔。遅れる場合があります）。";
+      } else {
+        status = "synced";
+        text =
+          "発行内容は公開サイトに反映済みです。最終更新：" +
+          dateLabel(deployed.builtAt, true);
+      }
+    }
   } catch {
-    /* 배포 상태 조회 실패가 이미 성공한 콘텐츠 저장을 취소하지 않도록 합니다. */
+    /* 배포 상태 조회 실패가 성공한 저장 작업을 취소하지 않도록 합니다. */
   }
+  if (version !== requestId || !role) return;
+  const element = $("#publication-status");
+  element.dataset.state = status;
+  element.replaceChildren(
+    icon(status === "synced" ? "check" : "clock"),
+    node("span", text),
+  );
 }
-async function show(resource: Resource | "dashboard", resetPage = true) {
-  if (!client || !role) return;
-  if (resource !== "dashboard" && !resources[resource].roles.includes(role))
+async function show(
+  resource: OfficePage,
+  resetPage = true,
+  initialFilter?: ListFilter,
+) {
+  if (
+    !client ||
+    !role ||
+    (resource !== "dashboard" && !resources[resource].roles.includes(role))
+  )
     return;
+  if (!resetPage && resource === current && currentList) {
+    await Promise.all([publicationStatus(), currentList.refresh()]);
+    return;
+  }
+  currentList?.dispose();
+  currentList = null;
   current = resource;
-  if (resetPage) pageIndex = 0;
   const version = ++requestId;
-  $("#resource-title").textContent =
+  const info = officePages[resource];
+  const title =
     resource === "dashboard" ? "ダッシュボード" : resources[resource].label;
+  $("#resource-title").textContent = title;
+  $("#header-page-title").textContent = title;
+  $("#page-eyebrow").textContent = info.group + " / " + info.english;
+  $("#page-description").textContent = info.description;
   const newButton = $("#new-button");
   newButton.hidden = resource === "dashboard";
-  newButton.textContent =
-    resource === "admin_roles" ? "メンバーを招待" : "新規登録";
+  newButton.replaceChildren(
+    icon("plus"),
+    node(
+      "span",
+      resource === "admin_roles"
+        ? "メンバーを招待"
+        : resource === "articles"
+          ? "ニュースを書く"
+          : "新規登録",
+    ),
+  );
   $("#admin-navigation")
     .querySelectorAll<HTMLElement>("[data-resource]")
     .forEach((button) => {
@@ -280,253 +369,85 @@ async function show(resource: Resource | "dashboard", resetPage = true) {
         button.setAttribute("aria-current", "page");
       else button.removeAttribute("aria-current");
     });
-  $("#admin-content").replaceChildren(node("p", "読み込み中…", "admin-help"));
-  await publicationStatus();
   if (resource === "dashboard") {
-    await dashboard(version);
-    return;
-  }
-  const config = resources[resource];
-  const response = await result(
-    client
-      .from(resource)
-      .select("*", { count: "exact" })
-      .order(resource === "admin_roles" ? "email" : "updated_at", {
-        ascending: false,
-      })
-      .range(pageIndex * pageSize, (pageIndex + 1) * pageSize - 1),
-  );
-  if (version !== requestId || !role) return;
-  rows = (response.data ?? []) as Row[];
-  const list = node("div", "", "admin-list");
-  if (!rows.length)
-    list.append(node("p", "登録された項目はありません。", "content-empty"));
-  for (const row of rows) {
-    const item = node("article", "", "admin-list-row");
-    const copy = node("div");
-    if (row.status) {
-      const badge = node(
-        "span",
-        statuses[String(row.status)] ?? String(row.status),
-        "content-status",
-      );
-      badge.dataset.status = String(row.status);
-      copy.append(badge);
-    }
-    copy.append(node("h2", String(row[config.titleField] ?? "")));
-    copy.append(
-      node(
-        "p",
-        row.slug
-          ? "/" +
-              resource
-                .replace("public_player_profiles", "team")
-                .replace("articles", "news") +
-              "/" +
-              String(row.slug) +
-              "/"
-          : String(
-              row.updated_at
-                ? new Date(String(row.updated_at)).toLocaleString("ja-JP", {
-                    timeZone: "Asia/Tokyo",
-                  })
-                : "",
-            ),
-      ),
+    const loading = node(
+      "div",
+      "ダッシュボードを読み込み中…",
+      "office-loading",
     );
-    if (resource === "admin_roles")
-      copy.append(
-        node("p", String(row.role) + " / " + (row.active ? "有効" : "無効")),
-      );
-    if (resource === "players")
-      copy.append(
-        node(
-          "p",
-          "選手ID：" +
-            String(row.id) +
-            " / プロフィール同意：" +
-            (row.profile_consent ? "確認済み" : "未確認"),
-        ),
-      );
-    const buttons = node("div", "", "admin-row-actions");
-    buttons.append(
-      action("編集", "admin-secondary", () => {
+    loading.prepend(icon("clock"));
+    $("#admin-content").replaceChildren(loading);
+    const content = await buildDashboard({
+      client,
+      role,
+      userId: userId ?? "",
+      email: $("#account-email").textContent ?? "",
+      go: (next, filter) => {
+        void run(() => show(next, true, filter));
+      },
+      create: (next) => {
+        void run(() => createResource(next));
+      },
+      open: (next, row) => {
+        void run(async () => {
+          await show(next);
+          await openEditor(row);
+        });
+      },
+    });
+    if (version !== requestId || !role) return;
+    $("#admin-content").replaceChildren(content);
+  } else {
+    const list = createList({
+      client,
+      resource,
+      base,
+      initialFilter,
+      isCurrent: () =>
+        version === requestId && Boolean(role) && current === resource,
+      open: (row) => {
         void run(() => openEditor(row));
-      }),
-    );
-    // 선수 식별자·운영진은 삭제 대신 상태를 변경합니다. 관련 기록의 UUID를 보존합니다.
-    if (
-      ![
-        "players",
-        "public_player_profiles",
-        "admin_roles",
-        "site_pages",
-      ].includes(resource)
-    )
-      buttons.append(
-        action("削除", "admin-danger", () => {
-          removing = row;
-          removeResource = resource;
-          $("#delete-description").textContent =
-            String(row[config.titleField] ?? "") + "を削除します。";
-          $<HTMLDialogElement>("#delete-dialog").showModal();
-        }),
-      );
-    item.append(copy, buttons);
-    list.append(item);
-  }
-  if ((response.count ?? 0) > pageSize) {
-    const pager = node("div", "", "admin-editor-actions");
-    const previous = action("前のページ", "admin-secondary", () => {
-      pageIndex--;
-      void run(() => show(resource, false));
+      },
+      remove: (row) => {
+        removing = row;
+        removeResource = resource;
+        $("#delete-description").textContent =
+          String(row[resources[resource].titleField] ?? "") + "を削除します。";
+        $<HTMLDialogElement>("#delete-dialog").showModal();
+      },
+      create: () => {
+        if (resource === "admin_roles")
+          $<HTMLDialogElement>("#invite-dialog").showModal();
+        else void run(() => openEditor(null));
+      },
+      onError: (error) => notice(message(error), true),
     });
-    previous.disabled = pageIndex === 0;
-    const next = action("次のページ", "admin-secondary", () => {
-      pageIndex++;
-      void run(() => show(resource, false));
-    });
-    next.disabled = (pageIndex + 1) * pageSize >= (response.count ?? 0);
-    pager.append(
-      previous,
-      node(
-        "span",
-        String(pageIndex + 1) +
-          " / " +
-          Math.ceil((response.count ?? 0) / pageSize),
-      ),
-      next,
-    );
-    list.append(pager);
+    currentList = list;
+    $("#admin-content").replaceChildren(list.element);
+    await list.refresh();
   }
-  $("#admin-content").replaceChildren(list);
+  if (version !== requestId || !role) return;
+  await publicationStatus(version);
+  $("#resource-title").focus();
 }
-async function dashboard(version: number) {
-  if (!client || !role) return;
-  const visible = (Object.keys(resources) as Resource[]).filter((resource) =>
-    resources[resource].roles.includes(role!),
-  );
-  const stats = node("div", "", "admin-stats");
-  let pending = 0;
-  for (const resource of [
-    "articles",
-    "players",
-    "fixtures",
-    "training_sessions",
-  ] as Resource[]) {
-    if (!visible.includes(resource)) continue;
-    const response = await result(
-      client.from(resource).select("*", { head: true, count: "exact" }),
-    );
-    const card = node("div", "", "admin-stat");
-    card.append(
-      node("strong", String(response.count ?? 0)),
-      node("span", resources[resource].label),
-    );
-    stats.append(card);
-  }
-  for (const resource of visible.filter(
-    (r) => resources[r].canPublish.length > 0,
-  )) {
-    const response = await result(
-      client
-        .from(resource)
-        .select("*", { head: true, count: "exact" })
-        .in("status", ["draft", "pending"]),
-    );
-    pending += response.count ?? 0;
-  }
-  const pendingCard = node("div", "", "admin-stat");
-  pendingCard.append(
-    node("strong", String(pending)),
-    node("span", "公開待ちのコンテンツ"),
-  );
-  stats.append(pendingCard);
-  const schedules = node("section", "", "admin-section");
-  schedules.append(node("h2", "これからの試合・練習"));
-  for (const resource of ["fixtures", "training_sessions"] as Resource[]) {
-    if (!visible.includes(resource)) continue;
-    const column = resource === "fixtures" ? "kickoff_at" : "starts_at";
-    const response = await result(
-      client
-        .from(resource)
-        .select("*")
-        .gte(column, new Date().toISOString())
-        .order(column)
-        .limit(5),
-    );
-    for (const row of response.data ?? [])
-      schedules.append(
-        node(
-          "p",
-          String(row.opponent ?? row.title) +
-            " / " +
-            new Date(row[column]).toLocaleString("ja-JP", {
-              timeZone: "Asia/Tokyo",
-            }),
-        ),
-      );
-  }
-  if (schedules.children.length === 1)
-    schedules.append(node("p", "今後の予定はまだ登録されていません。"));
-  const history = await result(
-    client
-      .from("audit_logs")
-      .select("entity,operation,occurred_at")
-      .order("occurred_at", { ascending: false })
-      .limit(8),
-  );
-  const audit = node("section", "", "admin-section");
-  audit.append(node("h2", "最近の変更"));
-  for (const row of history.data ?? [])
-    audit.append(
-      node(
-        "p",
-        (resources[row.entity as Resource]?.label ?? row.entity) +
-          " / " +
-          row.operation +
-          " / " +
-          new Date(row.occurred_at).toLocaleString("ja-JP", {
-            timeZone: "Asia/Tokyo",
-          }),
-      ),
-    );
-  if (!history.data?.length)
-    audit.append(node("p", "変更履歴はまだありません。"));
-  if (version === requestId && role)
-    $("#admin-content").replaceChildren(stats, schedules, audit);
-}
-function japanInput(value: unknown): string {
-  if (!value) return "";
-  const parts = new Intl.DateTimeFormat("sv-SE", {
-    timeZone: "Asia/Tokyo",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    hourCycle: "h23",
-  }).formatToParts(new Date(String(value)));
-  const part = (name: string) =>
-    parts.find((p) => p.type === name)?.value ?? "";
-  return (
-    part("year") +
-    "-" +
-    part("month") +
-    "-" +
-    part("day") +
-    "T" +
-    part("hour") +
-    ":" +
-    part("minute")
-  );
+async function createResource(resource: Resource) {
+  await show(resource);
+  if (current !== resource || !role) return;
+  if (resource === "admin_roles")
+    $<HTMLDialogElement>("#invite-dialog").showModal();
+  else await openEditor(null);
 }
 async function choices(field: Field) {
   if (!client) return [];
   if (field.name === "player_id") {
     const response = await result(
-      client.from("players").select("id,internal_name").order("internal_name"),
+      client
+        .from("players")
+        .select("id,internal_name,profile_consent,photo_consent")
+        .order("internal_name"),
     );
+    for (const player of response.data ?? [])
+      playerConsents.set(String(player.id), player);
     return (response.data ?? []).map((p) => ({
       value: p.id,
       label: p.internal_name,
@@ -560,6 +481,7 @@ async function openEditor(row: Row | null) {
   if (!client || !role || current === "dashboard") return;
   const resource = current;
   const config = resources[resource];
+  editor.dataset.resource = resource;
   editing = row;
   editResource = resource;
   $("#editor-title").textContent =
@@ -590,20 +512,63 @@ async function openEditor(row: Row | null) {
     });
     fields.append(upload);
   }
-  for (const field of config.fields) {
+  const groupByField = new Map<string, HTMLElement>();
+  const orderedFields: Field[] = [];
+  for (const group of editorGroups[resource]) {
+    const section = node("section", "", "office-field-group");
+    section.append(node("h3", group.label));
+    if (group.hint) section.append(node("p", group.hint, "admin-help"));
+    const body = node("div", "", "office-field-group-body");
+    section.append(body);
+    fields.append(section);
+    for (const name of group.fields) {
+      groupByField.set(name, body);
+      const field = config.fields.find((item) => item.name === name);
+      if (field) orderedFields.push(field);
+    }
+  }
+  // 새 양식 필드를 추가해도 그룹을 빠뜨려 화면에서 사라지지 않게 합니다.
+  orderedFields.push(
+    ...config.fields.filter((field) => !groupByField.has(field.name)),
+  );
+  const choiceCache = new Map<string, ReturnType<typeof choices>>();
+  const editorChoices = (field: Field) => {
+    const key =
+      field.type === "media" || field.type === "gallery"
+        ? "approved-photos"
+        : field.name;
+    if (!choiceCache.has(key)) choiceCache.set(key, choices(field));
+    return choiceCache.get(key)!;
+  };
+  for (const field of orderedFields) {
     if (row?.legacy_path && field.name === "consent_confirmed") continue;
     const container = node("div", "", "admin-field");
-    if (["textarea", "gallery"].includes(field.type ?? ""))
+    if (
+      ["textarea", "gallery"].includes(field.type ?? "") ||
+      [
+        "title",
+        "internal_name",
+        "display_name",
+        "storage_path",
+        "video_url",
+        "source_url",
+        "cover_path",
+        "photo_path",
+      ].includes(field.name)
+    )
       container.classList.add("admin-field-wide");
     const label = node("label", field.label);
     const id = "field-" + field.name;
     label.htmlFor = id;
     if (field.type === "gallery") {
       const group = node("div", "", "admin-gallery-options");
+      group.id = id;
+      group.setAttribute("role", "group");
+      group.setAttribute("aria-label", field.label);
       const selected = Array.isArray(row?.[field.name])
         ? (row?.[field.name] as string[])
         : [];
-      for (const option of await choices(field)) {
+      for (const option of await editorChoices(field)) {
         const checkbox = node("input");
         checkbox.type = "checkbox";
         checkbox.name = field.name;
@@ -628,7 +593,7 @@ async function openEditor(row: Row | null) {
           empty.value = "";
           input.append(empty);
         }
-        for (const option of await choices(field)) {
+        for (const option of await editorChoices(field)) {
           const item = node("option", option.label);
           item.value = option.value;
           input.append(item);
@@ -676,8 +641,52 @@ async function openEditor(row: Row | null) {
       }
     }
     if (field.hint) container.append(node("p", field.hint, "admin-help"));
-    fields.append(container);
+    (groupByField.get(field.name) ?? fields).append(container);
   }
+  const meta = $("#editor-meta");
+  meta.replaceChildren(
+    node(
+      "h3",
+      config.canPublish.length || resource === "public_player_profiles"
+        ? "保存と発行"
+        : "保存設定",
+    ),
+  );
+  meta.append(
+    badge(
+      row?.status ??
+        (config.canPublish.length || resource === "public_player_profiles"
+          ? "draft"
+          : "内部専用"),
+    ),
+  );
+  if (row?.updated_at)
+    meta.append(
+      node("p", "最終更新：" + dateLabel(row.updated_at, true), "admin-help"),
+    );
+  if (resource === "players" || resource === "public_player_profiles")
+    meta.append(
+      node(
+        "p",
+        row
+          ? "選手UUID：" + String(row[config.key])
+          : "選手の識別子は登録後も維持されます。",
+        "admin-help",
+      ),
+    );
+  if (resource === "public_player_profiles") {
+    const hint = node("p", "", "admin-help");
+    hint.id = "profile-consent-state";
+    meta.append(hint);
+  }
+  if (config.canPublish.length || resource === "public_player_profiles")
+    meta.append(
+      node(
+        "p",
+        "保存・発行後、公開サイトの反映状態を別途ご確認ください。",
+        "admin-help",
+      ),
+    );
   const actions = $("#editor-actions");
   actions.replaceChildren();
   const save = (label: string, status: string) => {
@@ -710,6 +719,21 @@ async function openEditor(row: Row | null) {
     actions.append(button);
   }
   if (!editor.open) editor.showModal();
+  $("#editor-preview-actions").replaceChildren();
+  if (resource === "articles")
+    $("#editor-preview-actions").append(
+      action(
+        "公開前プレビュー",
+        "admin-secondary",
+        () => {
+          void run(previewArticle);
+        },
+        "preview",
+      ),
+    );
+  editorBaseline = editorSnapshot();
+  editorDirty = false;
+  updateProfileApproval();
 }
 async function uploadPhoto(input: HTMLInputElement) {
   if (!client || !userId || !input.files?.[0]) return;
@@ -747,6 +771,7 @@ async function uploadPhoto(input: HTMLInputElement) {
     );
     $<HTMLInputElement>("#field-storage_path").value = path;
     $<HTMLSelectElement>("#field-kind").value = "photo";
+    markEditorDirty();
     notice(
       "写真をアップロードしました。説明と掲載確認を入力し、保存してください。",
     );
@@ -823,6 +848,7 @@ async function save(event: SubmitEvent) {
     await result(
       client.from(resource).insert(payload).select(config.key).single(),
     );
+  editorDirty = false;
   editor.close();
   notice(
     status === "published"
@@ -830,6 +856,195 @@ async function save(event: SubmitEvent) {
       : "保存しました。",
   );
   await show(resource, false);
+}
+
+// 접기 설정은 이 브라우저에만 보관합니다. 모바일 드로어는 별도의 열린 상태와 포커스 범위를 사용합니다.
+const smallScreen = window.matchMedia?.("(max-width: 767px)");
+function syncSidebar() {
+  const mobile = smallScreen?.matches ?? window.innerWidth <= 767;
+  const sidebar = $("#admin-sidebar");
+  const open = Boolean(role) && mobile && drawerOpen;
+  sidebar.inert = !role || (mobile && !open);
+  sidebar.setAttribute("aria-hidden", String(sidebar.inert));
+  $("#sidebar-open").hidden = !role || !mobile;
+  $("#sidebar-open").setAttribute("aria-expanded", String(open));
+  $("#sidebar-backdrop").hidden = !open;
+  document.body.dataset.drawerOpen = String(open);
+}
+function closeDrawer(restoreFocus = true) {
+  drawerOpen = false;
+  syncSidebar();
+  if (restoreFocus && !$("#sidebar-open").hidden) $("#sidebar-open").focus();
+}
+function setSidebarCollapsed(collapsed: boolean) {
+  document.body.dataset.sidebarCollapsed = String(collapsed);
+  const button = $("#sidebar-collapse");
+  button.setAttribute("aria-expanded", String(!collapsed));
+  button.setAttribute(
+    "aria-label",
+    collapsed ? "サイドバーを展開する" : "サイドバーを折りたたむ",
+  );
+  button.replaceChildren(
+    icon("collapse"),
+    node("span", "サイドバーを折りたたむ", "button-label"),
+  );
+}
+try {
+  setSidebarCollapsed(
+    localStorage.getItem("kansai-office-sidebar") === "collapsed",
+  );
+} catch {
+  setSidebarCollapsed(false);
+}
+$("#sidebar-collapse").addEventListener("click", () => {
+  const collapsed = document.body.dataset.sidebarCollapsed !== "true";
+  setSidebarCollapsed(collapsed);
+  try {
+    localStorage.setItem(
+      "kansai-office-sidebar",
+      collapsed ? "collapsed" : "expanded",
+    );
+  } catch {
+    /* 개인 모드에서도 메뉴는 정상 동작합니다. */
+  }
+});
+$("#sidebar-open").addEventListener("click", () => {
+  drawerOpen = true;
+  syncSidebar();
+  $("#sidebar-close").focus();
+});
+$("#sidebar-close").addEventListener("click", () => closeDrawer());
+$("#sidebar-backdrop").addEventListener("click", () => closeDrawer());
+smallScreen?.addEventListener("change", () => {
+  drawerOpen = false;
+  syncSidebar();
+});
+document.addEventListener("keydown", (event) => {
+  if (!drawerOpen) return;
+  if (event.key === "Escape") {
+    event.preventDefault();
+    closeDrawer();
+    return;
+  }
+  if (event.key !== "Tab") return;
+  const buttons = [
+    ...$("#admin-sidebar").querySelectorAll<HTMLElement>(
+      "button:not([disabled]),a[href]",
+    ),
+  ].filter((element) => getComputedStyle(element).display !== "none");
+  const first = buttons[0],
+    last = buttons[buttons.length - 1];
+  if (event.shiftKey && document.activeElement === first) {
+    event.preventDefault();
+    last?.focus();
+  } else if (!event.shiftKey && document.activeElement === last) {
+    event.preventDefault();
+    first?.focus();
+  }
+});
+syncSidebar();
+$("#logout-button").replaceChildren(
+  icon("logout"),
+  node("span", "ログアウト", "button-label"),
+);
+
+// 양식 값이 실제로 달라진 경우만 경고합니다. 미리보기·닫기·발행 처리는 모두 같은 편집 화면을 사용합니다.
+function editorSnapshot(): string {
+  return JSON.stringify(
+    [...new FormData(editorForm).entries()].map(([key, value]) => [
+      key,
+      typeof value === "string" ? value : value.name,
+    ]),
+  );
+}
+function markEditorDirty() {
+  editorDirty = editor.open && editorSnapshot() !== editorBaseline;
+}
+function updateProfileApproval() {
+  if (editResource !== "public_player_profiles") return;
+  const playerId = $<HTMLSelectElement>("#field-player_id").value;
+  const player = playerConsents.get(playerId);
+  const needsPhotoConsent = Boolean(
+    $<HTMLSelectElement>("#field-photo_path").value,
+  );
+  const approved = Boolean(
+    player?.profile_consent && (!needsPhotoConsent || player.photo_consent),
+  );
+  $("#profile-consent-state").textContent = approved
+    ? "選手の公開同意は確認済みです。公開内容をご確認ください。"
+    : "発行には選手のプロフィール公開同意と、写真を使用する場合は写真の公開同意が必要です。選手登録画面でご確認ください。";
+  const publish = editorForm.querySelector<HTMLButtonElement>(
+    '[data-save-status="published"]',
+  );
+  if (publish) publish.disabled = !approved;
+}
+function closeEditor() {
+  if (editorDirty) $<HTMLDialogElement>("#unsaved-dialog").showModal();
+  else editor.close();
+}
+editorForm.addEventListener("input", markEditorDirty);
+editorForm.addEventListener("change", () => {
+  markEditorDirty();
+  updateProfileApproval();
+});
+editor.addEventListener("cancel", (event) => {
+  event.preventDefault();
+  closeEditor();
+});
+$("#unsaved-continue").addEventListener("click", () =>
+  $<HTMLDialogElement>("#unsaved-dialog").close(),
+);
+$("#unsaved-discard").addEventListener("click", () => {
+  editorDirty = false;
+  $<HTMLDialogElement>("#unsaved-dialog").close();
+  editor.close();
+});
+window.addEventListener("beforeunload", (event) => {
+  if (!editorDirty || !editor.open) return;
+  event.preventDefault();
+});
+$("#preview-close").addEventListener("click", () =>
+  $<HTMLDialogElement>("#article-preview-dialog").close(),
+);
+async function previewArticle() {
+  if (!client || editResource !== "articles") return;
+  const data = new FormData(editorForm);
+  const paths = [data.get("cover_path"), ...data.getAll("gallery_paths")];
+  const sources = await imageSources(client, paths, base);
+  const article = node("article", "", "office-news-preview");
+  const category =
+    resources.articles.fields
+      .find((field) => field.name === "category")
+      ?.options?.find((option) => option.value === data.get("category"))
+      ?.label ?? "";
+  article.append(
+    node("p", category, "office-kicker"),
+    node("h1", String(data.get("title") || "タイトル未入力")),
+    node("p", String(data.get("summary") ?? ""), "office-preview-summary"),
+  );
+  const cover = sources.get(String(data.get("cover_path") ?? ""));
+  if (cover) {
+    const image = node("img");
+    image.src = cover;
+    image.alt = String(data.get("cover_alt") ?? "");
+    article.append(image);
+  }
+  for (const paragraph of String(data.get("body") ?? "")
+    .split(/\n\s*\n/)
+    .filter(Boolean))
+    article.append(node("p", paragraph));
+  const gallery = node("div", "", "office-preview-gallery");
+  for (const path of data.getAll("gallery_paths")) {
+    const source = sources.get(String(path));
+    if (!source) continue;
+    const image = node("img");
+    image.src = source;
+    image.alt = "";
+    gallery.append(image);
+  }
+  article.append(gallery);
+  $("#article-preview-content").replaceChildren(article);
+  $<HTMLDialogElement>("#article-preview-dialog").showModal();
 }
 
 // Auth 콜백 안에서 다른 Auth 작업을 기다리면 멈출 수 있으므로 다음 이벤트에서 처리합니다.
@@ -944,13 +1159,14 @@ editorForm.addEventListener("submit", (event) => {
   buttons.forEach((b) => {
     b.disabled = true;
   });
-  void run(() => save(event)).finally(() =>
+  void run(() => save(event)).finally(() => {
     buttons.forEach((b) => {
       b.disabled = false;
-    }),
-  );
+    });
+    updateProfileApproval();
+  });
 });
-$("#editor-close").addEventListener("click", () => editor.close());
+$("#editor-close").addEventListener("click", closeEditor);
 $("#delete-cancel").addEventListener("click", () =>
   $<HTMLDialogElement>("#delete-dialog").close(),
 );
