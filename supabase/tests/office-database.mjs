@@ -16,7 +16,12 @@ export async function officeDatabase() {
     create function storage.foldername(text) returns text[] language sql immutable as $$select string_to_array($1,'/')$$;
   `);
   for (const file of (await readdir("supabase/migrations"))
-    .filter((file) => file.endsWith(".sql"))
+    // 네이티브 pg_cron 설치는 실제 Supabase 작업 실행 결과로 확인합니다.
+    .filter(
+      (file) =>
+        file.endsWith(".sql") &&
+        !file.endsWith("_enable_content_publisher.sql"),
+    )
     .sort())
     await db.exec(await readFile("supabase/migrations/" + file, "utf8"));
   const user = (n) => "00000000-0000-4000-8000-" + String(n).padStart(12, "0");

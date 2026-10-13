@@ -312,15 +312,35 @@ try {
     recovered.updated_at,
   ]);
   await service();
-  await db.query("select private.prune_content_history()");
+  await reject("select private.prune_content_history()");
   await db.exec("reset role");
   check(
     (
       await db.query("select id from private.content_revisions where id=$1", [
         photoHistory.revisions[0].id,
       ])
-    ).rows.length === 0,
-    "retention job removes expired revision",
+    ).rows.length === 1,
+    "unapproved retention cannot delete an expired revision",
+  );
+  await as(1);
+  let retained = await save("articles", null, null, {
+    slug: "retained-history",
+    title: "Retained",
+    status: "draft",
+  });
+  for (let n = 0; n < 31; n++)
+    retained = await save("articles", retained.id, retained.updated_at, {
+      title: "Retained " + n,
+    });
+  await db.exec("reset role");
+  check(
+    (
+      await db.query(
+        "select count(*)::int as n from private.content_revisions where entity=$1 and record_id=$2",
+        ["articles", retained.id],
+      )
+    ).rows[0].n > 30,
+    "editing preserves older revisions",
   );
   console.log("Content PostgreSQL checks passed:", checks);
 } catch (error) {
