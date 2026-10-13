@@ -1,39 +1,57 @@
 ---
-import Icon from '../Icon.astro';
-import { club } from '../../data/club';
-import { asset } from '../../lib/urls';
-
-// [편집 안내] 구단 소개와 참여 안내 문구는 여기서 편집합니다.
-// 구단명·로고·Instagram 주소는 data/club.ts의 기본 정보를 사용합니다.
+import Icon from "../Icon.astro";
+import { club } from "../../data/club";
+import { loadPublicContent } from "../../data/cms";
+import { asset, page } from "../../lib/urls";
+const { pages } = await loadPublicContent();
+const about = pages.find((p) => p.id === "club");
+const join = pages.find((p) => p.id === "join");
 ---
 
-<section class="shell club-join-section section-anchor" aria-label="クラブ紹介と参加について">
+<section
+  class="shell club-join-section section-anchor"
+  aria-label="クラブ紹介と参加について"
+>
   <div class="club-panel section-anchor" id="club">
     <p class="eyebrow">クラブについて</p>
-    <h2 class="display">THIS IS<br />KANSAI UNITED<span class="text-blue">.</span></h2>
+    <h2 class="display">
+      THIS IS
+      <br />
+      KANSAI UNITED<span class="text-blue">.</span>
+    </h2>
     <div class="club-intro">
-      <img src={asset(club.logo)} alt={`${club.name} ロゴ`} width="70" height="70" />
+      <img src={asset(club.logo)} alt="" width="70" height="70" />
       <div>
-        <h3>{club.name}</h3>
-        <p>トレーニングの様子や参加に関する情報を、<br class="desktop-break" />公式Instagramで発信しています。</p>
+        <h3>{about?.title ?? club.name}</h3>
+        <p>{about?.introduction ?? "クラブ情報は、公開準備中です。"}</p>
       </div>
     </div>
-    <details class="club-details">
-      <summary>クラブについてもっと知る <Icon name="arrow" size={18} /></summary>
-      <p>公式Instagramでは、服部緑地公園での練習風景を紹介しています。選手・スタッフ、活動方針などの詳しいプロフィールは掲載準備中です。</p>
-      <a href={club.instagram} target="_blank" rel="noopener noreferrer">公式Instagramを見る <Icon name="external" size={14} /></a>
-    </details>
-  </div>
-
-  <div class="join-panel section-anchor" id="join">
-    <span class="join-decoration" aria-hidden="true">+</span>
-    <p class="eyebrow">JOIN THE TEAM</p>
-    <h2>チームへの参加を<br />お考えの方へ。</h2>
-    <p class="join-roles">PLAYER <span>/</span> COACH <span>/</span> STAFF</p>
-    <p class="join-body">プレーする、教える、運営を支える。<br />参加や見学のご相談は、公式InstagramのDMへ。</p>
-    <a class="join-button" href={club.instagram} target="_blank" rel="noopener noreferrer">
-      <Icon name="instagram" size={20} /> 参加・見学について相談する <Icon name="arrow" size={20} />
+    <a class="text-link" href={page("club/")}>
+      クラブについてもっと知る <Icon name="arrow" size={18} />
     </a>
-    <p class="join-note">初参加はご連絡順にご案内しています。<br />現在の受付状況や参加条件は、DMでご確認ください。</p>
+  </div>
+  <div class="join-panel section-anchor" id="join">
+    <span class="join-decoration" aria-hidden="true">
+      +
+    </span>
+    <p class="eyebrow">JOIN THE TEAM</p>
+    <h2>{join?.title ?? "参加について"}</h2>
+    <p class="join-roles">
+      PLAYER <span>/</span> COACH <span>/</span> STAFF
+    </p>
+    <p class="join-body">
+      {join?.introduction ?? "お問い合わせは公式InstagramのDMへ。"}
+    </p>
+    <a class="join-button" href={page("join/")}>
+      参加・見学のご案内 <Icon name="arrow" size={20} />
+    </a>
+    <a
+      class="join-instagram"
+      href={club.instagram}
+      target="_blank"
+      rel="noopener noreferrer"
+    >
+      <Icon name="instagram" size={18} /> 公式Instagramで相談する
+    </a>
   </div>
 </section>

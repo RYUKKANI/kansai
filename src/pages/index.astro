@@ -1,11 +1,11 @@
 ---
-import SiteLayout from '../layouts/SiteLayout.astro';
-import LeadStories from '../components/home/LeadStories.astro';
-import MatchCentre from '../components/home/MatchCentre.astro';
-import LatestNews from '../components/home/LatestNews.astro';
-import TeamPreview from '../components/home/TeamPreview.astro';
-import MediaSection from '../components/home/MediaSection.astro';
-import ClubJoin from '../components/home/ClubJoin.astro';
+import SiteLayout from "../layouts/SiteLayout.astro";
+import LeadStories from "../components/home/LeadStories.astro";
+import MatchCentre from "../components/home/MatchCentre.astro";
+import LatestNews from "../components/home/LatestNews.astro";
+import TeamPreview from "../components/home/TeamPreview.astro";
+import MediaSection from "../components/home/MediaSection.astro";
+import ClubJoin from "../components/home/ClubJoin.astro";
 
 // [편집 안내] 홈의 섹션 순서는 이 파일에서 변경합니다.
 // 각 섹션의 문구·구조는 components/home/, 기사·사진은 data/club.ts에서 편집합니다.
@@ -14,11 +14,16 @@ import ClubJoin from '../components/home/ClubJoin.astro';
 <SiteLayout>
   <section class="shell home-intro" aria-labelledby="home-title">
     <div>
-      <p class="eyebrow"><span class="blue-dash"></span> KANSAI UNITED FC</p>
-      <h1 id="home-title" class="display">UNITED TODAY<span class="text-blue">.</span></h1>
+      <p class="eyebrow">
+        <span class="blue-dash"></span> KANSAI UNITED FC
+      </p>
+      <h1 id="home-title" class="display">
+        UNITED TODAY<span class="text-blue">.</span>
+      </h1>
     </div>
     <p class="intro-caption">
-      ニュース、活動の様子、クラブ情報。<br />
+      ニュース、活動の様子、クラブ情報。
+      <br />
       <span>関西ユナイテッドFCの今をお届けします。</span>
     </p>
   </section>

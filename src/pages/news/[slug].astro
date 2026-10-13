@@ -1,13 +1,18 @@
 ---
-import SiteLayout from '../../layouts/SiteLayout.astro';
-import Icon from '../../components/Icon.astro';
-import Photo from '../../components/Photo.astro';
-import { club, stories, storyCategories, type Story } from '../../data/club';
-import { asset, page } from '../../lib/urls';
+import SiteLayout from "../../layouts/SiteLayout.astro";
+import Icon from "../../components/Icon.astro";
+import Photo from "../../components/Photo.astro";
+import { club, storyCategories, type Story } from "../../data/club";
+import { loadPublicContent } from "../../data/cms";
+import { asset, page } from "../../lib/urls";
 
 // 기사 id마다 정적 상세 페이지를 만듭니다. 새 기사는 data/club.ts의 stories에 등록합니다.
-export function getStaticPaths() {
-  return stories.map(story => ({ params: { slug: story.id }, props: { story } }));
+export async function getStaticPaths() {
+  const { stories } = await loadPublicContent();
+  return stories.map((story) => ({
+    params: { slug: story.id },
+    props: { story },
+  }));
 }
 interface Props {
   story: Story;
@@ -18,12 +23,16 @@ const { story } = Astro.props;
 <SiteLayout title={`${story.title} | ${club.name}`} description={story.summary}>
   <article class="shell story-page">
     <nav class="breadcrumbs" aria-label="パンくず">
-      <a href={page()}>HOME</a><Icon name="chevron" size={13} />
-      <a href={page('news/')}>NEWS</a><Icon name="chevron" size={13} />
+      <a href={page()}>HOME</a>
+      <Icon name="chevron" size={13} />
+      <a href={page("news/")}>NEWS</a>
+      <Icon name="chevron" size={13} />
       <span>{storyCategories[story.category].badge}</span>
     </nav>
     <div class="story-page-heading">
-      <p class="eyebrow">{story.label} <span>/</span> {story.published}</p>
+      <p class="eyebrow">
+        {story.label} <span>/</span> {story.published}
+      </p>
       <h1>{story.title}</h1>
       <p>{story.summary}</p>
     </div>
@@ -32,12 +41,25 @@ const { story } = Astro.props;
     <!-- 활동일과 본문 문단은 기사 데이터에서 가져옵니다. 출처 링크는 항상 함께 표시합니다. -->
     <div class="article-body">
       <p class="article-credit">写真：{club.name} 公式Instagram</p>
-      {story.activityDate && <p class="activity-date"><Icon name="calendar" size={17} /> 活動日：{story.activityDate}</p>}
-      {story.paragraphs.map(paragraph => <p>{paragraph}</p>)}
-      <a class="source-button" href={story.source} target="_blank" rel="noopener noreferrer">
-        <Icon name="instagram" size={21} /> 公式Instagramで原文を見る <Icon name="external" size={17} />
-      </a>
-      <p class="article-source-note">この記事は、公式Instagramの投稿をもとに編集したデザインプレビューです。</p>
+      {story.activityDate && (
+        <p class="activity-date">
+          <Icon name="calendar" size={17} /> 活動日：{story.activityDate}
+        </p>
+      )}
+      {story.paragraphs.map((paragraph) => (
+        <p>{paragraph}</p>
+      ))}
+      {story.source && (
+        <a
+          class="source-button"
+          href={story.source}
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          <Icon name="external" size={21} /> 関連する公式情報{" "}
+          <Icon name="external" size={17} />
+        </a>
+      )}
     </div>
 
     <!-- 사진이 두 장 이상인 기사에만 갤러리를 표시합니다. 클릭하면 공통 사진 대화상자가 열립니다. -->
@@ -46,7 +68,9 @@ const { story } = Astro.props;
         <div class="section-heading">
           <div>
             <p class="eyebrow">トレーニングの風景</p>
-            <h2 class="display" id="gallery-title">IN PICTURES<span class="text-blue">.</span></h2>
+            <h2 class="display" id="gallery-title">
+              IN PICTURES<span class="text-blue">.</span>
+            </h2>
           </div>
         </div>
         <div class="article-gallery-grid">
@@ -56,18 +80,23 @@ const { story } = Astro.props;
               class="gallery-button"
               data-lightbox
               data-image={asset(image)}
+              data-natural={!image.startsWith("assets/training-")}
               data-alt={story.alt}
-              data-caption={`${story.activityDate ?? ''} / PHOTO ${index + 1}`}
+              data-caption={`${story.activityDate ?? ""} / PHOTO ${index + 1}`}
               data-source={story.source}
               aria-label={`活動写真 ${index + 1} を拡大`}
             >
               <Photo src={image} alt={`${story.alt}（写真 ${index + 1}）`} />
-              <span class="media-expand"><Icon name="external" size={18} /></span>
+              <span class="media-expand">
+                <Icon name="external" size={18} />
+              </span>
             </button>
           ))}
         </div>
       </section>
     )}
-    <a class="back-link" href={page('news/')}><span>←</span> ニュース一覧へ戻る</a>
+    <a class="back-link" href={page("news/")}>
+      <span>←</span> ニュース一覧へ戻る
+    </a>
   </article>
 </SiteLayout>

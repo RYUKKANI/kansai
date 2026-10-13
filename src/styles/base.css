@@ -3,8 +3,8 @@
  */
 
 @font-face {
-  font-family: 'Barlow Condensed';
-  src: url('../assets/fonts/barlow-condensed-bold.woff2') format('woff2');
+  font-family: "Barlow Condensed";
+  src: url("../assets/fonts/barlow-condensed-bold.woff2") format("woff2");
   font-weight: 700;
   font-style: normal;
   font-display: swap;
@@ -14,8 +14,9 @@
   --color-blue: #1168bc;
   --color-navy: #0b2447;
   --color-ice: #eaf2fa;
-  --font-sans: Arial, 'Yu Gothic', 'Hiragino Kaku Gothic ProN', Meiryo, sans-serif;
-  --font-display: 'Barlow Condensed', 'Arial Narrow', Impact, sans-serif;
+  --font-sans:
+    Arial, "Yu Gothic", "Hiragino Kaku Gothic ProN", Meiryo, sans-serif;
+  --font-display: "Barlow Condensed", "Arial Narrow", Impact, sans-serif;
 }
 
 :root {

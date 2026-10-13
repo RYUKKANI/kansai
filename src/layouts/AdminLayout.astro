@@ -1,0 +1,40 @@
+---
+import { club } from "../data/club";
+import { asset, page } from "../lib/urls";
+import "../styles/global.css";
+import "../styles/admin.css";
+// [편집 안내] 공개 메뉴와 분리한 관리자 전용 화면입니다. 로그인과 권한 검사 전에는 데이터를 표시하지 않습니다.
+---
+
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="robots" content="noindex, nofollow" />
+    <meta name="referrer" content="same-origin" />
+    <meta name="theme-color" content="#0B2447" />
+    <title>運営管理 | {club.name}</title>
+  </head>
+  <body class="admin-body">
+    <a class="skip-link" href="#admin-main">
+      管理画面へ移動
+    </a>
+    <header class="admin-header">
+      <a href={page("admin/")} class="admin-brand">
+        <img src={asset(club.logo)} alt="" width="44" height="44" />
+        <span>
+          <strong>KANSAI UNITED FC</strong>
+          <small>運営管理</small>
+        </span>
+      </a>
+      <a href={page()} target="_blank" rel="noopener">
+        公開サイトを見る ↗
+      </a>
+    </header>
+    <main id="admin-main">
+      <slot />
+    </main>
+    <script src="../scripts/admin.ts"></script>
+  </body>
+</html>

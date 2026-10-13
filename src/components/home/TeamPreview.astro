@@ -1,38 +1,49 @@
 ---
-// [편집 안내] 실제 선수 프로필이 준비되기 전의 안내 화면입니다.
-// 포지션의 이름과 약어를 같은 항목에 묶어, 별도 배열의 순서가 어긋나지 않게 합니다.
-const positions = [
-  { name: 'GOALKEEPER', abbreviation: 'GK' },
-  { name: 'DEFENDER', abbreviation: 'DF' },
-  { name: 'MIDFIELDER', abbreviation: 'MF' },
-  { name: 'FORWARD', abbreviation: 'FW' },
-];
+import { loadPublicContent } from "../../data/cms";
+import { positions } from "../../lib/content-types";
+import { page } from "../../lib/urls";
+import PlayerCard from "../PlayerCard.astro";
+import Icon from "../Icon.astro";
+// [편집 안내] 공개 승인을 받은 활동 선수만 홈에 표시합니다. 미등록 포지션은 안내 카드로 남깁니다.
+const { players } = await loadPublicContent();
+const featured = players
+  .filter((p) => p.activityStatus === "active")
+  .slice(0, 4);
 ---
 
-<section class="team-section section-anchor" id="team" aria-labelledby="team-title">
-  <div class="shell team-inner">
+<section
+  class="team-section section-anchor"
+  id="team"
+  aria-labelledby="team-title"
+>
+  <div class="shell squad-home">
     <div class="team-copy">
       <p class="eyebrow">選手・スタッフ</p>
-      <h2 id="team-title" class="display">OUR<br />UNITED<span>.</span></h2>
-      <p>ピッチでプレーする人。<br />チームを支える人。</p>
-      <p class="team-note">選手・スタッフのプロフィールは、<br />公式情報を確認してからご紹介します。</p>
-      <span class="team-status"><span class="status-dot"></span> プロフィール掲載準備中</span>
+      <h2 id="team-title" class="display">
+        OUR SQUAD<span>.</span>
+      </h2>
+      <p>ピッチでプレーする人。チームを支える人。</p>
+      <a class="squad-all-link" href={page("team/")}>
+        選手プロフィールを見る <Icon name="arrow" size={20} />
+      </a>
     </div>
-    <div class="player-previews" aria-label="選手プロフィールの掲載予定エリア">
-      {positions.map(position => (
-        <div class="player-placeholder">
-          <span class="player-position">{position.name}</span>
-          <span class="player-line"></span>
-          <svg viewBox="0 0 200 230" fill="none" aria-hidden="true">
-            <circle cx="100" cy="75" r="34" />
-            <path d="M22 230v-26c0-44 35-70 78-70s78 26 78 70v26Z" />
-          </svg>
-          <div class="player-caption">
-            <span class="display">COMING<br />SOON<span class="text-blue">.</span></span>
-            <small>{position.abbreviation} / 選手情報は準備中</small>
-          </div>
-        </div>
-      ))}
-    </div>
+    {featured.length ? (
+      <div class="squad-grid">
+        {featured.map((player) => (
+          <PlayerCard player={player} />
+        ))}
+      </div>
+    ) : (
+      <div class="position-preview-grid">
+        {positions.map((position) => (
+          <a class="position-preview" href={page("team/#" + position.id)}>
+            <span class="display">{position.id}</span>
+            <strong>{position.english}</strong>
+            <small>プロフィール掲載準備中</small>
+            <Icon name="arrow" size={18} />
+          </a>
+        ))}
+      </div>
+    )}
   </div>
 </section>

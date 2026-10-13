@@ -1,0 +1,39 @@
+---
+import { asset, page } from "../lib/urls";
+import type { PublicPlayer } from "../lib/content-types";
+interface Props {
+  player: PublicPlayer;
+}
+const { player } = Astro.props;
+// UUID는 데이터 연결에 사용하고, 프로필 주소의 slug는 발행 이후 변경하지 않습니다.
+---
+
+<a
+  class="squad-card"
+  href={page("team/" + player.slug + "/")}
+  data-player-id={player.playerId}
+>
+  <div class="squad-portrait">
+    {player.photo ? (
+      <img
+        src={asset(player.photo)}
+        alt={player.name}
+        loading="lazy"
+        width="480"
+        height="600"
+      />
+    ) : (
+      <span class="display" aria-hidden="true">
+        {player.position}
+      </span>
+    )}
+    {player.number !== null && (
+      <strong class="display squad-number">{player.number}</strong>
+    )}
+  </div>
+  <div class="squad-card-copy">
+    <small>{player.position}</small>
+    <h3>{player.name}</h3>
+    <p>{player.romanizedName}</p>
+  </div>
+</a>

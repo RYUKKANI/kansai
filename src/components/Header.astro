@@ -1,43 +1,97 @@
 ---
-import Icon from './Icon.astro';
-import { club } from '../data/club';
-import { headerNavigation, joinNavigation, navigation } from '../data/navigation';
-import { asset, page } from '../lib/urls';
+import Icon from "./Icon.astro";
+import { club } from "../data/club";
+import {
+  headerNavigation,
+  joinNavigation,
+  navigation,
+} from "../data/navigation";
+import { asset, page } from "../lib/urls";
 // 메뉴 문구·순서는 data/navigation.ts에서 편집합니다. 로고·SNS 주소는 data/club.ts에 있습니다.
 ---
 
-<!-- 디자인 확인용 상태를 모든 페이지에서 동일하게 안내합니다. -->
+<!-- 정식 홈페이지의 공통 구단 안내입니다. 브랜치 검토는 PR에서 진행합니다. -->
 <div class="preview-strip">
   <div class="shell flex items-center justify-between gap-3">
-    <span><span class="status-dot"></span> DESIGN PREVIEW <span class="preview-description">／ デザイン確認用</span></span>
-    <a href={club.instagram} target="_blank" rel="noopener noreferrer">公式Instagram <Icon name="external" size={12} /></a>
+    <span>
+      <span class="status-dot"></span> KANSAI UNITED FC{" "}
+      <span class="preview-description">／ OFFICIAL WEBSITE</span>
+    </span>
+    <a href={club.instagram} target="_blank" rel="noopener noreferrer">
+      公式Instagram <Icon name="external" size={12} />
+    </a>
   </div>
 </div>
 <header class="site-header" id="top">
   <div class="shell header-inner">
     <a href={page()} class="brand" aria-label={`${club.name} トップページ`}>
-      <img src={asset(club.logo)} width="60" height="60" alt={`${club.name} ロゴ`} />
+      <img
+        src={asset(club.logo)}
+        width="60"
+        height="60"
+        alt={`${club.name} ロゴ`}
+      />
       <!-- 영문 브랜드의 줄바꿈은 이곳에서 조정합니다. 일본어 구단명은 공통 데이터를 사용합니다. -->
-      <span class="brand-words"><strong>KANSAI<br />UNITED <span>FC</span></strong><small>{club.name}</small></span>
+      <span class="brand-words">
+        <strong>
+          KANSAI
+          <br />
+          UNITED <span>FC</span>
+        </strong>
+        <small>{club.name}</small>
+      </span>
     </a>
     <nav class="desktop-navigation" aria-label="メインナビゲーション">
-      {headerNavigation.map(item => (
-        <a href={page(item.path)} class:list={[{ active: Astro.url.pathname.includes('/news') && item.id === 'news' }]}>
-          <span>{item.label}</span><small>{item.english}</small>
+      {headerNavigation.map((item) => (
+        <a
+          href={page(item.path)}
+          class:list={[
+            { active: Astro.url.pathname.startsWith(page(item.path)) },
+          ]}
+          aria-current={
+            Astro.url.pathname.startsWith(page(item.path)) ? "page" : undefined
+          }
+        >
+          <span>{item.label}</span>
+          <small>{item.english}</small>
         </a>
       ))}
     </nav>
     <div class="header-actions">
-      <button type="button" class="icon-button search-open" aria-label="ニュースを検索"><Icon name="search" /></button>
-      <a class="join-nav" href={page(joinNavigation.path)}>{joinNavigation.label} <Icon name="arrow" size={17} /></a>
-      <button type="button" class="icon-button mobile-menu-toggle" aria-expanded="false" aria-controls="mobile-navigation" aria-label="メニューを開く">
-        <Icon name="menu" /><Icon name="close" class="menu-close-icon" />
+      <button
+        type="button"
+        class="icon-button search-open"
+        aria-label="ニュースを検索"
+      >
+        <Icon name="search" />
+      </button>
+      <a class="join-nav" href={page(joinNavigation.path)}>
+        {joinNavigation.label} <Icon name="arrow" size={17} />
+      </a>
+      <button
+        type="button"
+        class="icon-button mobile-menu-toggle"
+        aria-expanded="false"
+        aria-controls="mobile-navigation"
+        aria-label="メニューを開く"
+      >
+        <Icon name="menu" />
+        <Icon name="close" class="menu-close-icon" />
       </button>
     </div>
   </div>
-  <nav class="mobile-navigation" id="mobile-navigation" aria-label="モバイルナビゲーション" hidden>
-    {navigation.map(item => (
-      <a href={page(item.path)}><span>{item.label}</span><small>{item.english}</small><Icon name="arrow" /></a>
+  <nav
+    class="mobile-navigation"
+    id="mobile-navigation"
+    aria-label="モバイルナビゲーション"
+    hidden
+  >
+    {navigation.map((item) => (
+      <a href={page(item.path)}>
+        <span>{item.label}</span>
+        <small>{item.english}</small>
+        <Icon name="arrow" />
+      </a>
     ))}
   </nav>
 </header>

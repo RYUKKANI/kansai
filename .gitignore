@@ -1,6 +1,8 @@
 node_modules/
 dist/
 preview/
+public/cms-assets/
+supabase/.temp/
 .astro/
 .env*
 !.env.example

@@ -1,0 +1,77 @@
+---
+import SiteLayout from "../../layouts/SiteLayout.astro";
+import PageHero from "../../components/PageHero.astro";
+import MediaGrid from "../../components/MediaGrid.astro";
+import { loadPublicContent } from "../../data/cms";
+import { club } from "../../data/club";
+const { media, albums } = await loadPublicContent();
+const ungrouped = media.filter((m) => m.kind === "photo" && !m.albumId);
+const videos = media.filter((m) => m.kind === "video");
+---
+
+<SiteLayout title={"写真・動画 | " + club.name}>
+  <PageHero
+    title="UNITED MEDIA"
+    japanese="写真・動画"
+    description="ピッチの表情、チームの時間。関西ユナイテッドFCの活動を写真と映像で。"
+  />
+  <div class="shell subpage-content" data-tabs>
+    <div class="media-tabs" role="tablist" aria-label="メディアの種類">
+      <button
+        type="button"
+        id="albums-tab"
+        role="tab"
+        aria-controls="albums-panel"
+        aria-selected="true"
+        tabindex="0"
+      >
+        フォトアルバム
+      </button>
+      <button
+        type="button"
+        id="movies-tab"
+        role="tab"
+        aria-controls="movies-panel"
+        aria-selected="false"
+        tabindex="-1"
+      >
+        動画
+      </button>
+    </div>
+    <div id="albums-panel" role="tabpanel" aria-labelledby="albums-tab">
+      {albums.map((album) => (
+        <section class="album-section">
+          <p class="eyebrow">{album.capturedOn ?? "PHOTO ALBUM"}</p>
+          <h2>{album.title}</h2>
+          <p>{album.description}</p>
+          <MediaGrid
+            items={media.filter(
+              (m) => m.kind === "photo" && m.albumId === album.id,
+            )}
+          />
+        </section>
+      ))}
+      {ungrouped.length > 0 && (
+        <section class="album-section">
+          <h2 class="display subsection-title">
+            ON THE PITCH<span class="text-blue">.</span>
+          </h2>
+          <MediaGrid items={ungrouped} />
+        </section>
+      )}
+      {!albums.length && !ungrouped.length && (
+        <p class="content-empty">写真は、公開準備中です。</p>
+      )}
+    </div>
+    <div id="movies-panel" role="tabpanel" aria-labelledby="movies-tab" hidden>
+      <h2 class="display subsection-title">
+        UNITED VIDEO<span class="text-blue">.</span>
+      </h2>
+      {videos.length ? (
+        <MediaGrid items={videos} />
+      ) : (
+        <p class="content-empty">公式動画は、公開準備中です。</p>
+      )}
+    </div>
+  </div>
+</SiteLayout>

@@ -1,0 +1,137 @@
+---
+import AdminLayout from "../../layouts/AdminLayout.astro";
+// 양식·목록은 브라우저에서 확인한 세션과 DB 역할에 따라 구성합니다. 실제 접근 권한은 RLS가 결정합니다.
+---
+
+<AdminLayout>
+  <div
+    id="admin-notice"
+    class="admin-notice"
+    role="status"
+    aria-live="polite"
+  ></div>
+  <section class="admin-login" id="login-panel">
+    <p class="eyebrow">UNITED OPERATIONS</p>
+    <h1>運営メンバーのログイン</h1>
+    <p>招待されたメールアドレスでログインしてください。</p>
+    <form id="login-form">
+      <label>
+        メールアドレス
+        <input type="email" name="email" autocomplete="email" required />
+      </label>
+      <label>
+        パスワード
+        <input
+          type="password"
+          name="password"
+          autocomplete="current-password"
+        />
+      </label>
+      <button type="submit" class="admin-primary">
+        ログイン
+      </button>
+      <button type="button" id="magic-link-button" class="admin-secondary">
+        メールのログインリンクを送信
+      </button>
+      <p class="admin-help">
+        メールリンクではパスワードを入力する必要はありません。新規登録は受け付けていません。
+      </p>
+    </form>
+    <p id="config-warning" class="admin-help" hidden>
+      管理システムの接続は準備中です。
+    </p>
+  </section>
+  <div class="admin-workspace" id="workspace" hidden>
+    <aside class="admin-sidebar">
+      <div class="admin-account">
+        <strong id="account-email"></strong>
+        <span id="account-role"></span>
+      </div>
+      <nav id="admin-navigation" aria-label="管理メニュー"></nav>
+      <button type="button" id="logout-button" class="admin-secondary">
+        ログアウト
+      </button>
+    </aside>
+    <div class="admin-main-panel">
+      <div class="admin-page-heading">
+        <div>
+          <p class="eyebrow">CLUB MANAGEMENT</p>
+          <h1 id="resource-title">ダッシュボード</h1>
+        </div>
+        <button type="button" id="new-button" class="admin-primary" hidden>
+          新規登録
+        </button>
+      </div>
+      <div id="publication-status" class="publication-status"></div>
+      <div id="admin-content"></div>
+    </div>
+  </div>
+  <dialog
+    id="editor-dialog"
+    class="admin-dialog"
+    aria-labelledby="editor-title"
+  >
+    <div class="admin-dialog-heading">
+      <h2 id="editor-title">編集</h2>
+      <button type="button" id="editor-close" aria-label="編集画面を閉じる">
+        ✕
+      </button>
+    </div>
+    <form id="editor-form">
+      <div id="editor-fields" class="admin-form-grid"></div>
+      <div class="admin-editor-actions" id="editor-actions"></div>
+    </form>
+  </dialog>
+  <dialog
+    id="delete-dialog"
+    class="admin-dialog admin-confirm"
+    aria-labelledby="delete-title"
+  >
+    <h2 id="delete-title">削除の確認</h2>
+    <p id="delete-description"></p>
+    <p>この操作は取り消せません。必要な記事や写真を確認してください。</p>
+    <div class="admin-editor-actions">
+      <button type="button" id="delete-cancel" class="admin-secondary">
+        キャンセル
+      </button>
+      <button type="button" id="delete-confirm" class="admin-danger">
+        削除する
+      </button>
+    </div>
+  </dialog>
+  <dialog
+    id="invite-dialog"
+    class="admin-dialog admin-confirm"
+    aria-labelledby="invite-title"
+  >
+    <h2 id="invite-title">運営メンバーを招待</h2>
+    <form id="invite-form">
+      <label>
+        メールアドレス
+        <input type="email" name="email" required />
+      </label>
+      <label>
+        権限
+        <select name="role">
+          <option value="administrator">Administrator</option>
+          <option value="editor">Editor</option>
+          <option value="coach">Coach</option>
+          <option value="owner">Owner</option>
+        </select>
+      </label>
+      <div class="admin-editor-actions">
+        <button type="button" id="invite-cancel" class="admin-secondary">
+          キャンセル
+        </button>
+        <button type="submit" class="admin-primary">
+          招待メールを送信
+        </button>
+      </div>
+    </form>
+  </dialog>
+  <noscript>
+    <p class="content-empty">
+      管理画面を利用するにはJavaScriptを有効にしてください。
+    </p>
+  </noscript>
+</AdminLayout>

@@ -1,0 +1,83 @@
+---
+import SiteLayout from "../../layouts/SiteLayout.astro";
+import PageHero from "../../components/PageHero.astro";
+import FixtureCard from "../../components/FixtureCard.astro";
+import { loadPublicContent } from "../../data/cms";
+import { club } from "../../data/club";
+// 경기와 결과는 같은 등록 정보를 사용합니다. 취소·연기도 별도 상태로 그대로 안내합니다.
+const { fixtures } = await loadPublicContent();
+const scheduled = fixtures.filter((f) => f.status !== "completed");
+const results = [...fixtures].reverse().filter((f) => f.status === "completed");
+---
+
+<SiteLayout title={"試合日程・結果 | " + club.name}>
+  <PageHero
+    title="MATCHES"
+    japanese="試合日程・結果"
+    description="次の試合も、ピッチでの歩みも。正式に発表された試合情報をお届けします。"
+  />
+  <div class="shell subpage-content" data-tabs>
+    <div class="media-tabs" role="tablist" aria-label="日程と結果">
+      <button
+        type="button"
+        id="schedule-tab"
+        role="tab"
+        aria-controls="schedule-panel"
+        aria-selected="true"
+        tabindex="0"
+      >
+        試合日程
+      </button>
+      <button
+        type="button"
+        id="results-tab"
+        role="tab"
+        aria-controls="results-panel"
+        aria-selected="false"
+        tabindex="-1"
+      >
+        試合結果
+      </button>
+    </div>
+    <section id="schedule-panel" role="tabpanel" aria-labelledby="schedule-tab">
+      <h2 class="display subsection-title">
+        UPCOMING MATCHES<span class="text-blue">.</span>
+      </h2>
+      {scheduled.length ? (
+        <div class="fixture-list">
+          {scheduled.map((fixture) => (
+            <FixtureCard fixture={fixture} />
+          ))}
+        </div>
+      ) : (
+        <div class="content-empty">
+          <span class="display empty-mark">NEXT MATCH</span>
+          <h3>試合日程は、正式発表をお待ちください。</h3>
+          <p>対戦相手・大会・日時・会場は、確認された情報を掲載します。</p>
+        </div>
+      )}
+    </section>
+    <section
+      id="results-panel"
+      role="tabpanel"
+      aria-labelledby="results-tab"
+      hidden
+    >
+      <h2 class="display subsection-title">
+        RESULTS<span class="text-blue">.</span>
+      </h2>
+      {results.length ? (
+        <div class="fixture-list">
+          {results.map((fixture) => (
+            <FixtureCard fixture={fixture} />
+          ))}
+        </div>
+      ) : (
+        <div class="content-empty">
+          <h3>試合結果は、公開準備中です。</h3>
+          <p>確認された公式記録を掲載します。</p>
+        </div>
+      )}
+    </section>
+  </div>
+</SiteLayout>

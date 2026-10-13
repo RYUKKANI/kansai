@@ -1,8 +1,8 @@
 ---
-import Icon from './Icon.astro';
-import Photo from './Photo.astro';
-import { storyCategories, type Story } from '../data/club';
-import { page } from '../lib/urls';
+import Icon from "./Icon.astro";
+import Photo from "./Photo.astro";
+import { storyCategories, type Story } from "../data/club";
+import { page } from "../lib/urls";
 
 // 홈과 뉴스 목록의 공통 카드입니다. 문구·날짜·기본 사진은 src/data/club.ts에서 편집합니다.
 interface Props {
@@ -13,7 +13,7 @@ interface Props {
 
 const { story, headingLevel = 3, image = story.image } = Astro.props;
 // 홈에는 상위 h2가 있고, 뉴스 목록에서는 카드 제목이 바로 하위 제목이 됩니다.
-const Heading = headingLevel === 2 ? 'h2' : 'h3';
+const Heading = headingLevel === 2 ? "h2" : "h3";
 const category = storyCategories[story.category];
 ---
 
@@ -25,12 +25,16 @@ const category = storyCategories[story.category];
     </div>
     <div class="news-card-copy">
       <p class="news-meta">
-        <time datetime={story.published.replaceAll('.', '-')}>{story.published}</time>
+        <time datetime={story.published.replaceAll(".", "-")}>
+          {story.published}
+        </time>
         <span> / {category.label}</span>
       </p>
       <Heading>{story.title}</Heading>
       <p class="card-summary">{story.summary}</p>
-      <span class="card-read">記事を読む <Icon name="arrow" size={19} /></span>
+      <span class="card-read">
+        記事を読む <Icon name="arrow" size={19} />
+      </span>
     </div>
   </a>
 </article>

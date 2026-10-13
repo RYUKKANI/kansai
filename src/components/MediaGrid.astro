@@ -1,0 +1,76 @@
+---
+import type { PublicMedia } from "../lib/content-types";
+import Photo from "./Photo.astro";
+import Icon from "./Icon.astro";
+import { asset } from "../lib/urls";
+import { youtubeId } from "../data/cms";
+interface Props {
+  items: PublicMedia[];
+}
+const { items } = Astro.props;
+// 앨범·사진 설명·촬영일은 같은 공개 데이터에서 읽습니다. 동영상은 방문자가 누른 뒤 재생합니다.
+---
+
+<div class="gallery-grid">
+  {items.map((item) =>
+    item.kind === "photo" ? (
+      <article class="gallery-tile">
+        <button
+          type="button"
+          class="gallery-image-button"
+          data-lightbox
+          data-image={asset(item.image)}
+          data-natural={!item.image.startsWith("assets/training-")}
+          data-alt={item.alt}
+          data-caption={
+            item.title + (item.capturedOn ? " / " + item.capturedOn : "")
+          }
+          data-source={item.source}
+          aria-label={item.title + "。写真を拡大"}
+        >
+          <Photo src={item.image} alt={item.alt} />
+          <span class="media-expand">
+            <Icon name="external" size={18} />
+          </span>
+        </button>
+        <div class="gallery-tile-copy">
+          <small>{item.capturedOn ?? "PHOTO"}</small>
+          <h3>{item.title}</h3>
+          <p>{item.description}</p>
+        </div>
+      </article>
+    ) : (
+      <article class="gallery-tile">
+        <div class="video-cover">
+          <Icon name="play" size={40} />
+          <span class="display">UNITED VIDEO</span>
+        </div>
+        <div class="gallery-tile-copy">
+          <small>{item.capturedOn ?? "VIDEO"}</small>
+          <h3>{item.title}</h3>
+          <p>{item.description}</p>
+          {youtubeId(item.videoUrl) ? (
+            <button
+              type="button"
+              class="text-link"
+              data-video-open={youtubeId(item.videoUrl)}
+              data-video-title={item.title}
+            >
+              動画を再生 <Icon name="play" size={16} />
+            </button>
+          ) : (
+            <a
+              class="text-link"
+              href={item.videoUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              動画を見る <Icon name="external" size={16} />
+            </a>
+          )}
+          <div class="video-embed" hidden></div>
+        </div>
+      </article>
+    ),
+  )}
+</div>

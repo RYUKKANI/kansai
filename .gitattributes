@@ -1,0 +1,14 @@
+# 코드 줄바꿈을 LF로 통일해 Windows에서도 검토·편집 시 불필요한 차이를 줄입니다.
+.gitattributes text eol=lf
+.gitignore text eol=lf
+.env.example text eol=lf
+*.astro text eol=lf
+*.ts text eol=lf
+*.mjs text eol=lf
+*.json text eol=lf
+*.css text eol=lf
+*.md text eol=lf
+*.txt text eol=lf
+*.yml text eol=lf
+*.toml text eol=lf
+*.sql text eol=lf

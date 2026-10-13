@@ -2,11 +2,12 @@
  * 색상·글꼴은 base.css, 화면 크기별 조정은 responsive.css에서 편집합니다.
  * 적용 순서가 화면에 영향을 주므로 아래 import 순서를 유지합니다.
  */
-@import 'tailwindcss';
-@import './base.css';
-@import './header.css';
-@import './home.css';
-@import './footer.css';
-@import './dialogs.css';
-@import './news.css';
-@import './responsive.css';
+@import "tailwindcss";
+@import "./base.css";
+@import "./header.css";
+@import "./home.css";
+@import "./footer.css";
+@import "./dialogs.css";
+@import "./news.css";
+@import "./responsive.css";
+@import "./pages.css";

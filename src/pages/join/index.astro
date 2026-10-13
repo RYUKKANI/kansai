@@ -1,0 +1,48 @@
+---
+import SiteLayout from "../../layouts/SiteLayout.astro";
+import PageHero from "../../components/PageHero.astro";
+import Icon from "../../components/Icon.astro";
+import { loadPublicContent } from "../../data/cms";
+import { club } from "../../data/club";
+const { pages } = await loadPublicContent();
+const content = pages.find((p) => p.id === "join");
+// 실제 참가 조건과 비용은 확인된 공식 안내만 기재합니다. 개인정보 입력 폼은 만들지 않습니다.
+---
+
+<SiteLayout title={"チームへの参加 | " + club.name}>
+  <PageHero
+    title="JOIN UNITED"
+    japanese="チームへの参加"
+    description={content?.introduction ?? "お問い合わせは公式InstagramのDMへ。"}
+  />
+  <div class="shell subpage-content join-page">
+    <div class="join-page-heading">
+      <p class="eyebrow">PLAYER / COACH / STAFF</p>
+      <h2>{content?.title ?? "チームへの参加について"}</h2>
+      {content?.paragraphs.map((p) => (
+        <p>{p}</p>
+      ))}
+    </div>
+    <div class="join-role-grid">
+      {[
+        { title: "PLAYER", text: "選手としてチームに参加したい方" },
+        { title: "COACH", text: "指導者として活動に関わりたい方" },
+        { title: "STAFF", text: "運営を支えてくださる方" },
+      ].map((role) => (
+        <div>
+          <span class="display">{role.title}</span>
+          <p>{role.text}</p>
+        </div>
+      ))}
+    </div>
+    <div class="join-contact">
+      <p class="eyebrow">LET’S TALK</p>
+      <h2>最初の一歩は、DMから。</h2>
+      <p>参加や見学の希望を、公式アカウントにお送りください。</p>
+      <a href={club.instagram} target="_blank" rel="noopener noreferrer">
+        <Icon name="instagram" size={22} /> 公式Instagramで相談する{" "}
+        <Icon name="arrow" size={22} />
+      </a>
+    </div>
+  </div>
+</SiteLayout>

@@ -74,7 +74,13 @@
   position: absolute;
   inset: 0;
   z-index: -1;
-  background: linear-gradient(180deg, #061a3008 16%, #07192d1c 35%, #041329d4 79%, #041329 100%);
+  background: linear-gradient(
+    180deg,
+    #061a3008 16%,
+    #07192d1c 35%,
+    #041329d4 79%,
+    #041329 100%
+  );
 }
 .pick-up {
   position: absolute;
@@ -191,7 +197,12 @@
   bottom: 26px;
 }
 .lead-secondary .story-shade {
-  background: linear-gradient(180deg, #0b244700 5%, #05162b4d 40%, #041329ef 100%);
+  background: linear-gradient(
+    180deg,
+    #0b244700 5%,
+    #05162b4d 40%,
+    #041329ef 100%
+  );
 }
 /* 경기 정보: 다음 경기·결과 탭 */
 .match-section {
@@ -227,7 +238,7 @@
   background: transparent;
   color: #748296;
 }
-.match-tabs button[aria-selected='true'] {
+.match-tabs button[aria-selected="true"] {
   color: var(--color-blue);
   border-color: var(--color-blue);
 }
@@ -399,7 +410,7 @@ summary::-webkit-details-marker {
   border-bottom: 2px solid transparent;
   padding: 7px 0 12px;
 }
-.news-filters button[aria-pressed='true'] {
+.news-filters button[aria-pressed="true"] {
   color: var(--color-blue);
   border-color: var(--color-blue);
 }
@@ -494,7 +505,7 @@ summary::-webkit-details-marker {
   overflow: hidden;
 }
 .team-section::after {
-  content: '';
+  content: "";
   position: absolute;
   width: 1000px;
   height: 1200px;
@@ -621,7 +632,7 @@ summary::-webkit-details-marker {
   font-size: 11px;
   font-weight: 700;
 }
-.media-tabs button[aria-selected='true'] {
+.media-tabs button[aria-selected="true"] {
   color: var(--color-blue);
   border-color: var(--color-blue);
 }

@@ -1,5 +1,7 @@
 {
   "extends": "astro/tsconfigs/strict",
   // 배열·객체의 존재하지 않는 항목을 실수로 사용하지 않도록 검사합니다.
-  "compilerOptions": { "noUncheckedIndexedAccess": true }
+  "compilerOptions": { "noUncheckedIndexedAccess": true },
+  "include": [".astro/types.d.ts", "src/**/*", "astro.config.mjs"],
+  "exclude": ["node_modules", "dist", "preview", "supabase/functions/**"]
 }

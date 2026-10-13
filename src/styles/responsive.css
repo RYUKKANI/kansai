@@ -76,10 +76,10 @@
   .mobile-menu-toggle {
     display: inline-grid;
   }
-  .mobile-menu-toggle[aria-expanded='true'] > svg:first-child {
+  .mobile-menu-toggle[aria-expanded="true"] > svg:first-child {
     display: none;
   }
-  .mobile-menu-toggle[aria-expanded='true'] .menu-close-icon {
+  .mobile-menu-toggle[aria-expanded="true"] .menu-close-icon {
     display: block;
   }
   .header-inner {

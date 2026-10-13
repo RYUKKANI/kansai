@@ -5,20 +5,28 @@
   "type": "module",
   "scripts": {
     "dev": "astro dev --host 127.0.0.1",
-    "build": "astro build",
+    "build": "node scripts/prepare-build.mjs && astro build",
     "preview": "astro preview --host 127.0.0.1",
     "check": "astro check",
-    "export:preview": "node scripts/export-preview.mjs"
+    "export:preview": "node scripts/export-preview.mjs",
+    "test": "node supabase/tests/rls.test.mjs && node --test tests/*.test.mjs"
   },
   "dependencies": {
-    "astro": "7.3.8",
+    "@supabase/supabase-js": "2.117.3",
     "@tailwindcss/vite": "4.3.3",
+    "astro": "7.3.8",
     "tailwindcss": "4.3.3"
   },
   "devDependencies": {
     "@astrojs/check": "0.9.10",
+    "@electric-sql/pglite": "0.5.9",
+    "@types/node": "24.19.2",
+    "esbuild": "0.28.2",
+    "jsdom": "26.1.0",
     "typescript": "6.0.3"
   },
-  "engines": { "node": ">=22.12.0" },
+  "engines": {
+    "node": ">=22.12.0"
+  },
   "packageManager": "npm@12.2.0"
 }
