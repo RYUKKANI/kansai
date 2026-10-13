@@ -26,6 +26,13 @@ import { buildDashboard } from "./admin-dashboard";
 import { createList, type ListController } from "./admin-list";
 import { createSchedule, recurrenceControls } from "./admin-schedule";
 import {
+  attachContentEditor,
+  contentResources,
+  type ContentEditor,
+} from "./admin-content";
+import { clearUserDrafts } from "../lib/content-drafts";
+import { contentEnabled, publisherEnabled } from "../lib/office-features";
+import {
   configureOffice,
   resourceAvailable,
   scheduleEnabled,
@@ -60,6 +67,8 @@ let current: OfficePage = "dashboard";
 let currentList: ListController | null = null;
 let editorBaseline = "";
 let editorDirty = false;
+let editorSaving = false;
+let contentEditor: ContentEditor | null = null;
 let drawerOpen = false;
 const playerConsents = new Map<string, Row>();
 let editing: Row | null = null;
@@ -70,6 +79,12 @@ let requestId = 0;
 const editor = $<HTMLDialogElement>("#editor-dialog");
 const editorForm = $<HTMLFormElement>("#editor-form");
 function notice(text: string, error = false) {
+  // 열린 대화상자 안에서도 저장 실패와 업로드 안내를 읽을 수 있게 합니다.
+  const localNotice = document.querySelector<HTMLElement>("#editor-notice");
+  if (localNotice) {
+    localNotice.textContent = editor.open ? text : "";
+    localNotice.dataset.error = String(error);
+  }
   const element = $("#admin-notice");
   element.replaceChildren();
   if (text) {
@@ -108,6 +123,14 @@ function message(error: unknown): string {
   if (/row-level|permission denied|owner role|active staff/i.test(raw))
     return "この操作に必要な権限がありません。運営責任者にご確認ください。";
   if (/last owner/i.test(raw)) return "最後のOwnerは無効化・削除できません。";
+  if (/content changed|schedule changed/i.test(raw))
+    return "ほかの操作で内容が更新されています。編集画面を閉じて最新の内容を開き直してください。一時保存の内容は復元時に照合できます。";
+  if (/scheduled publisher is not enabled/i.test(raw))
+    return "予約発行はまだ有効になっていません。下書き保存をご利用ください。";
+  if (/schedule must be in the next year/i.test(raw))
+    return "予約日時は現在より後、1年以内で指定してください。";
+  if (/future series occurrence/i.test(raw))
+    return "全体変更は未来の未実施回を選んで行ってください。";
   if (/profile consent/i.test(raw))
     return "先に選手登録画面でプロフィールの公開同意を確認してください。";
   if (/photo consent/i.test(raw))
@@ -169,6 +192,16 @@ async function result<T extends { error: unknown }>(
 }
 // 로그아웃·권한 상실 시 비공개 DOM과 열린 편집 화면을 함께 정리합니다.
 function resetLogin() {
+  contentEditor?.dispose();
+  contentEditor = null;
+  if (userId) {
+    try {
+      clearUserDrafts(localStorage, userId);
+    } catch {
+      /* 저장소 접근이 차단돼도 로그아웃은 완료합니다. */
+    }
+  }
+  configureOffice({});
   role = null;
   userId = null;
   editing = null;
@@ -529,6 +562,9 @@ async function openEditor(row: Row | null) {
   if (!client || !role || current === "dashboard" || current === "schedule")
     return;
   const resource = current;
+  $("#editor-notice").textContent = "";
+  contentEditor?.dispose();
+  contentEditor = null;
   const config = resources[resource];
   editor.dataset.resource = resource;
   editing = row;
@@ -764,7 +800,7 @@ async function openEditor(row: Row | null) {
       actions.append(
         node(
           "p",
-          "下書き・承認待ちで保存すると公開が取り消されます。サイトへの反映には再構築が必要です。",
+          "下書き・承認待ち・予約で保存すると公開が取り消されます。サイトへの反映には再構築が必要です。",
           "admin-help",
         ),
       );
@@ -776,6 +812,27 @@ async function openEditor(row: Row | null) {
     actions.append(button);
   }
   if (!editor.open) editor.showModal();
+  if (contentEnabled && userId && contentResources.includes(resource)) {
+    contentEditor = attachContentEditor({
+      client,
+      userId,
+      resource,
+      row,
+      form: editorForm,
+      container: $("#editor-content-tools"),
+      publisher: publisherEnabled,
+      changed: markEditorDirty,
+      error: (error) => notice(message(error), true),
+      restore: async (restored) => {
+        editorDirty = false;
+        await show(resource, false);
+        await openEditor(restored);
+        notice(
+          "履歴から下書きとして復元しました。公開する内容を再確認してください。",
+        );
+      },
+    });
+  }
   $("#editor-preview-actions").replaceChildren();
   if (resource === "articles")
     $("#editor-preview-actions").append(
@@ -882,7 +939,7 @@ async function save(event: SubmitEvent) {
   const status =
     (event.submitter as HTMLButtonElement | null)?.dataset.saveStatus ?? "";
   if (config.canPublish.length || resource === "public_player_profiles")
-    payload.status = status || "draft";
+    payload.status = status === "scheduled" ? "draft" : status || "draft";
   if (resource === "media_assets") {
     if (payload.kind === "video") {
       payload.storage_path = null;
@@ -892,7 +949,26 @@ async function save(event: SubmitEvent) {
       if (payload.storage_path) payload.legacy_path = null;
     }
   }
-  if (
+  if (contentEnabled && contentResources.includes(resource)) {
+    const scheduled = String(data.get("_publish_at") || "");
+    if (
+      status === "scheduled" &&
+      (!scheduled || new Date(scheduled + "+09:00").getTime() <= Date.now())
+    )
+      throw new Error("予約発行する未来の日時を日本時間で入力してください。");
+    await result(
+      client.rpc("save_office_content", {
+        p_entity: resource,
+        p_id: editing ? String(editing[config.key]) : null,
+        p_expected: editing?.updated_at ?? null,
+        p_values: payload,
+        p_publish_at:
+          status === "scheduled"
+            ? new Date(scheduled + "+09:00").toISOString()
+            : null,
+      }),
+    );
+  } else if (
     scheduleEnabled &&
     resource === "training_sessions" &&
     !editing &&
@@ -928,11 +1004,14 @@ async function save(event: SubmitEvent) {
       client.from(resource).insert(payload).select(config.key).single(),
     );
   editorDirty = false;
+  contentEditor?.clear();
   editor.close();
   notice(
     status === "published"
       ? "発行しました。公開サイトの反映状態をご確認ください。"
-      : "保存しました。",
+      : status === "scheduled"
+        ? "予約を保存しました。予約時刻以降の発行と、公開サイトの反映は別に確認できます。"
+        : "保存しました。",
   );
   await show(resource, false);
 }
@@ -1058,6 +1137,10 @@ function updateProfileApproval() {
   if (publish) publish.disabled = !approved;
 }
 function closeEditor() {
+  if (editorSaving) {
+    notice("保存中です。完了までお待ちください。");
+    return;
+  }
   if (editorDirty) $<HTMLDialogElement>("#unsaved-dialog").showModal();
   else editor.close();
 }
@@ -1074,6 +1157,7 @@ $("#unsaved-continue").addEventListener("click", () =>
   $<HTMLDialogElement>("#unsaved-dialog").close(),
 );
 $("#unsaved-discard").addEventListener("click", () => {
+  contentEditor?.clear();
   editorDirty = false;
   $<HTMLDialogElement>("#unsaved-dialog").close();
   editor.close();
@@ -1234,11 +1318,21 @@ $("#new-button").addEventListener("click", () => {
   else void run(() => openEditor(null));
 });
 editorForm.addEventListener("submit", (event) => {
+  if (editorSaving) {
+    event.preventDefault();
+    return;
+  }
+  editorSaving = true;
+  editorForm.inert = true;
+  editorForm.setAttribute("aria-busy", "true");
   const buttons = editorForm.querySelectorAll<HTMLButtonElement>("button");
   buttons.forEach((b) => {
     b.disabled = true;
   });
   void run(() => save(event)).finally(() => {
+    editorSaving = false;
+    editorForm.inert = false;
+    editorForm.removeAttribute("aria-busy");
     buttons.forEach((b) => {
       b.disabled = false;
     });

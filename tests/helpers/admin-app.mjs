@@ -143,7 +143,20 @@ export async function app(
         : Response.json({});
     }
     const name = url.pathname.split("/").pop();
-    if (name === "office_capabilities") return Response.json({ schedule: Boolean(authResponses.schedule), content: Boolean(authResponses.content) });
+    if (name === "office_release_states")
+      return Response.json(authResponses.releaseStates ?? []);
+    if (name === "office_release_attention")
+      return Response.json(authResponses.releaseAttention ?? []);
+    if (name === "office_capabilities")
+      return Response.json({
+        schedule: Boolean(authResponses.schedule),
+        content: Boolean(authResponses.content),
+        publisher: Boolean(authResponses.publisher),
+      });
+    if (url.pathname.includes("/rpc/") && authResponses.rpc)
+      return Response.json(
+        await authResponses.rpc(name, JSON.parse(options.body || "{}")),
+      );
     if (authResponses.beforeRead) await authResponses.beforeRead(name, url);
     const matches = (row, field, expression) => {
       const [operator, ...pieces] = expression.split(".");

@@ -1600,3 +1600,52 @@
     display: none;
   }
 }
+/* 콘텐츠 저장 상태와 복구 확인은 편집 영역 옆에서 읽을 수 있게 유지합니다. */
+.office-content-tools {
+  display: grid;
+  gap: 12px;
+  margin-top: 22px;
+  border-top: 1px solid #e1e8f0;
+  padding-top: 18px;
+}
+.office-content-tools label {
+  display: grid;
+  gap: 8px;
+  font-size: 13px;
+}
+.office-content-history {
+  display: grid;
+  gap: 10px;
+  max-height: 460px;
+  overflow: auto;
+}
+.office-revision {
+  border-top: 1px solid #e1e8f0;
+  padding: 12px 0;
+  font-size: 13px;
+}
+.office-restore-confirm,
+.office-draft-prompt {
+  padding: 12px;
+  background: #f3f6fa;
+  border: 1px solid #e1e8f0;
+  border-radius: 6px;
+}
+.office-content-tools button {
+  margin-bottom: 4px;
+}
+.office-editor-notice:empty {
+  display: none;
+}
+.office-editor-notice {
+  padding: 12px 20px;
+  margin: 0 20px 12px;
+  color: #0b2447;
+  background: #eef5ff;
+  border: 1px solid #e1e8f0;
+}
+.office-editor-notice[data-error="true"] {
+  background: #fff1f0;
+  color: #9e3025;
+  border-color: #e4b3ab;
+}
