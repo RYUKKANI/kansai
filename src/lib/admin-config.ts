@@ -24,7 +24,9 @@ export interface Field {
     | "checkbox"
     | "select"
     | "media"
+    | "player-photo"
     | "gallery";
+  mediaCategory?: "player";
   options?: { value: string; label: string }[];
   required?: boolean;
   hint?: string;
@@ -147,6 +149,15 @@ export const resources: Record<Resource, ResourceConfig> = {
         ],
       },
       {
+        name: "photo_asset_id",
+        label: t("選手写真"),
+        type: "player-photo",
+        mediaCategory: "player",
+        hint: t(
+          "選手カテゴリーの公開承認済み写真を選びます。公開プロフィール作成時に自動入力します。登録だけではプロフィールは公開されません。",
+        ),
+      },
+      {
         name: "profile_consent",
         label: t("プロフィールの公開同意を確認済み"),
         type: "checkbox",
@@ -189,7 +200,12 @@ export const resources: Record<Resource, ResourceConfig> = {
         type: "select",
         options: options("GK", "DF", "MF", "FW"),
       },
-      { name: "photo_path", label: t("プロフィール写真"), type: "media" },
+      {
+        name: "photo_path",
+        label: t("プロフィール写真"),
+        type: "media",
+        mediaCategory: "player",
+      },
       { name: "bio", label: t("選手紹介"), type: "textarea" },
       {
         name: "activity_status",
@@ -354,6 +370,17 @@ export const resources: Record<Resource, ResourceConfig> = {
     canPublish: contentRoles,
     fields: [
       title,
+      {
+        name: "media_category",
+        label: t("写真カテゴリー"),
+        type: "select",
+        options: [
+          { value: "general", label: t("その他") },
+          { value: "player", label: t("選手写真") },
+          { value: "match", label: t("試合写真") },
+          { value: "training", label: t("練習写真") },
+        ],
+      },
       {
         name: "kind",
         label: t("種類"),

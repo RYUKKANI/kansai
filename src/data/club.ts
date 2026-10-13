@@ -1,4 +1,5 @@
 // [편집 안내] 구단 기본 정보와 기사·사진을 이 파일에서 관리합니다.
+import type { ContentTranslations } from "../lib/content-translations";
 // 기사 내용은 제공된 공식 게시물을 요약한 것이며, 확인되지 않은 정보를 추가하지 않습니다.
 export const club = {
   name: "関西ユナイテッドFC",
@@ -54,6 +55,7 @@ export interface Story {
   paragraphs: string[];
   gallery: string[];
   featured?: boolean;
+  translations?: ContentTranslations;
 }
 
 // 기사마다 이름을 붙여 홈·갤러리가 배열 순서에 의존하지 않도록 합니다.

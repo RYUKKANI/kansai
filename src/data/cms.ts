@@ -153,7 +153,7 @@ async function readPublishedContent(): Promise<PublicContent> {
     client
       .from("articles")
       .select(
-        "id,slug,title,summary,category,body,cover_path,cover_alt,gallery_paths,source_url,published_at,featured,activity_date",
+        "id,slug,title,summary,category,body,cover_path,cover_alt,gallery_paths,source_url,published_at,featured,activity_date,translations",
       )
       .eq("status", "published")
       .order("published_at", { ascending: false })
@@ -177,7 +177,7 @@ async function readPublishedContent(): Promise<PublicContent> {
     client
       .from("media_assets")
       .select(
-        "id,kind,storage_path,legacy_path,video_url,title,alt_text,description,source_url,captured_on,album_id",
+        "id,kind,storage_path,legacy_path,video_url,title,alt_text,description,source_url,captured_on,album_id,media_category",
       )
       .eq("status", "published")
       .order("captured_on", { ascending: false })
@@ -190,7 +190,7 @@ async function readPublishedContent(): Promise<PublicContent> {
       .limit(500),
     client
       .from("site_pages")
-      .select("id,title,introduction,body")
+      .select("id,title,introduction,body,translations")
       .eq("status", "published"),
   ]);
   for (const result of results) {
@@ -274,6 +274,7 @@ async function readPublishedContent(): Promise<PublicContent> {
           (row.gallery_paths ?? []).map((path: string) => image(path)),
         ),
         featured: row.featured,
+        translations: row.translations,
       };
     }),
   );
@@ -323,6 +324,7 @@ async function readPublishedContent(): Promise<PublicContent> {
         source: safeExternalUrl(row.source_url),
         capturedOn: row.captured_on,
         albumId: row.album_id,
+        category: row.media_category as PublicMedia["category"],
       })),
     ),
     albums: (albumRows ?? []).map((row) => ({
@@ -336,6 +338,7 @@ async function readPublishedContent(): Promise<PublicContent> {
       title: row.title,
       introduction: row.introduction,
       paragraphs: paragraphs(row.body),
+      translations: row.translations,
     })),
   };
   const after = await client

@@ -115,11 +115,15 @@ export function createList(options: Options): ListController {
     container.append(input);
     toolbar.append(container);
   }
-  if (resource === "articles")
+  if (resource === "articles" || resource === "media_assets")
     filterSelect(
       "category",
       t("カテゴリー"),
-      config.fields.find((field) => field.name === "category")?.options ?? [],
+      config.fields.find(
+        (field) =>
+          field.name ===
+          (resource === "articles" ? "category" : "media_category"),
+      )?.options ?? [],
     );
   if (config.canPublish.length || resource === "public_player_profiles")
     filterSelect("status", t("公開状態"), [
@@ -243,6 +247,7 @@ export function createList(options: Options): ListController {
       row.cover_path ??
       row.photo_path ??
       profile?.photo_path ??
+      row.office_photo_path ??
       row.storage_path ??
       row.legacy_path;
     const source = sources.get(String(path ?? ""));
@@ -369,8 +374,12 @@ export function createList(options: Options): ListController {
       add(t("アクセス"), (row) => badge(row.active ? "enabled" : "disabled"));
       add(t("最終更新"), (row) => dateLabel(row.updated_at));
     } else {
-      if (resource === "media_assets")
+      if (resource === "media_assets") {
         add(t("種類"), (row) => (row.kind === "video" ? t("動画") : t("写真")));
+        add(t("写真カテゴリー"), (row) =>
+          optionLabel(resource, "media_category", row.media_category),
+        );
+      }
       add(t("公開状態"), (row) => badge(row.status));
       if (resource === "media_albums" || resource === "media_assets")
         add(t("撮影日"), (row) => dateLabel(row.captured_on), true);
@@ -574,7 +583,11 @@ export function createList(options: Options): ListController {
           config.titleField,
           "%" + filters.search.replace(/[\\%_]/g, "\\$&") + "%",
         );
-      if (filters.category) query = query.eq("category", filters.category);
+      if (filters.category)
+        query = query.eq(
+          resource === "media_assets" ? "media_category" : "category",
+          filters.category,
+        );
       if (filters.status) {
         if (resource === "players")
           query = query.eq("activity_status", filters.status);
@@ -652,6 +665,23 @@ export function createList(options: Options): ListController {
           (profiles.data ?? []).map((profile) => [profile.player_id, profile]),
         );
         for (const row of rows) row.office_profile = byPlayer.get(row.id);
+        // 공개 프로필이 아직 없어도 선수 등록에서 지정한 승인 사진을 내부 목록에서 확인합니다.
+        const photoIds = rows.map((row) => row.photo_asset_id).filter(Boolean);
+        if (photoIds.length) {
+          const photos = await client
+            .from("media_assets")
+            .select("id,storage_path,legacy_path")
+            .in("id", photoIds)
+            .eq("status", "published")
+            .eq("public_approved", true);
+          if (photos.error) throw photos.error;
+          for (const row of rows) {
+            const photo = photos.data?.find(
+              (item) => item.id === row.photo_asset_id,
+            );
+            row.office_photo_path = photo?.storage_path ?? photo?.legacy_path;
+          }
+        }
       }
       if (resource === "articles" && rows.length) {
         const created = await client
@@ -676,6 +706,7 @@ export function createList(options: Options): ListController {
           row.cover_path,
           row.photo_path,
           (row.office_profile as Row | undefined)?.photo_path,
+          row.office_photo_path,
           row.storage_path,
           row.legacy_path,
         ]),

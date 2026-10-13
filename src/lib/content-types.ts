@@ -1,4 +1,5 @@
 // [편집 안내] 공개 홈페이지에 전달할 항목만 정의합니다. 연락처·출석·평가·건강 정보는 추가하지 않습니다.
+import type { ContentTranslations } from "./content-translations";
 export type Position = "GK" | "DF" | "MF" | "FW";
 export type ContentStatus = "draft" | "pending" | "published";
 export type StaffRole = "owner" | "administrator" | "editor" | "coach";
@@ -38,6 +39,7 @@ export interface PublicMedia {
   source: string;
   capturedOn: string | null;
   albumId: string | null;
+  category?: "general" | "player" | "match" | "training";
 }
 export interface PublicAlbum {
   id: string;
@@ -50,6 +52,7 @@ export interface ClubPage {
   title: string;
   introduction: string;
   paragraphs: string[];
+  translations?: ContentTranslations;
 }
 export const positions: { id: Position; english: string; japanese: string }[] =
   [

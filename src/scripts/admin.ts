@@ -35,6 +35,15 @@ import {
   type ContentEditor,
 } from "./admin-content";
 import { clearUserDrafts } from "../lib/content-drafts";
+import { attachTranslationEditor } from "./admin-translations";
+import {
+  readTranslations,
+  translationComplete,
+  contentForLanguage,
+  contentLanguageNames,
+  type ContentTranslations,
+} from "../lib/content-translations";
+import type { Locale } from "../lib/i18n";
 import { contentEnabled, publisherEnabled } from "../lib/office-features";
 import {
   configureOffice,
@@ -154,6 +163,14 @@ function message(error: unknown): string {
     return t("先に選手登録画面でプロフィールの公開同意を確認してください。");
   if (/photo consent/i.test(raw))
     return t("先に選手登録画面で写真の公開同意を確認してください。");
+  if (/incomplete translation/i.test(raw))
+    return t(
+      "入力途中の翻訳があります。全項目を完成させるか、その言語を空欄にしてから発行してください。",
+    );
+  if (/invalid translation/i.test(raw))
+    return t("翻訳の入力内容を確認してください。");
+  if (/player photo must/i.test(raw))
+    return t("選手カテゴリーの公開承認済み写真を選択してください。");
   if (/album must be approved/i.test(raw))
     return t("使用するアルバムを先に発行してください。");
   if (/photo upload is required/i.test(raw))
@@ -564,7 +581,7 @@ async function choices(field: Field) {
     const response = await result(
       client
         .from("players")
-        .select("id,internal_name,profile_consent,photo_consent")
+        .select("id,internal_name,profile_consent,photo_consent,photo_asset_id")
         .order("internal_name"),
     );
     for (const player of response.data ?? [])
@@ -583,18 +600,41 @@ async function choices(field: Field) {
       ...(response.data ?? []).map((p) => ({ value: p.id, label: p.title })),
     ];
   }
-  if (field.type === "media" || field.type === "gallery") {
-    const response = await result(
-      client
-        .from("media_assets")
-        .select("storage_path,legacy_path,title")
-        .eq("kind", "photo")
-        .eq("status", "published"),
-    );
-    return (response.data ?? []).map((p) => ({
-      value: p.storage_path ?? p.legacy_path,
-      label: p.title,
-    }));
+  if (["media", "gallery", "player-photo"].includes(field.type ?? "")) {
+    let query = client
+      .from("media_assets")
+      .select("id,storage_path,legacy_path,title,album_id")
+      .eq("kind", "photo")
+      .eq("status", "published")
+      .eq("public_approved", true)
+      .lte("published_at", new Date().toISOString());
+    if (field.mediaCategory)
+      query = query.eq("media_category", field.mediaCategory);
+    const response = await result(query);
+    const albumIds = [
+      ...new Set((response.data ?? []).map((p) => p.album_id).filter(Boolean)),
+    ];
+    const albums = albumIds.length
+      ? await result(
+          client
+            .from("media_albums")
+            .select("id")
+            .in("id", albumIds)
+            .eq("status", "published"),
+        )
+      : null;
+    const approvedAlbums = new Set(albums?.data?.map((album) => album.id));
+    return (response.data ?? [])
+      .filter((p) => !p.album_id || approvedAlbums.has(p.album_id))
+      .map((p) => ({
+        value:
+          field.type === "player-photo"
+            ? p.id
+            : (p.storage_path ?? p.legacy_path),
+        label: p.title,
+        path: p.storage_path ?? p.legacy_path,
+        assetId: p.id,
+      }));
   }
   return field.options ?? [];
 }
@@ -668,10 +708,9 @@ async function openEditor(row: Row | null) {
   );
   const choiceCache = new Map<string, ReturnType<typeof choices>>();
   const editorChoices = (field: Field) => {
-    const key =
-      field.type === "media" || field.type === "gallery"
-        ? "approved-photos"
-        : field.name;
+    const key = ["media", "gallery", "player-photo"].includes(field.type ?? "")
+      ? "approved-photos-" + field.type + "-" + (field.mediaCategory ?? "all")
+      : field.name;
     if (!choiceCache.has(key)) choiceCache.set(key, choices(field));
     return choiceCache.get(key)!;
   };
@@ -689,6 +728,7 @@ async function openEditor(row: Row | null) {
         "source_url",
         "cover_path",
         "photo_path",
+        "photo_asset_id",
       ].includes(field.name)
     )
       container.classList.add("admin-field-wide");
@@ -721,9 +761,9 @@ async function openEditor(row: Row | null) {
     } else {
       let input: HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement;
       if (field.type === "textarea") input = node("textarea");
-      else if (field.type === "select" || field.type === "media") {
+      else if (["select", "media", "player-photo"].includes(field.type ?? "")) {
         input = node("select");
-        if (field.type === "media") {
+        if (field.type === "media" || field.type === "player-photo") {
           const empty = node("option", t("写真なし"));
           empty.value = "";
           input.append(empty);
@@ -731,7 +771,18 @@ async function openEditor(row: Row | null) {
         for (const option of await editorChoices(field)) {
           const item = node("option", option.label);
           item.value = option.value;
+          if ("assetId" in option)
+            item.dataset.assetId = String(option.assetId);
+          if ("path" in option) item.dataset.photoPath = String(option.path);
           input.append(item);
+        }
+        if (
+          row?.[field.name] &&
+          ![...input.options].some((item) => item.value === row[field.name])
+        ) {
+          const existing = node("option", t("現在の写真（選択候補外）"));
+          existing.value = String(row[field.name]);
+          input.append(existing);
         }
       } else {
         input = node("input");
@@ -777,6 +828,67 @@ async function openEditor(row: Row | null) {
     }
     if (field.hint) container.append(node("p", field.hint, "admin-help"));
     (groupByField.get(field.name) ?? fields).append(container);
+    if (
+      field.type === "player-photo" ||
+      (field.name === "photo_path" && field.type === "media")
+    ) {
+      const select = container.querySelector<HTMLSelectElement>("select")!;
+      const preview = node("div", "", "office-selected-photo");
+      const selectedOptions = await editorChoices(field);
+      const sources = await imageSources(
+        client,
+        selectedOptions.map((option) =>
+          "path" in option ? option.path : option.value,
+        ),
+        base,
+      );
+      function refreshPhoto() {
+        preview.replaceChildren();
+        const option = select.selectedOptions[0];
+        const source = sources.get(option?.dataset.photoPath ?? select.value);
+        if (source) {
+          const image = node("img");
+          image.src = source;
+          image.alt = option?.textContent ?? "";
+          preview.append(image);
+        }
+        if (!selectedOptions.length)
+          preview.append(
+            node(
+              "p",
+              t(
+                "選手写真がありません。写真・動画で「選手写真」を選び、写真を登録して発行してください。",
+              ),
+              "admin-help",
+            ),
+          );
+      }
+      select.addEventListener("change", refreshPhoto);
+      container.append(preview);
+      refreshPhoto();
+    }
+  }
+  attachTranslationEditor(editorForm, fields, resource, row);
+  let suggestInitialPhoto: (() => void) | null = null;
+  if (resource === "public_player_profiles") {
+    const player =
+      fields.querySelector<HTMLSelectElement>('[name="player_id"]')!;
+    const photo = fields.querySelector<HTMLSelectElement>(
+      '[name="photo_path"]',
+    )!;
+    // 선수 등록에서 지정한 사진을 새 공개 프로필에 제안합니다. 기존 사진과 수동 선택은 덮어쓰지 않습니다.
+    const suggestPhoto = () => {
+      if (photo.value) return;
+      const assetId = playerConsents.get(player.value)?.photo_asset_id;
+      const option = [...photo.options].find(
+        (item) => item.dataset.assetId === assetId,
+      );
+      if (!option) return;
+      photo.value = option.value;
+      photo.dispatchEvent(new Event("change", { bubbles: true }));
+    };
+    player.addEventListener("change", suggestPhoto);
+    if (!row) suggestInitialPhoto = suggestPhoto;
   }
   const meta = $("#editor-meta");
   if (scheduleEnabled && resource === "training_sessions")
@@ -897,6 +1009,7 @@ async function openEditor(row: Row | null) {
         "preview",
       ),
     );
+  suggestInitialPhoto?.();
   editorBaseline = editorSnapshot();
   editorDirty = false;
   updateProfileApproval();
@@ -983,6 +1096,7 @@ async function save(event: SubmitEvent) {
         "album_id",
         "storage_path",
         "activity_date",
+        "photo_asset_id",
         "captured_on",
       ].includes(field.name)
     ) {
@@ -993,6 +1107,19 @@ async function save(event: SubmitEvent) {
   }
   const status =
     (event.submitter as HTMLButtonElement | null)?.dataset.saveStatus ?? "";
+  if (resource === "articles" || resource === "site_pages") {
+    payload.translations = readTranslations(data, resource);
+    if (["published", "scheduled"].includes(status))
+      for (const value of Object.values(
+        payload.translations as ContentTranslations,
+      ))
+        if (!translationComplete(value, resource))
+          throw new Error(
+            t(
+              "入力途中の翻訳があります。全項目を完成させるか、その言語を空欄にしてから発行してください。",
+            ),
+          );
+  }
   if (config.canPublish.length || resource === "public_player_profiles")
     payload.status = status === "scheduled" ? "draft" : status || "draft";
   if (resource === "media_assets") {
@@ -1230,12 +1357,32 @@ window.addEventListener("beforeunload", (event) => {
 $("#preview-close").addEventListener("click", () =>
   $<HTMLDialogElement>("#article-preview-dialog").close(),
 );
-async function previewArticle() {
+async function previewArticle(
+  locale: Locale = (editorForm.dataset.contentLanguage as Locale) ?? "ja",
+) {
   if (!client || editResource !== "articles") return;
   const data = new FormData(editorForm);
+  const content = contentForLanguage(data, "articles", locale);
   const paths = [data.get("cover_path"), ...data.getAll("gallery_paths")];
   const sources = await imageSources(client, paths, base);
   const article = node("article", "", "office-news-preview");
+  article.lang = locale;
+  const languageLabel = node(
+    "label",
+    t("プレビューの言語"),
+    "office-preview-language",
+  );
+  const languages = node("select");
+  for (const language of ["ja", "ko", "en"] as const) {
+    const option = node("option", contentLanguageNames[language]);
+    option.value = language;
+    languages.append(option);
+  }
+  languages.value = locale;
+  languages.addEventListener("change", () => {
+    void run(() => previewArticle(languages.value as Locale));
+  });
+  languageLabel.append(languages);
   const category =
     resources.articles.fields
       .find((field) => field.name === "category")
@@ -1243,17 +1390,17 @@ async function previewArticle() {
       ?.label ?? "";
   article.append(
     node("p", category, "office-kicker"),
-    node("h1", String(data.get("title") || t("タイトル未入力"))),
-    node("p", String(data.get("summary") ?? ""), "office-preview-summary"),
+    node("h1", content.title || t("タイトル未入力")),
+    node("p", content.summary ?? "", "office-preview-summary"),
   );
   const cover = sources.get(String(data.get("cover_path") ?? ""));
   if (cover) {
     const image = node("img");
     image.src = cover;
-    image.alt = String(data.get("cover_alt") ?? "");
+    image.alt = content.cover_alt ?? "";
     article.append(image);
   }
-  for (const paragraph of String(data.get("body") ?? "")
+  for (const paragraph of String(content.body ?? "")
     .split(/\n\s*\n/)
     .filter(Boolean))
     article.append(node("p", paragraph));
@@ -1267,8 +1414,9 @@ async function previewArticle() {
     gallery.append(image);
   }
   article.append(gallery);
-  $("#article-preview-content").replaceChildren(article);
-  $<HTMLDialogElement>("#article-preview-dialog").showModal();
+  $("#article-preview-content").replaceChildren(languageLabel, article);
+  const preview = $<HTMLDialogElement>("#article-preview-dialog");
+  if (!preview.open) preview.showModal();
 }
 
 // Auth 콜백 안에서 다른 Auth 작업을 기다리면 멈출 수 있으므로 다음 이벤트에서 처리합니다.
