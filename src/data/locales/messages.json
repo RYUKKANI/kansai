@@ -2590,5 +2590,45 @@
   "選手カテゴリーの公開承認済み写真を選択してください。": {
     "ko": "선수 카테고리의 공개 승인된 사진을 선택해 주세요.",
     "en": "Choose an approved photo from the Player photos category."
+  },
+  "選手管理": {
+    "ko": "선수 관리",
+    "en": "Player management"
+  },
+  "選手の登録・写真・公開プロフィールを、同じ選手の行から管理します。登録後、選手写真と公開プロフィールを順に編集できます。": {
+    "ko": "선수 정보·사진·공개 프로필을 같은 선수의 행에서 관리합니다. 선수를 등록한 뒤 사진과 공개 프로필을 차례로 편집할 수 있습니다.",
+    "en": "Manage registration, photos and public profiles from the same player row. Register a player, then edit their photo and public profile."
+  },
+  "コーチは公開承認済みの選手写真を選べます。新しい写真の登録・承認はOwnerまたはAdministratorが行います。": {
+    "ko": "코치는 공개 승인된 선수 사진을 선택할 수 있습니다. 새 사진 등록·승인은 Owner 또는 Administrator가 진행합니다.",
+    "en": "Coaches can select approved player photos. Owners and administrators upload and approve new photos."
+  },
+  "写真は保存されました。選手との連携は最新情報を開いて確認してください。": {
+    "ko": "사진은 저장되었습니다. 최신 선수 정보를 열어 사진 연결을 확인해 주세요.",
+    "en": "The photo was saved. Reopen the latest player information to check its link."
+  },
+  "写真の保存は完了しましたが、選手への連携は完了していません。": {
+    "ko": "사진은 저장되었지만 선수 연결은 완료되지 않았습니다.",
+    "en": "The photo was saved, but linking it to the player did not complete."
+  },
+  "選手写真を登録情報に連携しました。公開には写真とプロフィールの確認・承認が必要です。": {
+    "ko": "선수 사진을 등록 정보에 연결했습니다. 공개하려면 사진과 프로필을 확인·승인해야 합니다.",
+    "en": "The photo is linked to the player registration. The photo and profile require review and approval before publication."
+  },
+  "選手管理の項目": {
+    "ko": "선수 관리 항목",
+    "en": "Player management sections"
+  },
+  "登録・同意": {
+    "ko": "정보·동의",
+    "en": "Registration and consent"
+  },
+  "プロフィールの公開状態": {
+    "ko": "프로필 공개 상태",
+    "en": "Profile publication status"
+  },
+  "公開資料の保存先：kansai-sub ↗": {
+    "ko": "공개 자료 저장소: kansai-sub ↗",
+    "en": "Public content repository: kansai-sub ↗"
   }
 }

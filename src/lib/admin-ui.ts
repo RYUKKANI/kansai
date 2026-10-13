@@ -14,6 +14,7 @@ export type ListFilter = {
   consent?: string;
   schedule?: string;
   after?: string;
+  profileStatus?: string;
 };
 export const officeGroups = [
   "OVERVIEW",
@@ -67,7 +68,7 @@ export const officePages: Record<
   },
   players: {
     group: "TEAM",
-    english: "PLAYER REGISTER",
+    english: "PLAYER OFFICE",
     icon: "users",
     description: t(
       "内部の選手登録と公開同意を管理します。登録だけでプロフィールは公開されません。",

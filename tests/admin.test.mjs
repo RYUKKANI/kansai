@@ -211,20 +211,38 @@ test("saved preview disables login and makes no authentication requests", async 
   }
 });
 test("coach metadata cannot expose owner/editor menus or profile publishing", async () => {
-  const { dom, window } = await app("coach");
+  const { dom, window } = await app(
+    "coach",
+    undefined,
+    {},
+    {
+      players: [
+        {
+          id: "00000000-0000-4000-8000-000000000001",
+          internal_name: "Test only",
+          activity_status: "active",
+          updated_at: new Date().toISOString(),
+        },
+      ],
+    },
+  );
   try {
     await login(window);
     const document = window.document;
     assert.equal(document.querySelector('[data-resource="admin_roles"]'), null);
     assert.equal(document.querySelector('[data-resource="articles"]'), null);
     assert.ok(document.querySelector('[data-resource="training_sessions"]'));
-    document.querySelector('[data-resource="public_player_profiles"]').click();
-    await eventually(
-      () =>
-        document.querySelector("#resource-title").textContent ===
-        "公開プロフィール",
+    assert.equal(
+      document.querySelector(
+        '#admin-navigation [data-resource="public_player_profiles"]',
+      ),
+      null,
     );
-    document.querySelector("#new-button").click();
+    document.querySelector('[data-resource="players"]').click();
+    await eventually(() =>
+      document.querySelector('[data-player-action="profile"]'),
+    );
+    document.querySelector('[data-player-action="profile"]').click();
     await eventually(() => document.querySelector("#editor-dialog").open);
     assert.equal(
       document.querySelector('[data-save-status="published"]'),

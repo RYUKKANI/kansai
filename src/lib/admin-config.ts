@@ -125,7 +125,7 @@ export const resources: Record<Resource, ResourceConfig> = {
     ],
   },
   players: {
-    label: t("選手の登録・同意"),
+    label: t("選手管理"),
     singular: t("選手"),
     titleField: "internal_name",
     key: "id",

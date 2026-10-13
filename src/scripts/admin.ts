@@ -25,6 +25,7 @@ import {
   type Row,
   type OfficePage,
   type ListFilter,
+  selectFields,
 } from "../lib/admin-ui";
 import { buildDashboard } from "./admin-dashboard";
 import { createList, type ListController } from "./admin-list";
@@ -85,6 +86,15 @@ let contentEditor: ContentEditor | null = null;
 let drawerOpen = false;
 const playerConsents = new Map<string, Row>();
 let editing: Row | null = null;
+type EditorContext = {
+  resource: Resource;
+  defaults?: Row;
+  locked?: Row;
+  photoConsent?: boolean;
+  afterSave?: (row: Row) => Promise<string | void>;
+};
+let editorContext: EditorContext | null = null;
+let pendingEditorAction: (() => Promise<void>) | null = null;
 let editResource: Resource | null = null;
 let removing: Row | null = null;
 let removeResource: Resource | null = null;
@@ -252,6 +262,8 @@ function resetLogin() {
   currentList?.dispose();
   currentList = null;
   editResource = null;
+  editorContext = null;
+  pendingEditorAction = null;
   removeResource = null;
   editorDirty = false;
   editorBaseline = "";
@@ -348,6 +360,7 @@ function navigation() {
     ] as OfficePage[]) {
       const info = officePages[name];
       if (
+        name === "public_player_profiles" ||
         info.group !== group ||
         (name === "schedule"
           ? !role || !["owner", "administrator", "coach"].includes(role)
@@ -433,12 +446,30 @@ async function publicationStatus(version = requestId) {
     icon(status === "synced" ? "check" : "clock"),
     node("span", text),
   );
+  const archive = node(
+    "a",
+    t("公開資料の保存先：kansai-sub ↗"),
+    "office-repository-link",
+  );
+  archive.href = "https://github.com/RYUKKANI/kansai-sub";
+  archive.target = "_blank";
+  archive.rel = "noopener noreferrer";
+  element.append(archive);
 }
 async function show(
   resource: OfficePage,
   resetPage = true,
   initialFilter?: ListFilter,
 ) {
+  // 공개 프로필의 기존 대시보드 진입점도 선수 관리에 모읍니다. 저장 테이블과 권한은 분리해 유지합니다.
+  if (resource === "public_player_profiles") {
+    initialFilter = {
+      ...initialFilter,
+      profileStatus: initialFilter?.status,
+      status: undefined,
+    };
+    resource = "players";
+  }
   if (
     !client ||
     !role ||
@@ -510,7 +541,7 @@ async function show(
       open: (next, row) => {
         void run(async () => {
           await show(next);
-          await openEditor(row);
+          await openEditor(row, { resource: next });
         });
       },
     });
@@ -542,8 +573,29 @@ async function show(
       isCurrent: () =>
         version === requestId && Boolean(role) && current === resource,
       open: (row) => {
-        void run(() => openEditor(row));
+        void run(() =>
+          resource === "players"
+            ? openPlayerPart(row, "register")
+            : openEditor(row),
+        );
       },
+      ...(resource === "players"
+        ? {
+            playerActions: (row: Row) =>
+              ["photo", "profile"].map((part) => {
+                const value = part as "photo" | "profile";
+                const button = action(
+                  part === "photo" ? t("選手写真") : t("公開プロフィール"),
+                  "admin-secondary",
+                  () => {
+                    void run(() => openPlayerPart(row, value));
+                  },
+                );
+                button.dataset.playerAction = part;
+                return button;
+              }),
+          }
+        : {}),
       remove: (row) => {
         removing = row;
         removeResource = resource;
@@ -562,6 +614,19 @@ async function show(
     });
     currentList = list;
     $("#admin-content").replaceChildren(list.element);
+    if (resource === "players") {
+      const help = node("div", "", "office-player-guide");
+      help.append(
+        node("strong", "PLAYER OFFICE"),
+        node(
+          "p",
+          t(
+            "選手の登録・写真・公開プロフィールを、同じ選手の行から管理します。登録後、選手写真と公開プロフィールを順に編集できます。",
+          ),
+        ),
+      );
+      list.element.prepend(help);
+    }
     await list.refresh();
   }
   if (version !== requestId || !role) return;
@@ -638,10 +703,150 @@ async function choices(field: Field) {
   }
   return field.options ?? [];
 }
-async function openEditor(row: Row | null) {
+// [편집 안내] 선수 관리는 하나의 진입점에서 기존 세 양식을 재사용합니다.
+// 내부 선수 ID와 공개 프로필 ID는 같은 UUID로 연결하고, 실제 저장/승인 권한은 기존 RLS가 적용합니다.
+async function openPlayerPart(
+  player: Row,
+  part: "register" | "photo" | "profile",
+) {
+  if (!client || !role) return;
+  const fresh = await result(
+    client
+      .from("players")
+      .select(selectFields("players"))
+      .eq("id", player.id)
+      .single(),
+  );
+  const selected = fresh.data as unknown as Row;
+  if (!selected || selected.id !== player.id)
+    throw new Error(t("管理画面を読み直してください。"));
+  let photo: Row | null = null;
+  if (selected.photo_asset_id) {
+    const response = await result(
+      client
+        .from("media_assets")
+        .select(selectFields("media_assets"))
+        .eq("id", selected.photo_asset_id)
+        .maybeSingle(),
+    );
+    photo = response.data as Row | null;
+  }
+  if (part === "register" || (part === "photo" && role === "coach")) {
+    await openEditor(selected, { resource: "players" });
+    if (part === "photo") {
+      for (const group of $("#editor-fields").querySelectorAll<HTMLElement>(
+        ".office-field-group",
+      )) {
+        const hasPhoto = Boolean(
+          group.querySelector('[name="photo_asset_id"]'),
+        );
+        group.hidden = !hasPhoto;
+        if (hasPhoto)
+          for (const field of group.querySelectorAll<HTMLElement>(
+            ".admin-field",
+          ))
+            field.hidden = !field.querySelector('[name="photo_asset_id"]');
+      }
+      $("#editor-fields").prepend(
+        node(
+          "p",
+          t(
+            "コーチは公開承認済みの選手写真を選べます。新しい写真の登録・承認はOwnerまたはAdministratorが行います。",
+          ),
+          "admin-help",
+        ),
+      );
+    }
+  } else if (part === "photo") {
+    await openEditor(photo, {
+      resource: "media_assets",
+      photoConsent: selected.photo_consent === true,
+      defaults: { media_category: "player", kind: "photo" },
+      locked: { media_category: "player", kind: "photo" },
+      afterSave: async (saved) => {
+        if (!client || !saved.id)
+          throw new Error(
+            t(
+              "写真は保存されました。選手との連携は最新情報を開いて確認してください。",
+            ),
+          );
+        // 사진 초안은 내부 선수에만 연결합니다. 공개 프로필의 사진·승인은 변경하지 않습니다.
+        await result(
+          client
+            .from("players")
+            .update({ photo_asset_id: saved.id })
+            .eq("id", selected.id)
+            .eq("updated_at", selected.updated_at)
+            .select("id")
+            .single(),
+        );
+        return t(
+          "選手写真を登録情報に連携しました。公開には写真とプロフィールの確認・承認が必要です。",
+        );
+      },
+    });
+  } else {
+    const response = await result(
+      client
+        .from("public_player_profiles")
+        .select(selectFields("public_player_profiles"))
+        .eq("player_id", selected.id)
+        .maybeSingle(),
+    );
+    const profile = response.data as Row | null;
+    const approvedPhoto =
+      photo?.status === "published"
+        ? (photo.storage_path ?? photo.legacy_path)
+        : null;
+    await openEditor(profile, {
+      resource: "public_player_profiles",
+      defaults: { player_id: selected.id, photo_path: approvedPhoto },
+      locked: { player_id: selected.id },
+    });
+  }
+  const navigation = node("nav", "", "office-player-tabs");
+  if (part === "photo" && role !== "coach" && !selected.photo_consent)
+    $("#editor-fields").prepend(
+      node(
+        "p",
+        t("先に選手登録画面で写真の公開同意を確認してください。"),
+        "admin-help",
+      ),
+    );
+  navigation.setAttribute("aria-label", t("選手管理の項目"));
+  navigation.append(node("strong", String(selected.internal_name)));
+  for (const [value, label] of [
+    ["register", t("登録・同意")],
+    ["photo", t("選手写真")],
+    ["profile", t("公開プロフィール")],
+  ] as const) {
+    const button = action(label, "admin-secondary", () => {
+      if (editorSaving) return;
+      const next = () => openPlayerPart(selected, value);
+      if (editorDirty) {
+        pendingEditorAction = next;
+        $<HTMLDialogElement>("#unsaved-dialog").showModal();
+      } else void run(next);
+    });
+    button.dataset.playerPart = value;
+    if (value === part) button.setAttribute("aria-current", "page");
+    navigation.append(button);
+  }
+  $("#editor-fields").prepend(navigation);
+  editorBaseline = editorSnapshot();
+  editorDirty = false;
+}
+async function openEditor(
+  row: Row | null,
+  context: EditorContext | null = null,
+) {
   if (!client || !role || current === "dashboard" || current === "schedule")
     return;
-  const resource = current;
+  const resource = context?.resource ?? current;
+  if (!resources[resource].roles.includes(role)) return;
+  editorContext = context;
+  pendingEditorAction = null;
+  const values = { ...context?.defaults, ...row };
   $("#editor-notice").textContent = "";
   contentEditor?.dispose();
   contentEditor = null;
@@ -741,7 +946,7 @@ async function openEditor(row: Row | null) {
       group.setAttribute("role", "group");
       group.setAttribute("aria-label", field.label);
       const selected = Array.isArray(row?.[field.name])
-        ? (row?.[field.name] as string[])
+        ? (values[field.name] as string[])
         : [];
       for (const option of await editorChoices(field)) {
         const checkbox = node("input");
@@ -802,9 +1007,9 @@ async function openEditor(row: Row | null) {
       } else {
         input.value =
           field.type === "datetime-local"
-            ? japanInput(row?.[field.name])
+            ? japanInput(values[field.name])
             : String(
-                row?.[field.name] ??
+                values[field.name] ??
                   (field.name === "display_order"
                     ? "0"
                     : input instanceof HTMLSelectElement
@@ -824,6 +1029,15 @@ async function openEditor(row: Row | null) {
         if (field.name === "storage_path" && input instanceof HTMLInputElement)
           input.readOnly = true;
         container.append(label, input);
+      }
+      if (context?.locked && field.name in context.locked) {
+        input.value = String(context.locked[field.name]);
+        input.disabled = true;
+        const locked = node("input");
+        locked.type = "hidden";
+        locked.name = field.name;
+        locked.value = input.value;
+        container.append(locked);
       }
     }
     if (field.hint) container.append(node("p", field.hint, "admin-help"));
@@ -1115,6 +1329,11 @@ async function save(event: SubmitEvent) {
   }
   const status =
     (event.submitter as HTMLButtonElement | null)?.dataset.saveStatus ?? "";
+  if (
+    editorContext?.photoConsent === false &&
+    ["published", "scheduled"].includes(status)
+  )
+    throw new Error(t("先に選手登録画面で写真の公開同意を確認してください。"));
   if (resource === "articles" || resource === "site_pages") {
     payload.translations = readTranslations(data, resource);
     if (["published", "scheduled"].includes(status))
@@ -1139,6 +1358,7 @@ async function save(event: SubmitEvent) {
       if (payload.storage_path) payload.legacy_path = null;
     }
   }
+  let saved: Row | null = null;
   if (contentEnabled && contentResources.includes(resource)) {
     const scheduled = String(data.get("_publish_at") || "");
     if (
@@ -1148,7 +1368,7 @@ async function save(event: SubmitEvent) {
       throw new Error(
         t("予約発行する未来の日時を日本時間で入力してください。"),
       );
-    await result(
+    const response = await result(
       client.rpc("save_office_content", {
         p_entity: resource,
         p_id: editing ? String(editing[config.key]) : null,
@@ -1160,6 +1380,7 @@ async function save(event: SubmitEvent) {
             : null,
       }),
     );
+    saved = response.data as Row | null;
   } else if (
     scheduleEnabled &&
     resource === "training_sessions" &&
@@ -1182,22 +1403,44 @@ async function save(event: SubmitEvent) {
         p_scope: String(data.get("_repeat_scope") || "single"),
       }),
     );
-  } else if (editing)
-    await result(
+  } else if (editing) {
+    const response = await result(
       client
         .from(resource)
         .update(payload)
         .eq(config.key, editing[config.key])
-        .select(config.key)
+        .select(selectFields(resource))
         .single(),
     );
-  else
-    await result(
-      client.from(resource).insert(payload).select(config.key).single(),
+    saved = response.data as Row | null;
+  } else {
+    const response = await result(
+      client
+        .from(resource)
+        .insert(payload)
+        .select(selectFields(resource))
+        .single(),
     );
+    saved = response.data as Row | null;
+  }
   editorDirty = false;
   contentEditor?.clear();
   editor.close();
+  let linked = "";
+  if (editorContext?.afterSave) {
+    try {
+      linked = (await editorContext.afterSave(saved ?? {})) ?? "";
+    } catch (error) {
+      notice(
+        t("写真の保存は完了しましたが、選手への連携は完了していません。") +
+          " " +
+          message(error),
+        true,
+      );
+      await show(current, false);
+      return;
+    }
+  }
   notice(
     status === "published"
       ? t("発行しました。公開サイトの反映状態をご確認ください。")
@@ -1207,7 +1450,8 @@ async function save(event: SubmitEvent) {
           )
         : t("保存しました。"),
   );
-  await show(resource, false);
+  if (linked) notice(linked);
+  await show(editorContext ? current : resource, false);
 }
 
 // 접기 설정은 이 브라우저에만 보관합니다. 모바일 드로어는 별도의 열린 상태와 포커스 범위를 사용합니다.
@@ -1313,6 +1557,16 @@ function markEditorDirty() {
   editorDirty = editor.open && editorSnapshot() !== editorBaseline;
 }
 function updateProfileApproval() {
+  if (
+    editResource === "media_assets" &&
+    editorContext?.photoConsent === false
+  ) {
+    for (const button of editorForm.querySelectorAll<HTMLButtonElement>(
+      '[data-save-status="published"],[data-save-status="scheduled"]',
+    ))
+      button.disabled = true;
+    return;
+  }
   if (editResource !== "public_player_profiles") return;
   const playerId = $<HTMLSelectElement>("#field-player_id").value;
   const player = playerConsents.get(playerId);
@@ -1349,14 +1603,18 @@ editor.addEventListener("cancel", (event) => {
   event.preventDefault();
   closeEditor();
 });
-$("#unsaved-continue").addEventListener("click", () =>
-  $<HTMLDialogElement>("#unsaved-dialog").close(),
-);
+$("#unsaved-continue").addEventListener("click", () => {
+  pendingEditorAction = null;
+  $<HTMLDialogElement>("#unsaved-dialog").close();
+});
 $("#unsaved-discard").addEventListener("click", () => {
   contentEditor?.clear();
   editorDirty = false;
   $<HTMLDialogElement>("#unsaved-dialog").close();
   editor.close();
+  const next = pendingEditorAction;
+  pendingEditorAction = null;
+  if (next) void run(next);
 });
 window.addEventListener("beforeunload", (event) => {
   if (!editorDirty || !editor.open) return;

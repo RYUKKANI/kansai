@@ -278,12 +278,8 @@ test("player registration offers only approved player photos and public profile 
       ["", "selected-player", "second-player"],
     );
     d.querySelector("#editor-close").click();
-    d.querySelector('[data-resource="public_player_profiles"]').click();
-    await eventually(
-      () =>
-        d.querySelector("#resource-title").textContent === "公開プロフィール",
-    );
-    d.querySelector("#new-button").click();
+    await eventually(() => d.querySelector('[data-player-action="profile"]'));
+    d.querySelector('[data-player-action="profile"]').click();
     await eventually(() => d.querySelector("#editor-dialog").open);
     assert.equal(
       d.querySelector('[name="photo_path"]').value,
@@ -292,22 +288,18 @@ test("player registration offers only approved player photos and public profile 
     assert.ok(d.querySelector(".office-selected-photo img"));
     const playerSelect = d.querySelector('[name="player_id"]');
     const photoSelect = d.querySelector('[name="photo_path"]');
-    playerSelect.value = "00000000-0000-4000-8000-000000000002";
-    playerSelect.dispatchEvent(
-      new context.window.Event("change", { bubbles: true }),
+    assert.equal(
+      playerSelect.disabled,
+      true,
+      "selected player UUID is locked in the unified editor",
     );
-    assert.equal(photoSelect.value, "assets/second-player.jpg");
-    photoSelect.value = "assets/club-profile.jpg";
+    photoSelect.value = "assets/second-player.jpg";
     photoSelect.dispatchEvent(
-      new context.window.Event("change", { bubbles: true }),
-    );
-    playerSelect.value = uid;
-    playerSelect.dispatchEvent(
       new context.window.Event("change", { bubbles: true }),
     );
     assert.equal(
       photoSelect.value,
-      "assets/club-profile.jpg",
+      "assets/second-player.jpg",
       "manual choice is preserved",
     );
     assert.equal(d.querySelector('[data-save-status="published"]'), null);

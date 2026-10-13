@@ -36,6 +36,7 @@ interface Options {
   remove: (row: Row) => void;
   create: () => void;
   onError: (error: unknown) => void;
+  playerActions?: (row: Row) => HTMLElement[];
 }
 export interface ListController {
   element: HTMLElement;
@@ -132,6 +133,11 @@ export function createList(options: Options): ListController {
       { value: "published", label: t("発行済み") },
     ]);
   if (resource === "players") {
+    filterSelect("profileStatus", t("プロフィールの公開状態"), [
+      { value: "draft", label: t("下書き") },
+      { value: "pending", label: t("承認待ち") },
+      { value: "published", label: t("発行済み") },
+    ]);
     filterSelect(
       "status",
       t("活動状態"),
@@ -220,7 +226,13 @@ export function createList(options: Options): ListController {
         .normalize("NFKC")
         .trim(),
     };
-    for (const name of ["status", "category", "consent", "schedule"] as const)
+    for (const name of [
+      "status",
+      "category",
+      "consent",
+      "schedule",
+      "profileStatus",
+    ] as const)
       if (toolbar.querySelector('[name="' + name + '"]'))
         filters[name] = String(data.get(name) ?? "");
   }
@@ -390,6 +402,8 @@ export function createList(options: Options): ListController {
       buttons.append(
         action(t("編集"), "admin-secondary", () => options.open(row)),
       );
+      if (resource === "players" && options.playerActions)
+        buttons.append(...options.playerActions(row));
       if (
         ![
           "players",
@@ -578,6 +592,17 @@ export function createList(options: Options): ListController {
       let query = client
         .from(resource)
         .select(selectFields(resource), { count: "exact" });
+      if (resource === "players" && filters.profileStatus) {
+        const profiles = await client
+          .from("public_player_profiles")
+          .select("player_id")
+          .eq("status", filters.profileStatus);
+        if (profiles.error) throw profiles.error;
+        query = query.in(
+          "id",
+          (profiles.data ?? []).map((profile) => profile.player_id),
+        );
+      }
       if (filters.search)
         query = query.ilike(
           config.titleField,
@@ -671,9 +696,7 @@ export function createList(options: Options): ListController {
           const photos = await client
             .from("media_assets")
             .select("id,storage_path,legacy_path")
-            .in("id", photoIds)
-            .eq("status", "published")
-            .eq("public_approved", true);
+            .in("id", photoIds);
           if (photos.error) throw photos.error;
           for (const row of rows) {
             const photo = photos.data?.find(

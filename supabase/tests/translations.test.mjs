@@ -247,10 +247,22 @@ try {
     "withdrawn photo unpublishes linked profile",
   );
   await as(1);
+  const internalPhotoPlayer = (
+    await db.query(
+      "insert into public.players(internal_name,photo_asset_id) values($1,$2) returning photo_asset_id",
+      ["Other player", photo.id],
+    )
+  ).rows[0];
+  check(
+    internalPhotoPlayer.photo_asset_id === photo.id,
+    "owner can link a private player photo internally without publishing it",
+  );
+  await as(4);
   await denied(
     "insert into public.players(internal_name,photo_asset_id) values($1,$2)",
-    ["Other player", photo.id],
+    ["Coach cannot select private", photo.id],
   );
+  await as(1);
   await denied("delete from public.media_assets where id=$1", [photo.id]);
   console.log("Translation/photo PostgreSQL checks passed:", checks);
 } finally {
