@@ -1,4 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
+import { japanPublicationDate } from "../lib/dates";
 import { createHash } from "node:crypto";
 import { mkdir, writeFile } from "node:fs/promises";
 import {
@@ -244,7 +245,7 @@ async function readPublishedContent(): Promise<PublicContent> {
         title: row.title,
         summary: row.summary,
         paragraphs: paragraphs(row.body),
-        published: row.published_at?.slice(0, 10).replaceAll("-", ".") ?? "",
+        published: japanPublicationDate(row.published_at),
         activityDate: row.activity_date ?? undefined,
         image: await image(row.cover_path),
         alt: row.cover_alt,

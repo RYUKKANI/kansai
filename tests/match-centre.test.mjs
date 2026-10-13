@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { japanPublicationDate } from "../src/lib/dates.ts";
 import {
   selectMatchCentre,
   matchSides,
@@ -20,6 +21,12 @@ const fixture = (id, kickoff, status = "scheduled") => ({
   opponentScore: null,
   opponentLogo: "",
   report: [],
+});
+
+test("publication dates keep the original Japan calendar day across UTC boundaries", () => {
+  assert.equal(japanPublicationDate("2026-10-08T15:00:00+00:00"), "2026.10.09");
+  assert.equal(japanPublicationDate("2026-09-30T15:00:00Z"), "2026.10.01");
+  assert.equal(japanPublicationDate(null), "");
 });
 test("match centre chooses latest result and chronological upcoming fixtures", () => {
   const rows = [
