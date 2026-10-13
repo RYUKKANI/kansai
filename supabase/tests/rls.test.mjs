@@ -21,7 +21,10 @@ async function main() {
     ].join("\n"),
   );
   const files = (await readdir("supabase/migrations"))
-    .filter((f) => f.endsWith(".sql"))
+    // pg_cron은 PGlite가 제공하지 않습니다. 이 활성화 파일은 운영 Cron 실행 이력으로 별도 검증합니다.
+    .filter(
+      (f) => f.endsWith(".sql") && !f.endsWith("_enable_content_publisher.sql"),
+    )
     .sort();
   for (const file of files)
     await db.exec(await readFile("supabase/migrations/" + file, "utf8"));

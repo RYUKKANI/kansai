@@ -6,6 +6,7 @@ export const GET: APIRoute = async () => {
   return Response.json({
     version: content.version,
     fromCms: content.fromCms,
+    schedulesEnabled: import.meta.env.PUBLIC_SCHEDULE_ENABLED === "true",
     builtAt: new Date().toISOString(),
   });
 };

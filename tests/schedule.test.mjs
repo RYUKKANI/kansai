@@ -2,6 +2,32 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { build } from "esbuild";
 import { app, login, eventually } from "./helpers/admin-app.mjs";
+test("schedule save is not called deployed until the public schedule feature is in the live build", async () => {
+  for (const enabled of [false, true]) {
+    const context = await app(
+      "owner",
+      undefined,
+      { schedule: true, schedulesDeployed: enabled },
+      { club_events: [] },
+    );
+    try {
+      await login(context.window);
+      await eventually(
+        () =>
+          context.window.document.querySelector("#publication-status").dataset
+            .state,
+      );
+      const status = context.window.document.querySelector(
+        "#publication-status",
+      );
+      assert.equal(status.dataset.state, enabled ? "synced" : "waiting");
+      if (!enabled)
+        assert.match(status.textContent, /まだホームページに表示されません/);
+    } finally {
+      context.dom.window.close();
+    }
+  }
+});
 const compiled = await build({
   entryPoints: ["src/lib/schedule.ts"],
   bundle: true,

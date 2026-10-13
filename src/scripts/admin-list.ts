@@ -1,5 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { resources, type Resource } from "../lib/admin-config";
+import { contentEnabled } from "../lib/office-features";
+import { contentResources } from "../lib/content-drafts";
 import {
   action,
   badge,
@@ -133,7 +135,9 @@ export function createList(options: Options): ListController {
       { value: "disabled", label: "無効" },
     ]);
   const scheduleResource =
-    resource === "fixtures" || resource === "training_sessions" || resource === "club_events";
+    resource === "fixtures" ||
+    resource === "training_sessions" ||
+    resource === "club_events";
   if (scheduleResource) {
     filterSelect("schedule", "開催状態", [
       { value: "scheduled", label: "開催予定" },
@@ -271,6 +275,26 @@ export function createList(options: Options): ListController {
   }
   function columns(): Column[] {
     const result: Column[] = [{ label: config.singular, render: titleCell }];
+    if (contentEnabled && contentResources.includes(resource))
+      result.push({
+        label: "予約発行",
+        render: (row) => {
+          const release = row.office_release as Row | undefined;
+          if (!release) return "—";
+          const labels: Record<string, string> = {
+            queued: "予約済み",
+            published: "発行済み",
+            cancelled: "予約取消",
+            failed: "要確認",
+          };
+          const cell = node("div");
+          cell.append(
+            node("span", labels[String(release.state)] ?? "—"),
+            node("small", dateLabel(release.scheduled_at, true)),
+          );
+          return cell;
+        },
+      });
     const add = (label: string, render: Column["render"], compact = false) =>
       result.push({ label, render, compact });
     if (resource === "articles") {
@@ -278,7 +302,7 @@ export function createList(options: Options): ListController {
         optionLabel(resource, "category", row.category),
       );
       add("公開状態", (row) => badge(row.status));
-      // ニュースにはcreated_at列がありません。存在するINSERT監査記録だけを作成日として表示します。
+      // 뉴스에는 created_at 열이 없으므로 실제 INSERT 감사 기록만 작성일로 표시합니다.
       add("作成日", (row) => dateLabel(row.office_created_at), true);
       add("最終更新", (row) => dateLabel(row.updated_at));
     } else if (
@@ -578,6 +602,23 @@ export function createList(options: Options): ListController {
       const response = await query.overrideTypes<Row[], { merge: false }>();
       if (response.error) throw response.error;
       const rows = (response.data ?? []) as Row[];
+      if (
+        contentEnabled &&
+        contentResources.includes(resource) &&
+        rows.length
+      ) {
+        const releases = await client.rpc("office_release_states", {
+          p_entity: resource,
+          p_ids: rows.map((row) => String(row.id)),
+        });
+        if (releases.error) throw releases.error;
+        if (!Array.isArray(releases.data))
+          throw new Error("予約情報を取得できませんでした。");
+        for (const row of rows)
+          row.office_release = (releases.data as Row[]).find(
+            (release) => release.record_id === String(row.id),
+          );
+      }
       if (resource === "players" && rows.length) {
         const profiles = await client
           .from("public_player_profiles")

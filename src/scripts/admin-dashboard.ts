@@ -2,6 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { resources, type Resource } from "../lib/admin-config";
 import type { StaffRole } from "../lib/content-types";
 import { resourceAvailable, scheduleEnabled } from "../lib/office-features";
+import { contentEnabled } from "../lib/office-features";
 import {
   action,
   badge,
@@ -15,6 +16,7 @@ import {
   selectFields,
   type ListFilter,
   type Row,
+  type OfficePage,
 } from "../lib/admin-ui";
 
 // [편집 안내] 대시보드는 실제 레코드·COUNT·감사 이력만 읽습니다. 권한 밖의 업무를 0건으로 표시하지 않습니다.
@@ -45,7 +47,7 @@ interface Options {
   role: StaffRole;
   userId: string;
   email: string;
-  go: (resource: Resource, filter?: ListFilter) => void;
+  go: (resource: OfficePage, filter?: ListFilter) => void;
   create: (resource: Resource) => void;
   open: (resource: Resource, row: Row) => void;
 }
@@ -205,8 +207,16 @@ export async function buildDashboard({
     upcoming.find((item) => item.response.count)?.resource ??
     schedules.find(allowed);
   if (firstSchedule)
-    stat("今後の予定", upcomingCount, "試合・練習の開催予定", "calendar", () =>
-      go(firstSchedule, { schedule: "scheduled", after: now }),
+    stat(
+      "今後の予定",
+      upcomingCount,
+      scheduleEnabled ? "試合・練習・クラブ行事" : "試合・練習の開催予定",
+      "calendar",
+      () =>
+        go(scheduleEnabled ? "schedule" : firstSchedule, {
+          schedule: "scheduled",
+          after: now,
+        }),
     );
   const pendingCount = pending.reduce(
     (count, item) => count + (item.response.count ?? 0),
@@ -371,6 +381,22 @@ export async function buildDashboard({
       undatedMatches.count,
       () => go("fixtures", { schedule: "undated" }),
     );
+  if (contentEnabled && allowed("articles")) {
+    const attention = await client.rpc("office_release_attention");
+    if (attention.error) throw attention.error;
+    for (const item of Array.isArray(attention.data)
+      ? (attention.data as Row[])
+      : []) {
+      const resource = String(item.entity) as Resource;
+      if (resources[resource] && allowed(resource))
+        requiredRow(
+          resources[resource].label + "の予約発行",
+          "発行できなかった予約、または予約時刻を過ぎた項目を確認してください。",
+          Number(item.total),
+          () => go(resource),
+        );
+    }
+  }
   if (!required.body.children.length)
     required.body.append(
       emptyState(

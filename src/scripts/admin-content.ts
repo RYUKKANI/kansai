@@ -1,0 +1,321 @@
+import type { SupabaseClient } from "@supabase/supabase-js";
+import { resources, type Resource } from "../lib/admin-config";
+import { action, dateLabel, node, roleLabels, type Row } from "../lib/admin-ui";
+import {
+  draftKey,
+  readDraft,
+  writeDraft,
+  contentResources,
+} from "../lib/content-drafts";
+export { contentResources };
+export type ContentEditor = {
+  dispose: () => void;
+  clear: () => void;
+  flush: () => void;
+};
+// 기존 편집 양식을 사용하면서 브라우저 임시 저장과 서버 이력 UI만 덧붙입니다.
+export function attachContentEditor(options: {
+  client: SupabaseClient;
+  userId: string;
+  resource: Resource;
+  row: Row | null;
+  form: HTMLFormElement;
+  container: HTMLElement;
+  publisher: boolean;
+  changed: () => void;
+  restore: (row: Row) => Promise<void>;
+  error: (error: unknown) => void;
+}): ContentEditor {
+  const { client, resource, row, form, container } = options;
+  const key = draftKey(
+    options.userId,
+    resource,
+    row ? String(row[resources[resource].key]) : null,
+  );
+  const expected = row?.updated_at ? String(row.updated_at) : null;
+  let disposed = false;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  let dirty = false;
+  let refreshId = 0;
+  const status = node("p", "このブラウザ内の一時保存：変更待ち", "admin-help");
+  status.setAttribute("role", "status");
+  const section = node("section", "", "office-content-tools");
+  section.append(node("h3", "保存と履歴"), status);
+  container.append(section);
+  let stored: ReturnType<typeof readDraft> = null;
+  try {
+    stored = readDraft(localStorage, key);
+  } catch {
+    status.textContent =
+      "このブラウザでは一時保存を利用できません。下書き保存をご利用ください。";
+  }
+  if (stored) {
+    const prompt = node("div", "", "office-draft-prompt");
+    prompt.append(
+      node(
+        "p",
+        "前回の一時保存：" +
+          dateLabel(new Date(stored.savedAt), true) +
+          (stored.expected !== expected
+            ? "。サーバーの内容が変更されています。復元後に内容を照合してください。"
+            : ""),
+        "admin-help",
+      ),
+    );
+    const draft = stored;
+    prompt.append(
+      action("一時保存を編集画面に戻す", "admin-secondary", () => {
+        for (const field of resources[resource].fields) {
+          const controls = form.querySelectorAll<
+            HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
+          >('[name="' + field.name + '"]');
+          const values = draft.values
+            .filter(([name]) => name === field.name)
+            .map(([, value]) => value);
+          controls.forEach((control) => {
+            if (
+              control.disabled ||
+              (control instanceof HTMLInputElement && control.type === "file")
+            )
+              return;
+            if (
+              control instanceof HTMLInputElement &&
+              control.type === "checkbox"
+            )
+              control.checked = values.includes(control.value);
+            else control.value = values[0] ?? "";
+          });
+        }
+        options.changed();
+        dirty = true;
+        flush();
+        prompt.remove();
+      }),
+      action("一時保存を破棄", "admin-secondary", () => {
+        try {
+          localStorage.removeItem(key);
+        } catch {}
+        prompt.remove();
+      }),
+    );
+    section.append(prompt);
+  }
+  section.append(
+    node(
+      "p",
+      "自動保存はこのブラウザ内だけです。サーバーへの下書き保存・発行は上のボタンで行います。7日間有効で、期限切れは次回表示時、ログアウト時はその場で削除されます。",
+      "admin-help",
+    ),
+  );
+  if (options.publisher) {
+    const label = node("label", "予約発行（日本時間）");
+    const input = node("input");
+    input.type = "datetime-local";
+    input.name = "_publish_at";
+    input.id = "scheduled-publish-at";
+    label.append(input);
+    const button = action("承認して予約する", "admin-secondary");
+    button.type = "submit";
+    button.dataset.saveStatus = "scheduled";
+    section.append(
+      label,
+      button,
+      node(
+        "p",
+        "予約日時以降に内容を確認して発行します。公式サイトへの反映は次の再構築後です。公開中の記事を予約すると一旦非公開になります。",
+        "admin-help",
+      ),
+    );
+  } else
+    section.append(
+      node(
+        "p",
+        "予約発行は運営責任者による公開処理の有効化後に利用できます。",
+        "admin-help",
+      ),
+    );
+  const history = node("div", "", "office-content-history");
+  section.append(history);
+  async function refreshHistory() {
+    if (!row) {
+      history.replaceChildren(
+        node("p", "下書きを保存すると修正履歴を確認できます。", "admin-help"),
+      );
+      return;
+    }
+    const version = ++refreshId;
+    history.replaceChildren(node("p", "修正履歴を読み込み中…", "admin-help"));
+    const response = await client.rpc("office_content_state", {
+      p_entity: resource,
+      p_id: String(row.id),
+    });
+    if (disposed || version !== refreshId) return;
+    if (response.error) {
+      history.replaceChildren(
+        node("p", "修正履歴を取得できませんでした。", "admin-help"),
+        action("再試行", "admin-secondary", () => void refreshHistory()),
+      );
+      return;
+    }
+    history.replaceChildren(node("h4", "最近の修正履歴"));
+    const data = response.data as { release?: Row; revisions?: Row[] } | null;
+    if (data?.release) {
+      const release = data.release;
+      const labels: Record<string, string> = {
+        queued: "予約済み",
+        published: "発行済み",
+        cancelled: "予約取消",
+        failed: "発行できませんでした",
+      };
+      history.append(
+        node(
+          "p",
+          (labels[String(release.state)] ?? "") +
+            "：" +
+            dateLabel(release.scheduled_at, true),
+          "admin-help",
+        ),
+      );
+      if (release.state === "queued") {
+        if (
+          new Date(String(release.scheduled_at)).getTime() <
+          Date.now() - 600000
+        )
+          history.append(
+            node(
+              "p",
+              "予約時刻を過ぎています。運営責任者に処理状況をご確認ください。",
+              "admin-help",
+            ),
+          );
+        history.append(
+          action("予約を取り消す", "admin-secondary", () => {
+            void (async () => {
+              const response = await client.rpc("cancel_content_release", {
+                p_entity: resource,
+                p_id: String(row.id),
+              });
+              if (response.error) throw response.error;
+              await refreshHistory();
+            })().catch(options.error);
+          }),
+        );
+      }
+      if (release.state === "failed")
+        history.append(
+          node(
+            "p",
+            "掲載確認・写真・承認者の権限を確認し、内容を保存して予約し直してください。",
+            "admin-help",
+          ),
+        );
+    }
+    if (!data?.revisions?.length)
+      history.append(
+        node(
+          "p",
+          "この機能の導入後に保存した履歴はまだありません。",
+          "admin-help",
+        ),
+      );
+    for (const revision of data?.revisions ?? []) {
+      const item = node("div", "", "office-revision");
+      const actor =
+        revision.reason === "baseline"
+          ? "修正前の内容"
+          : (roleLabels[String(revision.actor_role)] ?? "システム");
+      item.append(
+        node("strong", String(revision.title ?? "名称未設定")),
+        node(
+          "p",
+          dateLabel(revision.captured_at, true) + " · " + actor,
+          "admin-help",
+        ),
+      );
+      const ask = action("この版を下書きに復元", "admin-secondary", () => {
+        const confirmation = node("div", "", "office-restore-confirm");
+        confirmation.append(
+          node(
+            "p",
+            "現在の編集を置き換え、この版を非公開の下書きとして保存します。発行には再確認が必要です。",
+            "admin-help",
+          ),
+        );
+        const confirm = action("復元を確定", "admin-danger", () => {
+          confirm.disabled = true;
+          void (async () => {
+            const response = await client.rpc("restore_content_revision", {
+              p_revision: revision.id,
+              p_expected: expected,
+            });
+            if (response.error) throw response.error;
+            clear();
+            await options.restore(response.data as Row);
+          })().catch((error) => {
+            confirm.disabled = false;
+            options.error(error);
+          });
+        });
+        confirmation.append(
+          confirm,
+          action("戻る", "admin-secondary", () => confirmation.remove()),
+        );
+        item.append(confirmation);
+        confirm.focus();
+      });
+      item.append(ask);
+      history.append(item);
+    }
+  }
+  function flush() {
+    if (disposed || !dirty) return;
+    try {
+      const values = [...new FormData(form).entries()].filter(
+        (pair): pair is [string, string] =>
+          typeof pair[1] === "string" && !pair[0].startsWith("_"),
+      );
+      writeDraft(localStorage, key, { savedAt: Date.now(), expected, values });
+      status.textContent =
+        "このブラウザ内に一時保存済み：" +
+        dateLabel(new Date(), true) +
+        "（サーバー未送信）";
+      dirty = false;
+    } catch (error) {
+      status.textContent =
+        error instanceof Error
+          ? error.message
+          : "一時保存できません。下書き保存をご利用ください。";
+    }
+  }
+  function changed() {
+    dirty = true;
+    status.textContent = "このブラウザ内に一時保存中…";
+    clearTimeout(timer);
+    timer = setTimeout(flush, 700);
+  }
+  function clear() {
+    clearTimeout(timer);
+    dirty = false;
+    try {
+      localStorage.removeItem(key);
+    } catch {}
+  }
+  form.addEventListener("input", changed);
+  form.addEventListener("change", changed);
+  window.addEventListener("beforeunload", flush);
+  void refreshHistory().catch(options.error);
+  return {
+    clear,
+    flush,
+    dispose() {
+      flush();
+      disposed = true;
+      refreshId++;
+      clearTimeout(timer);
+      form.removeEventListener("input", changed);
+      form.removeEventListener("change", changed);
+      window.removeEventListener("beforeunload", flush);
+      section.remove();
+    },
+  };
+}
