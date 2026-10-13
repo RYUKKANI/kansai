@@ -1,0 +1,17 @@
+---
+import { storyCategories } from '../data/club';
+
+interface Props {
+  total: number;
+}
+const { total } = Astro.props;
+// 필터 값은 NewsCard의 data-category와 연결됩니다. 분류 추가는 데이터 파일에서 처리합니다.
+---
+
+<div class="news-filters" aria-label="ニュースのカテゴリ">
+  <button type="button" data-filter="all" aria-pressed="true">すべて</button>
+  {Object.entries(storyCategories).map(([id, category]) => (
+    <button type="button" data-filter={id} aria-pressed="false">{category.filterLabel}</button>
+  ))}
+  <span data-news-count aria-live="polite">{total} {total === 1 ? 'STORY' : 'STORIES'}</span>
+</div>

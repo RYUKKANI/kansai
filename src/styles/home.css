@@ -1,0 +1,859 @@
+/* 홈 섹션 및 공통 뉴스 카드
+ * 아래 섹션별 주석으로 이동해 수정합니다. 모바일 덮어쓰기는 responsive.css에 있습니다.
+ */
+
+/* 홈 소개와 추천 뉴스 */
+.home-intro {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  padding-top: 36px;
+  padding-bottom: 27px;
+}
+.home-intro .eyebrow {
+  margin-bottom: 7px;
+  font-size: 10px;
+}
+.home-intro h1 {
+  font-size: clamp(44px, 5vw, 72px);
+  margin: 0;
+}
+.intro-caption {
+  margin: 0 0 2px;
+  line-height: 1.8;
+  font-size: 13px;
+  font-weight: 700;
+}
+.intro-caption span {
+  color: #6d7e91;
+  font-size: 11px;
+  font-weight: 400;
+}
+.lead-grid {
+  display: grid;
+  grid-template-columns: 2.12fr 1fr;
+  gap: 12px;
+  height: 538px;
+}
+.lead-story {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  color: white;
+  background: var(--color-navy);
+}
+.photo {
+  position: relative;
+  overflow: hidden;
+  background: #dce8f3;
+}
+/* 원본 사진의 검은 여백은 CSS로만 자릅니다. height·위치를 바꾸면 사진 구도가 달라집니다. */
+.photo img {
+  position: absolute;
+  width: 100%;
+  height: 178%;
+  max-width: none;
+  top: 50%;
+  left: 0;
+  transform: translateY(-50%);
+  object-fit: cover;
+  transition: transform 0.65s cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+.lead-story > .photo {
+  position: absolute;
+  inset: 0;
+  z-index: -2;
+}
+.lead-story:hover .photo img,
+.news-card:hover .photo img,
+.media-photo:hover .photo img,
+.gallery-button:hover .photo img {
+  transform: translateY(-50%) scale(1.025);
+}
+.story-shade {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: linear-gradient(180deg, #061a3008 16%, #07192d1c 35%, #041329d4 79%, #041329 100%);
+}
+.pick-up {
+  position: absolute;
+  top: 23px;
+  left: 27px;
+  background: #0b2447df;
+  padding: 9px 12px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+}
+.pick-up .status-dot {
+  background: #fff;
+}
+.photo-count {
+  position: absolute;
+  top: 28px;
+  right: 25px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: white;
+  text-shadow: 0 1px 5px #000;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  font-weight: 700;
+}
+.lead-content {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 32px 34px;
+}
+.story-meta {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  margin: 0 0 16px;
+  font-size: 10px;
+  letter-spacing: 0.05em;
+  font-weight: 700;
+}
+.story-meta > span {
+  background: var(--color-blue);
+  padding: 5px 9px;
+  font-size: 9px;
+  letter-spacing: 0.08em;
+}
+.story-meta time {
+  color: #deebf6;
+}
+.lead-primary h2 {
+  font-size: clamp(28px, 2.9vw, 42px);
+  letter-spacing: 0.015em;
+  line-height: 1.5;
+  font-weight: 700;
+  margin: 0;
+  text-wrap: balance;
+}
+.lead-summary {
+  font-size: 12px;
+  line-height: 1.85;
+  color: #dae5ef;
+  margin: 13px 0 0;
+}
+.read-story {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  margin-top: 23px;
+}
+.round-arrow {
+  width: 43px;
+  height: 43px;
+  border: 1px solid #ffffff75;
+  display: inline-grid;
+  place-items: center;
+  margin-left: auto;
+  position: absolute;
+  right: 33px;
+  bottom: 32px;
+  transition: background 0.2s;
+}
+.lead-story:hover .round-arrow {
+  background: var(--color-blue);
+  border-color: var(--color-blue);
+}
+.secondary-stories {
+  display: grid;
+  grid-template-rows: 1fr 1fr;
+  gap: 12px;
+}
+.lead-secondary .lead-content {
+  padding: 21px 23px;
+}
+.lead-secondary .story-meta {
+  margin-bottom: 10px;
+  font-size: 9px;
+}
+.lead-secondary h2 {
+  font-size: clamp(16px, 1.55vw, 23px);
+  font-weight: 700;
+  line-height: 1.6;
+  margin: 0;
+  padding-right: 24px;
+}
+.secondary-arrow {
+  position: absolute;
+  right: 22px;
+  bottom: 26px;
+}
+.lead-secondary .story-shade {
+  background: linear-gradient(180deg, #0b244700 5%, #05162b4d 40%, #041329ef 100%);
+}
+/* 경기 정보: 다음 경기·결과 탭 */
+.match-section {
+  display: grid;
+  grid-template-columns: 250px 1fr;
+  margin-top: 22px;
+  background: #fff;
+  border: 1px solid #dfe6ef;
+}
+.match-heading {
+  padding: 26px 30px 25px;
+  border-right: 1px solid #dfe6ef;
+}
+.match-heading .eyebrow {
+  margin-bottom: 10px;
+  color: #6d7e91;
+  font-size: 10px;
+}
+.match-heading h2 {
+  font-size: 45px;
+  margin: 0 0 24px;
+}
+.match-tabs {
+  display: flex;
+  gap: 20px;
+  font-size: 11px;
+  font-weight: 700;
+}
+.match-tabs button {
+  padding: 0 0 8px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: #748296;
+}
+.match-tabs button[aria-selected='true'] {
+  color: var(--color-blue);
+  border-color: var(--color-blue);
+}
+.match-panel {
+  padding: 24px 32px 20px;
+  min-width: 0;
+}
+.match-panel-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.match-panel-top .eyebrow {
+  margin-bottom: 0;
+  font-size: 10px;
+  color: #64768c;
+}
+.pending-tag {
+  font-size: 10px;
+  color: #57728e;
+  background: #eef4fa;
+  padding: 5px 10px;
+}
+.fixture {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: clamp(30px, 5vw, 85px);
+  margin: 14px 0 20px;
+}
+.fixture-team {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+  font-size: 12px;
+  font-weight: 700;
+}
+.fixture-team img {
+  width: 58px;
+  height: 58px;
+  border-radius: 50%;
+}
+.opponent-placeholder {
+  width: 56px;
+  height: 56px;
+  display: grid;
+  place-items: center;
+  border: 1px solid #dce5ef;
+  border-radius: 50%;
+  color: #9cb1c7;
+  font-family: var(--font-display);
+  font-size: 25px;
+}
+.versus {
+  font-size: 32px;
+  color: #b9c7d5;
+}
+.fixture-bottom {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 25px;
+  border-top: 1px solid #e6edf4;
+  padding-top: 16px;
+}
+.fixture-bottom > p {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 10px;
+  margin: 0;
+  color: #6e8094;
+  padding-top: 2px;
+  flex-shrink: 0;
+}
+.fixture-divider {
+  width: 1px;
+  height: 11px;
+  background: #d5e0eb;
+  margin: 0 7px;
+}
+summary {
+  list-style: none;
+  cursor: pointer;
+}
+summary::-webkit-details-marker {
+  display: none;
+}
+.fixture-details {
+  text-align: right;
+  font-size: 10px;
+}
+.fixture-details summary {
+  display: inline-flex;
+  gap: 18px;
+  align-items: center;
+  font-weight: 700;
+  color: var(--color-blue);
+}
+.fixture-details p {
+  color: #6e8094;
+  max-width: 270px;
+  margin: 12px 0 0;
+  line-height: 1.8;
+}
+.empty-result {
+  text-align: center;
+  padding: 23px 10px 10px;
+}
+.empty-result > svg {
+  color: #91afd0;
+  margin-inline: auto;
+}
+.empty-result h3 {
+  font-size: 15px;
+  margin: 13px 0 9px;
+  font-weight: 700;
+}
+.empty-result p {
+  font-size: 11px;
+  color: #758499;
+}
+/* 뉴스 목록·공통 카드·필터 */
+.news-section {
+  padding-top: 67px;
+  padding-bottom: 64px;
+}
+.section-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 25px;
+  margin-bottom: 26px;
+}
+.section-heading .eyebrow {
+  color: #6e8094;
+  font-size: 10px;
+  margin-bottom: 10px;
+}
+.section-heading h2 {
+  margin: 0;
+  font-size: 49px;
+}
+.text-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 22px;
+  font-size: 11px;
+  font-weight: 700;
+  padding-bottom: 5px;
+}
+.text-link:hover {
+  color: var(--color-blue);
+}
+.news-filters {
+  display: flex;
+  align-items: center;
+  gap: 26px;
+  margin-bottom: 24px;
+  border-bottom: 1px solid #dbe4ef;
+}
+.news-filters button {
+  font-size: 11px;
+  font-weight: 700;
+  background: none;
+  border: 0;
+  color: #6e8094;
+  border-bottom: 2px solid transparent;
+  padding: 7px 0 12px;
+}
+.news-filters button[aria-pressed='true'] {
+  color: var(--color-blue);
+  border-color: var(--color-blue);
+}
+.news-filters > span {
+  margin-left: auto;
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  color: #6e8094;
+}
+.news-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 25px;
+}
+.news-card {
+  background: #fff;
+  border-bottom: 2px solid #e1e9f2;
+}
+.news-card > a {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+.news-card-image {
+  position: relative;
+}
+.news-card-image .photo {
+  aspect-ratio: 1.62;
+}
+.image-category {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  color: #fff;
+  background: var(--color-blue);
+  padding: 7px 12px;
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  font-weight: 700;
+}
+.news-card-copy {
+  padding: 20px 22px 21px;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+.news-meta {
+  font-size: 9px;
+  color: #76879c;
+  margin: 0 0 13px;
+  font-weight: 700;
+  letter-spacing: 0.035em;
+}
+.news-card h3,
+.news-card h2 {
+  font-size: 18px;
+  margin: 0;
+  line-height: 1.75;
+  font-weight: 700;
+}
+.card-summary {
+  font-size: 11px;
+  color: #6e8094;
+  line-height: 1.95;
+  margin: 11px 0 17px;
+}
+.card-read {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: auto;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--color-blue);
+  padding-top: 11px;
+  border-top: 1px solid #edf1f6;
+}
+.news-card:hover {
+  border-color: var(--color-blue);
+}
+.source-note {
+  margin: 20px 0 0;
+  color: #718198;
+  font-size: 9px;
+  line-height: 1.8;
+}
+/* 선수·스태프 소개 예정 영역 */
+.team-section {
+  color: #fff;
+  background: var(--color-navy);
+  position: relative;
+  overflow: hidden;
+}
+.team-section::after {
+  content: '';
+  position: absolute;
+  width: 1000px;
+  height: 1200px;
+  right: -580px;
+  top: -500px;
+  border: 1px solid #79afe224;
+  transform: rotate(-35deg);
+  pointer-events: none;
+}
+.team-inner {
+  display: grid;
+  grid-template-columns: 300px 1fr;
+  gap: 40px;
+  padding-block: 58px;
+  align-items: center;
+}
+.team-copy .eyebrow {
+  color: #a7c0dd;
+  margin-bottom: 17px;
+}
+.team-copy h2 {
+  font-size: 74px;
+  margin: 0 0 20px;
+}
+.team-copy h2 > span {
+  color: #4b9cea;
+}
+.team-copy > p:not(.eyebrow) {
+  line-height: 1.9;
+  font-size: 13px;
+}
+.team-copy > p.team-note {
+  font-size: 10px;
+  color: #adc2d8;
+  margin-top: 15px;
+}
+.team-status {
+  display: inline-block;
+  font-size: 9px;
+  margin-top: 19px;
+  padding: 8px 11px;
+  border: 1px solid #a6c9eb3d;
+  color: #c1d5ea;
+}
+.player-previews {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+.player-placeholder {
+  background: #142f52;
+  min-height: 303px;
+  position: relative;
+  overflow: hidden;
+  padding: 18px 14px;
+  border-bottom: 2px solid #4d9fe5;
+}
+.player-position {
+  font-size: 9px;
+  letter-spacing: 0.11em;
+  color: #a0bbd9;
+  font-weight: 700;
+}
+.player-line {
+  position: absolute;
+  height: 100%;
+  top: 0;
+  left: 45%;
+  border-right: 1px solid #91b4d214;
+  transform: rotate(26deg);
+}
+.player-placeholder svg {
+  position: absolute;
+  width: 110%;
+  height: 235px;
+  top: 23px;
+  left: -5%;
+}
+.player-placeholder svg circle {
+  fill: #25415f;
+}
+.player-placeholder svg path {
+  fill: #284a6d;
+}
+.player-caption {
+  position: absolute;
+  bottom: 18px;
+  left: 15px;
+  right: 12px;
+}
+.player-caption .display {
+  display: block;
+  font-size: 38px;
+}
+.player-caption .display .text-blue {
+  color: #67adee;
+}
+.player-caption small {
+  display: block;
+  font-size: 8px;
+  color: #bed0e3;
+  margin-top: 12px;
+}
+/* 사진·영상 미디어 */
+.media-section {
+  padding-block: 62px 57px;
+  background: var(--color-ice);
+}
+.media-tabs {
+  display: flex;
+  gap: 25px;
+  margin-bottom: 22px;
+  border-bottom: 1px solid #cad9e8;
+}
+.media-tabs button {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  padding: 0 0 12px;
+  background: none;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  color: #6d839b;
+  font-size: 11px;
+  font-weight: 700;
+}
+.media-tabs button[aria-selected='true'] {
+  color: var(--color-blue);
+  border-color: var(--color-blue);
+}
+.media-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+}
+.media-photo {
+  padding: 0;
+  background: #fff;
+  border: 0;
+  text-align: left;
+}
+.media-image {
+  position: relative;
+}
+.media-image .photo {
+  aspect-ratio: 1.38;
+}
+.media-expand {
+  position: absolute;
+  display: grid;
+  place-items: center;
+  right: 11px;
+  bottom: 11px;
+  width: 32px;
+  height: 32px;
+  color: #fff;
+  background: #0b2447c9;
+}
+.media-caption {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 16px 15px;
+}
+.media-caption > span {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.media-caption small {
+  font-size: 8px;
+  letter-spacing: 0.12em;
+  color: #6e8094;
+}
+.media-caption strong {
+  font-size: 10px;
+  letter-spacing: 0.03em;
+}
+.media-caption > svg {
+  color: #5e7f9f;
+}
+.media-credit {
+  font-size: 8px;
+  letter-spacing: 0.065em;
+  display: flex;
+  justify-content: space-between;
+}
+.media-credit span {
+  letter-spacing: 0;
+  font-size: 9px;
+}
+.video-empty {
+  min-height: 250px;
+  padding: 32px;
+  text-align: center;
+  background: #fff;
+  border: 1px solid #d7e3ef;
+}
+.video-circle {
+  margin: 0 auto 18px;
+  width: 70px;
+  height: 70px;
+  border: 1px solid #bbd4eb;
+  display: grid;
+  place-items: center;
+  color: var(--color-blue);
+  border-radius: 50%;
+}
+.video-empty .eyebrow {
+  justify-content: center;
+  color: var(--color-blue);
+}
+.video-empty h3 {
+  font-size: 20px;
+  font-weight: 700;
+  margin: 10px 0;
+}
+.video-empty > p:last-child {
+  font-size: 11px;
+  color: #6d7e91;
+}
+/* 구단 소개와 참여 안내 */
+.club-join-section {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  padding-block: 64px;
+}
+.club-panel {
+  padding: 40px 44px 36px;
+  border: 1px solid #dfe7f0;
+  border-right: 0;
+  background: #fff;
+}
+.club-panel .eyebrow {
+  font-size: 10px;
+  color: #6e8094;
+  margin-bottom: 19px;
+}
+.club-panel h2 {
+  font-size: clamp(36px, 3.5vw, 51px);
+  margin: 0 0 30px;
+}
+.club-intro {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  margin-top: 12px;
+}
+.club-intro img {
+  border-radius: 50%;
+  width: 70px;
+  height: 70px;
+}
+.club-intro h3 {
+  font-size: 14px;
+  font-weight: 700;
+  margin: 0 0 10px;
+}
+.club-intro p {
+  font-size: 10px;
+  line-height: 1.9;
+  color: #6d7e91;
+  margin: 0;
+}
+.club-details {
+  border-top: 1px solid #e4ebf3;
+  padding-top: 22px;
+  margin-top: 30px;
+}
+.club-details summary {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 11px;
+  font-weight: 700;
+}
+.club-details[open] summary {
+  color: var(--color-blue);
+}
+.club-details p {
+  font-size: 11px;
+  line-height: 2;
+  color: #6d7e91;
+  margin-top: 15px;
+}
+.club-details a {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--color-blue);
+  font-size: 10px;
+  margin-top: 15px;
+}
+.join-panel {
+  background: var(--color-blue);
+  color: #fff;
+  padding: 40px 44px 32px;
+  position: relative;
+  overflow: hidden;
+}
+.join-panel .eyebrow {
+  position: relative;
+  margin-bottom: 21px;
+  font-size: 10px;
+}
+.join-decoration {
+  position: absolute;
+  right: 29px;
+  top: -55px;
+  font-family: var(--font-display);
+  font-size: 260px;
+  line-height: 1;
+  color: #ffffff0f;
+}
+.join-panel h2 {
+  position: relative;
+  font-size: 31px;
+  line-height: 1.55;
+  font-weight: 700;
+  margin: 0 0 17px;
+}
+.join-roles {
+  font-size: 10px;
+  letter-spacing: 0.09em;
+  font-weight: 700;
+  margin: 0 0 15px;
+}
+.join-roles span {
+  opacity: 0.45;
+  margin-inline: 9px;
+}
+.join-body {
+  font-size: 11px;
+  line-height: 1.9;
+  color: #e0efff;
+  margin: 0 0 24px;
+}
+.join-button {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 13px;
+  color: var(--color-navy);
+  background: white;
+  padding: 16px 18px;
+  font-size: 11px;
+  font-weight: 700;
+  position: relative;
+}
+.join-button > svg:last-child {
+  margin-left: auto;
+}
+.join-button:hover {
+  background: var(--color-ice);
+}
+.join-note {
+  color: #d5e9fc;
+  font-size: 9px;
+  line-height: 1.8;
+  margin: 14px 0 0;
+}

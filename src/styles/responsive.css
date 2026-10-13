@@ -1,0 +1,754 @@
+/* 화면 크기별 조정
+ * 기본 스타일 뒤에 적용됩니다. 구간 순서를 유지해야 작은 화면의 설정이 우선합니다.
+ */
+
+/* 넓은 PC 화면: 1536px 이상 */
+@media (min-width: 1536px) {
+  .shell {
+    width: min(1320px, calc(100% - 128px));
+  }
+}
+/* 작은 PC 화면: 1200px 이하 */
+@media (max-width: 1200px) {
+  .shell {
+    width: calc(100% - 64px);
+  }
+  .desktop-navigation {
+    gap: 22px;
+  }
+  .header-inner {
+    gap: 22px;
+  }
+  .brand {
+    gap: 11px;
+  }
+  .brand-words strong {
+    font-size: 23px;
+  }
+  .join-nav {
+    padding-inline: 13px;
+    gap: 10px;
+  }
+  .header-actions {
+    gap: 8px;
+  }
+  .lead-grid {
+    height: 490px;
+  }
+  .fixture {
+    gap: 34px;
+  }
+  .fixture-team {
+    flex-direction: column;
+    gap: 8px;
+    font-size: 10px;
+  }
+  .team-inner {
+    grid-template-columns: 245px 1fr;
+    gap: 28px;
+  }
+  .player-previews {
+    gap: 9px;
+  }
+  .player-caption .display {
+    font-size: 31px;
+  }
+  .player-position {
+    font-size: 8px;
+    letter-spacing: 0.05em;
+  }
+  .player-caption small {
+    font-size: 7px;
+  }
+  .club-panel,
+  .join-panel {
+    padding-inline: 32px;
+  }
+  .footer-links {
+    gap: 18px 25px;
+  }
+}
+/* 태블릿·모바일 메뉴: 1024px 이하. site.ts의 메뉴 닫기 기준과 함께 관리합니다. */
+@media (max-width: 1024px) {
+  .desktop-navigation {
+    display: none;
+  }
+  .mobile-menu-toggle {
+    display: inline-grid;
+  }
+  .mobile-menu-toggle[aria-expanded='true'] > svg:first-child {
+    display: none;
+  }
+  .mobile-menu-toggle[aria-expanded='true'] .menu-close-icon {
+    display: block;
+  }
+  .header-inner {
+    min-height: 84px;
+  }
+  .brand img {
+    width: 53px;
+    height: 53px;
+  }
+  .home-intro h1 {
+    font-size: 59px;
+  }
+  .intro-caption {
+    font-size: 11px;
+  }
+  .intro-caption span {
+    font-size: 10px;
+  }
+  .lead-grid {
+    grid-template-columns: 1.8fr 1fr;
+    height: 485px;
+  }
+  .lead-primary h2 {
+    font-size: 27px;
+  }
+  .lead-content {
+    padding: 27px;
+  }
+  .lead-secondary .lead-content {
+    padding: 18px;
+  }
+  .lead-secondary h2 {
+    font-size: 17px;
+  }
+  .lead-summary {
+    font-size: 11px;
+  }
+  .match-section {
+    grid-template-columns: 200px 1fr;
+  }
+  .match-heading {
+    padding-inline: 23px;
+  }
+  .match-heading h2 {
+    font-size: 39px;
+  }
+  .match-panel {
+    padding-inline: 24px;
+  }
+  .fixture-bottom {
+    flex-direction: column;
+    gap: 13px;
+  }
+  .fixture-details {
+    text-align: left;
+  }
+  .fixture-details p {
+    max-width: 100%;
+  }
+  .news-grid {
+    gap: 17px;
+  }
+  .news-card-copy {
+    padding-inline: 17px;
+  }
+  .news-card h3,
+  .news-card h2 {
+    font-size: 16px;
+  }
+  .team-inner {
+    grid-template-columns: 205px 1fr;
+    gap: 23px;
+  }
+  .team-copy h2 {
+    font-size: 64px;
+  }
+  .player-previews {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .player-placeholder {
+    min-height: 233px;
+  }
+  .player-placeholder svg {
+    width: 100%;
+    height: 195px;
+  }
+  .player-caption .display {
+    font-size: 31px;
+  }
+  .media-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 18px;
+  }
+  .media-image .photo {
+    aspect-ratio: 1.65;
+  }
+  .club-intro {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 18px;
+  }
+  .club-panel h2 {
+    font-size: 42px;
+  }
+  .join-panel h2 {
+    font-size: 28px;
+  }
+  .join-button {
+    padding-inline: 14px;
+    font-size: 10px;
+    gap: 9px;
+  }
+  .footer-top {
+    gap: 27px;
+  }
+  .footer-brand span {
+    font-size: 28px;
+  }
+  .footer-brand img {
+    width: 59px;
+    height: 59px;
+  }
+  .footer-links {
+    grid-template-columns: repeat(2, max-content);
+    gap: 15px 24px;
+  }
+}
+/* 모바일 화면: 767px 이하 */
+@media (max-width: 767px) {
+  .shell {
+    width: calc(100% - 40px);
+  }
+  .preview-strip {
+    height: 25px;
+  }
+  .preview-strip a {
+    font-size: 9px;
+  }
+  .preview-description {
+    display: none;
+  }
+  .header-inner {
+    min-height: 76px;
+    gap: 14px;
+  }
+  .brand img {
+    width: 45px;
+    height: 45px;
+  }
+  .brand-words strong {
+    font-size: 21px;
+  }
+  .brand-words small {
+    font-size: 8px;
+  }
+  .brand {
+    gap: 10px;
+  }
+  .join-nav {
+    display: none;
+  }
+  .header-actions {
+    gap: 2px;
+  }
+  .header-actions .icon-button {
+    width: 36px;
+    height: 36px;
+  }
+  .section-anchor {
+    scroll-margin-top: 92px;
+  }
+  .home-intro {
+    padding-top: 28px;
+    padding-bottom: 21px;
+    display: block;
+  }
+  .home-intro .eyebrow {
+    font-size: 9px;
+    margin-bottom: 9px;
+  }
+  .home-intro h1 {
+    font-size: clamp(44px, 12vw, 61px);
+  }
+  .intro-caption {
+    margin-top: 13px;
+    line-height: 1.8;
+  }
+  .intro-caption br {
+    display: none;
+  }
+  .intro-caption span {
+    display: block;
+    margin-top: 1px;
+  }
+  .lead-grid {
+    display: block;
+    height: auto;
+  }
+  .lead-primary {
+    display: block;
+    height: 450px;
+  }
+  .lead-primary h2 {
+    font-size: clamp(25px, 6.3vw, 36px);
+    line-height: 1.6;
+  }
+  .lead-content {
+    padding: 23px;
+  }
+  .lead-summary {
+    font-size: 11px;
+    line-height: 1.9;
+  }
+  .read-story {
+    margin-top: 23px;
+    font-size: 9px;
+  }
+  .round-arrow {
+    bottom: 24px;
+    right: 23px;
+    width: 37px;
+    height: 37px;
+  }
+  .pick-up {
+    left: 19px;
+    top: 19px;
+    padding: 8px 10px;
+    font-size: 9px;
+  }
+  .photo-count {
+    top: 25px;
+    right: 18px;
+    font-size: 8px;
+  }
+  .secondary-stories {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: 1fr;
+    margin-top: 11px;
+    gap: 11px;
+  }
+  .lead-secondary {
+    min-height: 230px;
+  }
+  .lead-secondary .lead-content {
+    padding: 14px;
+  }
+  .lead-secondary h2 {
+    font-size: 14px;
+    line-height: 1.7;
+    padding-right: 0;
+  }
+  .lead-secondary .story-meta {
+    gap: 7px;
+    flex-wrap: wrap;
+    margin-bottom: 9px;
+    font-size: 8px;
+  }
+  .lead-secondary .story-meta > span {
+    font-size: 7px;
+    padding: 4px 6px;
+  }
+  .secondary-arrow {
+    display: none;
+  }
+  .match-section {
+    grid-template-columns: 1fr;
+    margin-top: 21px;
+  }
+  .match-heading {
+    border-right: 0;
+    border-bottom: 1px solid #dfe6ef;
+    padding: 20px 22px 17px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px 20px;
+  }
+  .match-heading .eyebrow {
+    width: 100%;
+    font-size: 9px;
+    margin: 0;
+  }
+  .match-heading h2 {
+    font-size: 31px;
+    margin: 0;
+  }
+  .match-heading h2 br {
+    display: none;
+  }
+  .match-tabs {
+    margin-left: auto;
+    gap: 15px;
+    font-size: 10px;
+  }
+  .match-tabs button {
+    padding-bottom: 6px;
+  }
+  .match-panel {
+    padding: 18px 22px;
+  }
+  .fixture {
+    gap: 23px;
+    margin: 19px 0 21px;
+    justify-content: space-around;
+  }
+  .fixture-team {
+    font-size: 9px;
+    gap: 9px;
+  }
+  .fixture-team img,
+  .opponent-placeholder {
+    width: 52px;
+    height: 52px;
+  }
+  .fixture-bottom {
+    gap: 14px;
+  }
+  .fixture-bottom > p {
+    flex-wrap: wrap;
+    font-size: 9px;
+    gap: 6px;
+  }
+  .fixture-divider {
+    margin-inline: 4px;
+  }
+  .news-section {
+    padding-top: 43px;
+    padding-bottom: 41px;
+  }
+  .section-heading {
+    gap: 15px;
+    margin-bottom: 21px;
+  }
+  .section-heading h2 {
+    font-size: clamp(32px, 8vw, 44px);
+  }
+  .section-heading .eyebrow {
+    font-size: 9px;
+  }
+  .text-link {
+    font-size: 9px;
+    gap: 8px;
+    white-space: nowrap;
+    padding-bottom: 2px;
+  }
+  .text-link svg {
+    width: 16px;
+    height: 16px;
+  }
+  .news-filters {
+    gap: 24px;
+    margin-bottom: 20px;
+  }
+  .news-filters button {
+    font-size: 10px;
+  }
+  .news-filters > span {
+    font-size: 8px;
+  }
+  .news-grid {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+  .news-card-image .photo {
+    aspect-ratio: 1.6;
+  }
+  .news-card-copy {
+    padding: 18px 19px;
+  }
+  .news-card h3,
+  .news-card h2 {
+    font-size: 18px;
+    line-height: 1.7;
+  }
+  .card-summary {
+    font-size: 12px;
+    line-height: 1.9;
+  }
+  .card-read {
+    font-size: 11px;
+  }
+  .source-note {
+    font-size: 9px;
+    margin-top: 16px;
+  }
+  .team-inner {
+    grid-template-columns: 1fr;
+    gap: 27px;
+    padding-block: 39px;
+  }
+  .team-copy h2 {
+    font-size: 62px;
+    margin-bottom: 16px;
+  }
+  .team-copy h2 br {
+    display: none;
+  }
+  .team-copy > p:not(.eyebrow) {
+    font-size: 12px;
+  }
+  .team-copy > p.team-note {
+    font-size: 11px;
+  }
+  .team-status {
+    margin-top: 14px;
+  }
+  .player-previews {
+    gap: 12px;
+  }
+  .player-placeholder {
+    min-height: 244px;
+    padding: 16px;
+  }
+  .player-position {
+    font-size: 9px;
+  }
+  .player-caption .display {
+    font-size: 35px;
+  }
+  .player-caption small {
+    font-size: 8px;
+  }
+  .media-section {
+    padding-block: 40px 35px;
+  }
+  .media-section .section-heading h2 {
+    font-size: clamp(31px, 8vw, 40px);
+  }
+  .media-grid {
+    gap: 12px;
+  }
+  .media-image .photo {
+    aspect-ratio: 1.15;
+  }
+  .media-caption {
+    padding: 12px 11px;
+  }
+  .media-caption strong {
+    font-size: 8px;
+  }
+  .media-caption small {
+    font-size: 7px;
+  }
+  .media-caption > svg {
+    display: none;
+  }
+  .media-expand {
+    width: 26px;
+    height: 26px;
+    right: 8px;
+    bottom: 8px;
+  }
+  .media-credit {
+    display: block;
+    font-size: 8px;
+  }
+  .media-credit span {
+    display: block;
+    margin-top: 5px;
+  }
+  .club-join-section {
+    grid-template-columns: 1fr;
+    padding-block: 38px;
+  }
+  .club-panel {
+    padding: 31px 25px;
+    border-right: 1px solid #dfe7f0;
+    border-bottom: 0;
+  }
+  .club-panel h2 {
+    font-size: 42px;
+    margin-bottom: 25px;
+  }
+  .club-intro {
+    flex-direction: row;
+    gap: 14px;
+    align-items: center;
+  }
+  .club-intro img {
+    width: 55px;
+    height: 55px;
+  }
+  .club-intro h3 {
+    font-size: 13px;
+  }
+  .club-intro p {
+    font-size: 10px;
+  }
+  .desktop-break {
+    display: none;
+  }
+  .join-panel {
+    padding: 31px 25px 27px;
+  }
+  .join-panel h2 {
+    font-size: 28px;
+  }
+  .join-body {
+    font-size: 11px;
+  }
+  .join-button {
+    font-size: 10px;
+    padding: 15px 14px;
+  }
+  .join-note {
+    font-size: 9px;
+  }
+  .footer-top {
+    flex-wrap: wrap;
+    gap: 27px;
+    padding-block: 31px;
+  }
+  .footer-brand {
+    gap: 15px;
+  }
+  .footer-brand img {
+    width: 57px;
+    height: 57px;
+  }
+  .footer-brand span {
+    font-size: 29px;
+  }
+  .footer-links {
+    order: 3;
+    margin: 0;
+    width: 100%;
+    gap: 18px 23px;
+    font-size: 10px;
+  }
+  .social-button {
+    margin-left: auto;
+    width: 40px;
+    height: 40px;
+  }
+  .footer-bottom {
+    flex-wrap: wrap;
+    gap: 12px;
+    font-size: 8px;
+    padding-block: 20px;
+  }
+  .footer-bottom > span {
+    width: 100%;
+  }
+  .footer-bottom a {
+    margin-top: 3px;
+  }
+  dialog {
+    padding: 20px;
+    max-height: calc(100dvh - 30px);
+  }
+  .search-dialog h2 {
+    font-size: 22px;
+  }
+  .search-results a span {
+    font-size: 13px;
+  }
+  .dialog-photo {
+    aspect-ratio: 1;
+    max-height: 60dvh;
+  }
+  .lightbox-bottom {
+    display: block;
+    font-size: 10px;
+  }
+  .lightbox-bottom a {
+    margin-top: 10px;
+  }
+  .news-archive {
+    padding-top: 23px;
+    padding-bottom: 46px;
+  }
+  .breadcrumbs {
+    margin-bottom: 31px;
+    gap: 8px;
+    font-size: 8px;
+  }
+  .archive-title {
+    font-size: 46px;
+  }
+  .archive-intro {
+    font-size: 11px;
+    line-height: 1.8;
+  }
+  .story-page {
+    padding-top: 23px;
+    padding-bottom: 40px;
+  }
+  .story-page-heading {
+    margin-bottom: 25px;
+  }
+  .story-page-heading h1 {
+    font-size: 25px;
+    line-height: 1.65;
+    margin-top: 16px;
+  }
+  .story-page-heading > p:last-child {
+    font-size: 12px;
+    line-height: 1.95;
+  }
+  .article-hero {
+    aspect-ratio: 1.35;
+  }
+  .article-body > p {
+    font-size: 13px;
+    line-height: 2.15;
+  }
+  .source-button {
+    font-size: 10px;
+    padding: 14px;
+    gap: 9px;
+  }
+  .article-gallery {
+    margin-top: 35px;
+  }
+  .article-gallery-grid {
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+}
+/* 아주 작은 모바일 화면: 374px 이하 */
+@media (max-width: 374px) {
+  .shell {
+    width: calc(100% - 28px);
+  }
+  .brand-words small {
+    display: none;
+  }
+  .lead-primary {
+    height: 422px;
+  }
+  .lead-content {
+    padding-inline: 19px;
+  }
+  .lead-primary h2 {
+    font-size: 23px;
+  }
+  .lead-secondary {
+    min-height: 219px;
+  }
+  .lead-secondary .lead-content {
+    padding-inline: 11px;
+  }
+  .lead-secondary h2 {
+    font-size: 12px;
+  }
+  .match-heading h2 {
+    font-size: 29px;
+  }
+  .news-filters {
+    gap: 19px;
+  }
+  .club-intro {
+    align-items: flex-start;
+  }
+  .club-intro img {
+    width: 45px;
+    height: 45px;
+  }
+}
+/* 움직임 줄이기를 설정한 사용자의 접근성 */
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  *,
+  *::before,
+  *::after {
+    transition: none !important;
+    animation: none !important;
+  }
+}

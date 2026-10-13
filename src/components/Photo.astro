@@ -1,8 +1,24 @@
 ---
 import { asset } from '../lib/urls';
-interface Props { src: string; alt: string; class?: string; eager?: boolean }
-const { src, alt, class: className = '', eager = false } = Astro.props;
+// 사진의 검은 여백은 CSS에서 잘라 보여줍니다. 원본 이미지 파일은 수정하지 않습니다.
+interface Props {
+  src: string;
+  alt: string;
+  class?: string;
+  eager?: boolean;
+  priority?: boolean;
+}
+const { src, alt, class: className = '', eager = false, priority = false } = Astro.props;
+// priority는 가장 먼저 보여야 하는 대표 사진에만 사용합니다. 나머지는 기본 지연 로딩입니다.
 ---
 <div class:list={['photo', className]}>
-  <img src={asset(src)} alt={alt} width="1170" height="1560" loading={eager ? 'eager' : 'lazy'} fetchpriority={eager ? 'high' : 'auto'} decoding="async" />
+  <img
+    src={asset(src)}
+    alt={alt}
+    width="1170"
+    height="1560"
+    loading={eager || priority ? 'eager' : 'lazy'}
+    fetchpriority={priority ? 'high' : 'auto'}
+    decoding="async"
+  />
 </div>

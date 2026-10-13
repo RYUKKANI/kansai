@@ -1,0 +1,53 @@
+---
+import Icon from '../Icon.astro';
+import { club } from '../../data/club';
+import { asset } from '../../lib/urls';
+
+// [편집 안내] 공식 일정·결과가 확인되면 이 섹션의 미발표 안내를 실제 정보로 교체합니다.
+// 탭의 id·aria-controls와 패널의 id는 쌍을 이룹니다. 변경 시 함께 수정합니다.
+---
+
+<section class="shell match-section section-anchor" id="matches" aria-labelledby="match-title" data-tabs>
+  <div class="match-heading">
+    <p class="eyebrow">試合情報</p>
+    <h2 id="match-title" class="display">MATCH<br />CENTRE<span class="text-blue">.</span></h2>
+    <div class="match-tabs" role="tablist" aria-label="試合情報の表示">
+      <button type="button" role="tab" id="next-tab" aria-selected="true" aria-controls="next-panel" tabindex="0">次の試合</button>
+      <button type="button" role="tab" id="result-tab" aria-selected="false" aria-controls="result-panel" tabindex="-1">試合結果</button>
+    </div>
+  </div>
+
+  <div class="match-panel" id="next-panel" role="tabpanel" aria-labelledby="next-tab">
+    <div class="match-panel-top">
+      <span class="eyebrow">NEXT MATCH</span><span class="pending-tag">発表前</span>
+    </div>
+    <div class="fixture">
+      <div class="fixture-team">
+        <img src={asset(club.logo)} alt={club.name} width="60" height="60" />
+        <span>{club.name}</span>
+      </div>
+      <span class="versus display">VS</span>
+      <div class="fixture-team">
+        <span class="opponent-placeholder" aria-hidden="true">?</span><span>対戦相手 未発表</span>
+      </div>
+    </div>
+    <div class="fixture-bottom">
+      <p><Icon name="calendar" size={16} /> 日時 未発表 <span class="fixture-divider"></span><Icon name="pin" size={16} /> 会場 未発表</p>
+      <details class="fixture-details">
+        <summary>試合情報を見る <Icon name="arrow" size={17} /></summary>
+        <p>試合日程・大会・会場は、正式に発表された情報を掲載します。</p>
+      </details>
+    </div>
+  </div>
+
+  <div class="match-panel result-panel" id="result-panel" role="tabpanel" aria-labelledby="result-tab" hidden>
+    <div class="match-panel-top">
+      <span class="eyebrow">LATEST RESULT</span><span class="pending-tag">掲載準備中</span>
+    </div>
+    <div class="empty-result">
+      <Icon name="ball" size={42} />
+      <h3>試合結果は、公開をお待ちください。</h3>
+      <p>公式の試合結果が確認でき次第、こちらに掲載します。</p>
+    </div>
+  </div>
+</section>

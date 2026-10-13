@@ -1,0 +1,56 @@
+---
+import Icon from '../Icon.astro';
+import Photo from '../Photo.astro';
+import { club, gallery } from '../../data/club';
+import { asset } from '../../lib/urls';
+
+// 갤러리 사진·출처는 data/club.ts에서 편집합니다.
+// data-lightbox와 data-image·alt·caption·source는 scripts/site.ts의 사진 확대 기능에 전달됩니다.
+---
+
+<section class="media-section section-anchor" id="media" aria-labelledby="media-title" data-tabs>
+  <div class="shell">
+    <div class="section-heading">
+      <div>
+        <p class="eyebrow">写真で見る、チームの今</p>
+        <h2 id="media-title" class="display">UNITED MEDIA<span class="text-blue">.</span></h2>
+      </div>
+      <a class="text-link" href={club.instagram} target="_blank" rel="noopener noreferrer">公式Instagram <Icon name="external" size={17} /></a>
+    </div>
+    <div class="media-tabs" role="tablist" aria-label="メディアの種類">
+      <button type="button" role="tab" id="photo-tab" aria-selected="true" aria-controls="photo-panel" tabindex="0"><Icon name="photo" size={17} /> フォト</button>
+      <button type="button" role="tab" id="video-tab" aria-selected="false" aria-controls="video-panel" tabindex="-1"><Icon name="play" size={17} /> 動画</button>
+    </div>
+
+    <div class="media-grid" id="photo-panel" role="tabpanel" aria-labelledby="photo-tab">
+      {gallery.map((photo, index) => (
+        <button
+          class="media-photo"
+          type="button"
+          data-lightbox
+          data-image={asset(photo.image)}
+          data-caption={photo.label}
+          data-source={photo.source}
+          data-alt={photo.alt}
+          aria-label={`${photo.alt}。写真を拡大`}
+        >
+          <div class="media-image">
+            <Photo src={photo.image} alt={photo.alt} />
+            <span class="media-expand"><Icon name="external" size={17} /></span>
+          </div>
+          <span class="media-caption">
+            <span><small>PHOTO {String(index + 1).padStart(2, '0')}</small><strong>{photo.label}</strong></span>
+            <Icon name="photo" size={18} />
+          </span>
+        </button>
+      ))}
+    </div>
+    <div class="video-empty" id="video-panel" role="tabpanel" aria-labelledby="video-tab" hidden>
+      <span class="video-circle"><Icon name="play" size={34} /></span>
+      <p class="eyebrow">UNITED VIDEO</p>
+      <h3>動画は、公開準備中です。</h3>
+      <p>公式動画が公開されたら、こちらでご紹介します。</p>
+    </div>
+    <p class="source-note media-credit">PHOTO CREDIT / {club.instagramHandle} <span>写真をクリックすると拡大表示します。</span></p>
+  </div>
+</section>

@@ -1,0 +1,10 @@
+# 편집기마다 들여쓰기·문자 인코딩·줄바꿈이 달라지지 않도록 공통 기준을 둡니다.
+root = true
+
+[*]
+charset = utf-8
+indent_style = space
+indent_size = 2
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true

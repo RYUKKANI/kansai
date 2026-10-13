@@ -1,6 +1,7 @@
 name: Build and deploy design preview
 
 on:
+  # main의 갱신만 실제 사이트 배포로 이어집니다. PR은 검사와 빌드로 변경을 검토합니다.
   push:
     branches: [main]
   pull_request:
@@ -41,6 +42,7 @@ jobs:
           path: dist
 
   deploy:
+    # 검토 중인 PR이 운영 사이트를 덮어쓰지 않도록 배포를 제외합니다.
     if: github.event_name != 'pull_request'
     needs: build
     runs-on: ubuntu-latest
