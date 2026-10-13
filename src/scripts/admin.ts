@@ -28,6 +28,8 @@ import {
   selectFields,
 } from "../lib/admin-ui";
 import { buildDashboard } from "./admin-dashboard";
+import { attachPlayerEditor, type PlayerEditor } from "./admin-player";
+import { uploadOfficePhoto } from "./admin-photo";
 import { createList, type ListController } from "./admin-list";
 import { createSchedule, recurrenceControls } from "./admin-schedule";
 import {
@@ -83,6 +85,8 @@ let editorBaseline = "";
 let editorDirty = false;
 let editorSaving = false;
 let contentEditor: ContentEditor | null = null;
+let playerEditor: PlayerEditor | null = null;
+let playerEditorRequest = 0;
 let drawerOpen = false;
 const playerConsents = new Map<string, Row>();
 let editing: Row | null = null;
@@ -90,8 +94,6 @@ type EditorContext = {
   resource: Resource;
   defaults?: Row;
   locked?: Row;
-  photoConsent?: boolean;
-  afterSave?: (row: Row) => Promise<string | void>;
 };
 let editorContext: EditorContext | null = null;
 let pendingEditorAction: (() => Promise<void>) | null = null;
@@ -153,11 +155,14 @@ function message(error: unknown): string {
     return t(
       "メールを送信できません。運営責任者にメール送信設定をご確認ください。",
     );
-  if (/row-level|permission denied|owner role|active staff/i.test(raw))
+  if (
+    code === "42501" ||
+    /row-level|permission denied|owner role|active staff/i.test(raw)
+  )
     return t("この操作に必要な権限がありません。運営責任者にご確認ください。");
   if (/last owner/i.test(raw))
     return t("最後のOwnerは無効化・削除できません。");
-  if (/content changed|schedule changed/i.test(raw))
+  if (code === "40001" || /content changed|schedule changed/i.test(raw))
     return t(
       "ほかの操作で内容が更新されています。編集画面を閉じて最新の内容を開き直してください。一時保存の内容は復元時に照合できます。",
     );
@@ -181,6 +186,12 @@ function message(error: unknown): string {
     return t("翻訳の入力内容を確認してください。");
   if (/player photo must/i.test(raw))
     return t("選手カテゴリーの公開承認済み写真を選択してください。");
+  if (/photo description is required/i.test(raw))
+    return t("写真の説明を入力してください。");
+  if (/player photo is unavailable|player category photo required/i.test(raw))
+    return t(
+      "選手写真の最新情報を確認してください。写真を選び直して保存してください。",
+    );
   if (/album must be approved/i.test(raw))
     return t("使用するアルバムを先に発行してください。");
   if (/photo upload is required/i.test(raw))
@@ -244,6 +255,9 @@ async function result<T extends { error: unknown }>(
 }
 // 로그아웃·권한 상실 시 비공개 DOM과 열린 편집 화면을 함께 정리합니다.
 function resetLogin() {
+  playerEditorRequest++;
+  playerEditor?.dispose();
+  playerEditor = null;
   contentEditor?.dispose();
   contentEditor = null;
   if (userId) {
@@ -573,29 +587,8 @@ async function show(
       isCurrent: () =>
         version === requestId && Boolean(role) && current === resource,
       open: (row) => {
-        void run(() =>
-          resource === "players"
-            ? openPlayerPart(row, "register")
-            : openEditor(row),
-        );
+        void run(() => openEditor(row));
       },
-      ...(resource === "players"
-        ? {
-            playerActions: (row: Row) =>
-              ["photo", "profile"].map((part) => {
-                const value = part as "photo" | "profile";
-                const button = action(
-                  part === "photo" ? t("選手写真") : t("公開プロフィール"),
-                  "admin-secondary",
-                  () => {
-                    void run(() => openPlayerPart(row, value));
-                  },
-                );
-                button.dataset.playerAction = part;
-                return button;
-              }),
-          }
-        : {}),
       remove: (row) => {
         removing = row;
         removeResource = resource;
@@ -621,7 +614,7 @@ async function show(
         node(
           "p",
           t(
-            "選手の登録・写真・公開プロフィールを、同じ選手の行から管理します。登録後、選手写真と公開プロフィールを順に編集できます。",
+            "選手登録の画面で、公開プロフィールと写真も一緒に入力・保存できます。",
           ),
         ),
       );
@@ -703,138 +696,55 @@ async function choices(field: Field) {
   }
   return field.options ?? [];
 }
-// [편집 안내] 선수 관리는 하나의 진입점에서 기존 세 양식을 재사용합니다.
-// 내부 선수 ID와 공개 프로필 ID는 같은 UUID로 연결하고, 실제 저장/승인 권한은 기존 RLS가 적용합니다.
-async function openPlayerPart(
-  player: Row,
-  part: "register" | "photo" | "profile",
-) {
-  if (!client || !role) return;
-  const fresh = await result(
-    client
-      .from("players")
-      .select(selectFields("players"))
-      .eq("id", player.id)
-      .single(),
+// 선수 등록·사진·프로필은 같은 창과 하나의 저장 처리를 사용합니다.
+async function openUnifiedPlayer(row: Row | null) {
+  if (!client || !role || !userId) return;
+  const version = ++playerEditorRequest;
+  playerEditor?.dispose();
+  playerEditor = null;
+  contentEditor?.dispose();
+  contentEditor = null;
+  editorContext = null;
+  pendingEditorAction = null;
+  editing = row;
+  editResource = "players";
+  editor.dataset.resource = "players";
+  $("#editor-title").textContent = format(
+    row ? "{0}を編集" : "{0}を登録",
+    resources.players.singular,
   );
-  const selected = fresh.data as unknown as Row;
-  if (!selected || selected.id !== player.id)
-    throw new Error(t("管理画面を読み直してください。"));
-  let photo: Row | null = null;
-  if (selected.photo_asset_id) {
-    const response = await result(
-      client
-        .from("media_assets")
-        .select(selectFields("media_assets"))
-        .eq("id", selected.photo_asset_id)
-        .maybeSingle(),
-    );
-    photo = response.data as Row | null;
-  }
-  if (part === "register" || (part === "photo" && role === "coach")) {
-    await openEditor(selected, { resource: "players" });
-    if (part === "photo") {
-      for (const group of $("#editor-fields").querySelectorAll<HTMLElement>(
-        ".office-field-group",
-      )) {
-        const hasPhoto = Boolean(
-          group.querySelector('[name="photo_asset_id"]'),
-        );
-        group.hidden = !hasPhoto;
-        if (hasPhoto)
-          for (const field of group.querySelectorAll<HTMLElement>(
-            ".admin-field",
-          ))
-            field.hidden = !field.querySelector('[name="photo_asset_id"]');
-      }
-      $("#editor-fields").prepend(
-        node(
-          "p",
-          t(
-            "コーチは公開承認済みの選手写真を選べます。新しい写真の登録・承認はOwnerまたはAdministratorが行います。",
-          ),
-          "admin-help",
-        ),
-      );
-    }
-  } else if (part === "photo") {
-    await openEditor(photo, {
-      resource: "media_assets",
-      photoConsent: selected.photo_consent === true,
-      defaults: { media_category: "player", kind: "photo" },
-      locked: { media_category: "player", kind: "photo" },
-      afterSave: async (saved) => {
-        if (!client || !saved.id)
-          throw new Error(
-            t(
-              "写真は保存されました。選手との連携は最新情報を開いて確認してください。",
-            ),
-          );
-        // 사진 초안은 내부 선수에만 연결합니다. 공개 프로필의 사진·승인은 변경하지 않습니다.
-        await result(
-          client
-            .from("players")
-            .update({ photo_asset_id: saved.id })
-            .eq("id", selected.id)
-            .eq("updated_at", selected.updated_at)
-            .select("id")
-            .single(),
-        );
-        return t(
-          "選手写真を登録情報に連携しました。公開には写真とプロフィールの確認・承認が必要です。",
-        );
-      },
-    });
-  } else {
-    const response = await result(
-      client
-        .from("public_player_profiles")
-        .select(selectFields("public_player_profiles"))
-        .eq("player_id", selected.id)
-        .maybeSingle(),
-    );
-    const profile = response.data as Row | null;
-    const approvedPhoto =
-      photo?.status === "published"
-        ? (photo.storage_path ?? photo.legacy_path)
-        : null;
-    await openEditor(profile, {
-      resource: "public_player_profiles",
-      defaults: { player_id: selected.id, photo_path: approvedPhoto },
-      locked: { player_id: selected.id },
-    });
-  }
-  const navigation = node("nav", "", "office-player-tabs");
-  if (part === "photo" && role !== "coach" && !selected.photo_consent)
-    $("#editor-fields").prepend(
-      node(
-        "p",
-        t("先に選手登録画面で写真の公開同意を確認してください。"),
-        "admin-help",
-      ),
-    );
-  navigation.setAttribute("aria-label", t("選手管理の項目"));
-  navigation.append(node("strong", String(selected.internal_name)));
-  for (const [value, label] of [
-    ["register", t("登録・同意")],
-    ["photo", t("選手写真")],
-    ["profile", t("公開プロフィール")],
-  ] as const) {
-    const button = action(label, "admin-secondary", () => {
-      if (editorSaving) return;
-      const next = () => openPlayerPart(selected, value);
-      if (editorDirty) {
-        pendingEditorAction = next;
-        $<HTMLDialogElement>("#unsaved-dialog").showModal();
-      } else void run(next);
-    });
-    button.dataset.playerPart = value;
-    if (value === part) button.setAttribute("aria-current", "page");
-    navigation.append(button);
-  }
-  $("#editor-fields").prepend(navigation);
+  $("#editor-notice").textContent = "";
+  $("#editor-fields").replaceChildren();
+  $("#editor-meta").replaceChildren();
+  $("#editor-actions").replaceChildren();
+  $("#editor-content-tools").replaceChildren();
+  $("#editor-preview-actions").replaceChildren();
+  editorForm.reset();
+  const prepared = await attachPlayerEditor({
+    client,
+    role,
+    userId,
+    base,
+    player: row,
+    form: editorForm,
+    fields: $("#editor-fields"),
+    meta: $("#editor-meta"),
+    actions: $("#editor-actions"),
+    changed: markEditorDirty,
+    isCurrent: () =>
+      version === playerEditorRequest &&
+      Boolean(role) &&
+      editResource === "players",
+  });
+  if (!prepared) return;
+  playerEditor = prepared;
+  if (!editor.open) editor.showModal();
   editorBaseline = editorSnapshot();
   editorDirty = false;
+}
+// 타입 가드는 사용하지 않습니다. 공통 양식의 Resource 타입을 유지하면서 선수만 전용 편집기에 연결합니다.
+function isPlayerResource(resource: Resource): boolean {
+  return resource === "players" || resource === "public_player_profiles";
 }
 async function openEditor(
   row: Row | null,
@@ -844,6 +754,24 @@ async function openEditor(
     return;
   const resource = context?.resource ?? current;
   if (!resources[resource].roles.includes(role)) return;
+  if (isPlayerResource(resource)) {
+    // 대시보드의 프로필 승인 항목도 같은 선수 양식으로 연결합니다.
+    const selected =
+      resource === "public_player_profiles" && row
+        ? await result(
+            client
+              .from("players")
+              .select(selectFields("players"))
+              .eq("id", row.player_id)
+              .single(),
+          )
+        : null;
+    await openUnifiedPlayer(selected ? (selected.data as unknown as Row) : row);
+    return;
+  }
+  playerEditorRequest++;
+  playerEditor?.dispose();
+  playerEditor = null;
   editorContext = context;
   pendingEditorAction = null;
   const values = { ...context?.defaults, ...row };
@@ -1238,39 +1166,9 @@ async function openEditor(
 }
 async function uploadPhoto(input: HTMLInputElement) {
   if (!client || !userId || !input.files?.[0]) return;
-  const file = input.files[0];
-  if (
-    !["image/jpeg", "image/png", "image/webp"].includes(file.type) ||
-    file.size > 10485760
-  )
-    throw new Error(t("JPEG・PNG・WebPの10MB以下の写真を選択してください。"));
   input.disabled = true;
   try {
-    const bitmap = await createImageBitmap(file);
-    const scale = Math.min(1, 2400 / Math.max(bitmap.width, bitmap.height));
-    const canvas = document.createElement("canvas");
-    canvas.width = Math.round(bitmap.width * scale);
-    canvas.height = Math.round(bitmap.height * scale);
-    const context = canvas.getContext("2d");
-    if (!context) throw new Error(t("写真を処理できません。"));
-    context.fillStyle = "#ffffff";
-    context.fillRect(0, 0, canvas.width, canvas.height);
-    context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
-    bitmap.close();
-    const blob = await new Promise<Blob>((resolve, reject) =>
-      canvas.toBlob(
-        (b) =>
-          b ? resolve(b) : reject(new Error(t("写真を処理できません。"))),
-        "image/jpeg",
-        0.88,
-      ),
-    );
-    const path = userId + "/" + crypto.randomUUID() + ".jpg";
-    await result(
-      client.storage
-        .from("kansai-media")
-        .upload(path, blob, { contentType: "image/jpeg", upsert: false }),
-    );
+    const path = await uploadOfficePhoto(client, userId, input.files[0]);
     $<HTMLInputElement>("#field-storage_path").value = path;
     $<HTMLSelectElement>("#field-kind").value = "photo";
     markEditorDirty();
@@ -1287,6 +1185,27 @@ async function save(event: SubmitEvent) {
   event.preventDefault();
   if (!client || !role || !editResource) return;
   const resource = editResource;
+  const status =
+    (event.submitter as HTMLButtonElement | null)?.dataset.saveStatus ?? "";
+  if (resource === "players") {
+    if (!playerEditor) throw new Error(t("管理画面を読み直してください。"));
+    await playerEditor.save(status);
+    editorDirty = false;
+    playerEditor.dispose();
+    playerEditor = null;
+    editor.close();
+    notice(
+      status === "published"
+        ? t(
+            "選手・プロフィール・写真を保存して発行しました。公開サイトの反映状態をご確認ください。",
+          )
+        : t(
+            "選手・プロフィール・写真を保存しました。公開前の情報は内部専用です。",
+          ),
+    );
+    await show("players", false);
+    return;
+  }
   const config: ResourceConfig = resources[resource];
   const data = new FormData(editorForm);
   const payload: Record<string, unknown> = {};
@@ -1327,13 +1246,6 @@ async function save(event: SubmitEvent) {
       payload[field.name] = text || null;
     } else payload[field.name] = text;
   }
-  const status =
-    (event.submitter as HTMLButtonElement | null)?.dataset.saveStatus ?? "";
-  if (
-    editorContext?.photoConsent === false &&
-    ["published", "scheduled"].includes(status)
-  )
-    throw new Error(t("先に選手登録画面で写真の公開同意を確認してください。"));
   if (resource === "articles" || resource === "site_pages") {
     payload.translations = readTranslations(data, resource);
     if (["published", "scheduled"].includes(status))
@@ -1358,7 +1270,6 @@ async function save(event: SubmitEvent) {
       if (payload.storage_path) payload.legacy_path = null;
     }
   }
-  let saved: Row | null = null;
   if (contentEnabled && contentResources.includes(resource)) {
     const scheduled = String(data.get("_publish_at") || "");
     if (
@@ -1368,7 +1279,7 @@ async function save(event: SubmitEvent) {
       throw new Error(
         t("予約発行する未来の日時を日本時間で入力してください。"),
       );
-    const response = await result(
+    await result(
       client.rpc("save_office_content", {
         p_entity: resource,
         p_id: editing ? String(editing[config.key]) : null,
@@ -1380,7 +1291,6 @@ async function save(event: SubmitEvent) {
             : null,
       }),
     );
-    saved = response.data as Row | null;
   } else if (
     scheduleEnabled &&
     resource === "training_sessions" &&
@@ -1404,7 +1314,7 @@ async function save(event: SubmitEvent) {
       }),
     );
   } else if (editing) {
-    const response = await result(
+    await result(
       client
         .from(resource)
         .update(payload)
@@ -1412,35 +1322,18 @@ async function save(event: SubmitEvent) {
         .select(selectFields(resource))
         .single(),
     );
-    saved = response.data as Row | null;
   } else {
-    const response = await result(
+    await result(
       client
         .from(resource)
         .insert(payload)
         .select(selectFields(resource))
         .single(),
     );
-    saved = response.data as Row | null;
   }
   editorDirty = false;
   contentEditor?.clear();
   editor.close();
-  let linked = "";
-  if (editorContext?.afterSave) {
-    try {
-      linked = (await editorContext.afterSave(saved ?? {})) ?? "";
-    } catch (error) {
-      notice(
-        t("写真の保存は完了しましたが、選手への連携は完了していません。") +
-          " " +
-          message(error),
-        true,
-      );
-      await show(current, false);
-      return;
-    }
-  }
   notice(
     status === "published"
       ? t("発行しました。公開サイトの反映状態をご確認ください。")
@@ -1450,7 +1343,6 @@ async function save(event: SubmitEvent) {
           )
         : t("保存しました。"),
   );
-  if (linked) notice(linked);
   await show(editorContext ? current : resource, false);
 }
 
@@ -1557,14 +1449,8 @@ function markEditorDirty() {
   editorDirty = editor.open && editorSnapshot() !== editorBaseline;
 }
 function updateProfileApproval() {
-  if (
-    editResource === "media_assets" &&
-    editorContext?.photoConsent === false
-  ) {
-    for (const button of editorForm.querySelectorAll<HTMLButtonElement>(
-      '[data-save-status="published"],[data-save-status="scheduled"]',
-    ))
-      button.disabled = true;
+  if (playerEditor && editResource === "players") {
+    playerEditor.updateApproval();
     return;
   }
   if (editResource !== "public_player_profiles") return;
@@ -1602,6 +1488,10 @@ editorForm.addEventListener("change", () => {
 editor.addEventListener("cancel", (event) => {
   event.preventDefault();
   closeEditor();
+});
+editor.addEventListener("close", () => {
+  playerEditor?.dispose();
+  playerEditor = null;
 });
 $("#unsaved-continue").addEventListener("click", () => {
   pendingEditorAction = null;

@@ -232,7 +232,7 @@ test("existing resource forms remain available with profiles inside the player o
     }
     navigate(window, "players");
     await listReady(window, "players");
-    doc.querySelector('[data-player-action="profile"]').click();
+    doc.querySelector('[data-player-action="edit"]').click();
     await eventually(() => doc.querySelector("#editor-dialog").open);
     assert.ok(doc.querySelector("#field-display_name"));
   } finally {
@@ -345,7 +345,7 @@ test("news preview is safe and unsaved changes can be continued or discarded", a
     dom.window.close();
   }
 });
-test("missing player consent blocks publish UI while internal and public registrations stay distinct", async () => {
+test("missing player consent blocks publishing in the combined registration and profile form", async () => {
   const { dom, window } = await app("owner", undefined, {}, data);
   try {
     await login(window);
@@ -358,9 +358,10 @@ test("missing player consent blocks publish UI while internal and public registr
     assert.ok(
       doc.querySelector(".office-table").textContent.includes("MF / 8"),
     );
-    doc.querySelector('[data-player-action="profile"]').click();
+    doc.querySelector('[data-player-action="edit"]').click();
     await eventually(() => doc.querySelector("#editor-dialog").open);
-    assert.equal(doc.querySelector("#field-player_id").disabled, true);
+    assert.equal(doc.querySelector("#field-player_id"), null);
+    assert.ok(doc.querySelector("#editor-meta").textContent.includes(playerId));
     assert.equal(
       doc.querySelector('[data-save-status="published"]').disabled,
       true,
@@ -368,9 +369,9 @@ test("missing player consent blocks publish UI while internal and public registr
     assert.ok(
       doc
         .querySelector("#profile-consent-state")
-        .textContent.includes("公開同意が必要"),
+        .textContent.includes("公開同意を確認"),
     );
-    assert.equal(doc.querySelector("#field-internal_name"), null);
+    assert.ok(doc.querySelector("#field-internal_name"));
   } finally {
     dom.window.close();
   }

@@ -240,9 +240,9 @@ test("coach metadata cannot expose owner/editor menus or profile publishing", as
     );
     document.querySelector('[data-resource="players"]').click();
     await eventually(() =>
-      document.querySelector('[data-player-action="profile"]'),
+      document.querySelector('[data-player-action="edit"]'),
     );
-    document.querySelector('[data-player-action="profile"]').click();
+    document.querySelector('[data-player-action="edit"]').click();
     await eventually(() => document.querySelector("#editor-dialog").open);
     assert.equal(
       document.querySelector('[data-save-status="published"]'),

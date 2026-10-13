@@ -136,7 +136,9 @@ export const resources: Record<Resource, ResourceConfig> = {
         name: "internal_name",
         label: t("管理用の選手名"),
         required: true,
-        hint: t("内部専用です。公開プロフィールは別の画面で承認します。"),
+        hint: t(
+          "内部専用です。公開プロフィールは同じ登録画面で確認・承認します。",
+        ),
       },
       {
         name: "activity_status",
@@ -154,7 +156,7 @@ export const resources: Record<Resource, ResourceConfig> = {
         type: "player-photo",
         mediaCategory: "player",
         hint: t(
-          "選手カテゴリーの公開承認済み写真を選びます。公開プロフィール作成時に自動入力します。登録だけではプロフィールは公開されません。",
+          "選手写真は同じ登録画面でアップロード・選択できます。公開同意と承認が完了するまで公開されません。",
         ),
       },
       {

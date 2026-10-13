@@ -1715,24 +1715,26 @@
   margin: 6px 0 0;
   color: #607086;
 }
-.office-player-tabs {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-bottom: 18px;
-  padding: 14px;
-  border: 1px solid #e1e8f0;
+/* 선수 사진을 고르는 동안 같은 등록 양식 안에서 미리보기를 유지합니다. */
+.office-player-photo-preview img {
+  width: 144px;
+  max-height: 180px;
+  object-fit: contain;
   border-radius: 8px;
+  margin-top: 12px;
+  border: 1px solid #e1e8f0;
   background: #f3f6fa;
 }
-.office-player-tabs strong {
-  flex: 1 1 100%;
+.office-player-upload-details {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  margin-top: 16px;
 }
-.office-player-tabs [aria-current="page"] {
-  background: #1168bc;
-  color: white;
-  border-color: #1168bc;
+@media (max-width: 600px) {
+  .office-player-upload-details {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 .office-repository-link {
   flex-basis: 100%;
@@ -1742,4 +1744,6 @@
   font-weight: 600;
   text-decoration: underline;
 }
-#publication-status { flex-wrap: wrap; }
+#publication-status {
+  flex-wrap: wrap;
+}
