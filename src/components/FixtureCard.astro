@@ -1,0 +1,60 @@
+---
+import type { PublicFixture } from "../lib/content-types";
+import { club } from "../data/club";
+import { asset } from "../lib/urls";
+import { japanDate } from "../lib/dates";
+interface Props {
+  fixture: PublicFixture;
+}
+const { fixture } = Astro.props;
+const labels = {
+  scheduled: "開催予定",
+  completed: "試合終了",
+  postponed: "延期",
+  cancelled: "中止",
+};
+---
+
+<article class="fixture-card" id={"fixture-" + fixture.id}>
+  <div class="fixture-card-meta">
+    <span class="eyebrow">{fixture.competition || "大会名 未発表"}</span>
+    <span class="fixture-status">
+      {labels[fixture.status]} / {fixture.homeAway.toUpperCase()}
+    </span>
+  </div>
+  <p class="fixture-date">
+    <time datetime={fixture.kickoff ?? undefined}>
+      {japanDate(fixture.kickoff)}
+    </time>
+  </p>
+  <div class="fixture-teams">
+    <div>
+      <img src={asset(club.logo)} alt="" width="64" height="64" />
+      <strong>{club.name}</strong>
+    </div>
+    <span class="display fixture-score">
+      {fixture.status === "completed"
+        ? String(fixture.ownScore) + " – " + String(fixture.opponentScore)
+        : "VS"}
+    </span>
+    <div>
+      {fixture.opponentLogo ? (
+        <img src={asset(fixture.opponentLogo)} alt="" width="64" height="64" />
+      ) : (
+        <span class="fixture-logo-placeholder" aria-hidden="true">
+          FC
+        </span>
+      )}
+      <strong>{fixture.opponent}</strong>
+    </div>
+  </div>
+  <p class="fixture-venue">{fixture.venue || "会場 未発表"}</p>
+  {fixture.report.length > 0 && (
+    <details class="fixture-report" id={"report-" + fixture.id}>
+      <summary>試合レポートを読む</summary>
+      {fixture.report.map((p) => (
+        <p>{p}</p>
+      ))}
+    </details>
+  )}
+</article>

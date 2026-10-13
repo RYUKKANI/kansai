@@ -1,0 +1,26 @@
+---
+import { page } from "../lib/urls";
+// [편집 안내] 독립 페이지의 제목·소개를 공통으로 배치합니다. 내용은 각 페이지에서 전달합니다.
+interface Props {
+  title: string;
+  japanese: string;
+  description: string;
+}
+const { title, japanese, description } = Astro.props;
+---
+
+<section class="page-hero">
+  <div class="shell page-hero-inner">
+    <nav class="page-breadcrumb" aria-label="パンくず">
+      <a href={page()}>HOME</a>
+      <span aria-hidden="true">/</span>
+      <span>{title}</span>
+    </nav>
+    <p class="eyebrow">{japanese}</p>
+    <h1 class="display">
+      {title}
+      <span>.</span>
+    </h1>
+    <p>{description}</p>
+  </div>
+</section>

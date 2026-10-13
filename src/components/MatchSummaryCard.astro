@@ -1,0 +1,114 @@
+---
+import Icon from "./Icon.astro";
+import { club } from "../data/club";
+import { asset, page } from "../lib/urls";
+import { matchDate, matchSides, matchTime } from "../lib/match-centre";
+import type { PublicFixture } from "../lib/content-types";
+
+interface Props {
+  fixture?: PublicFixture;
+  kind: "last" | "next" | "upcoming";
+  title: string;
+  japanese: string;
+}
+const { fixture, kind, title, japanese } = Astro.props;
+const [left, right] = matchSides(fixture);
+const completed = fixture?.status === "completed";
+const hasReport = completed && fixture.report.length > 0;
+const target = fixture
+  ? (hasReport ? "report-" : "fixture-") + fixture.id
+  : kind === "last"
+    ? "results-panel"
+    : "schedule-panel";
+// [편집 안내] 세 카드는 같은 구성을 사용합니다. 팀·시간·점수는 CMS의 실제 공개 정보만 표시합니다.
+const emptyMessage =
+  kind === "last" ? "試合結果は未発表です" : "試合はまだ未定です";
+---
+
+<article class="match-summary" data-match-slot={kind}>
+  <h3 class="match-summary-heading">
+    <span class="display">{title}</span>
+    <small>{japanese}</small>
+  </h3>
+  <div class="match-summary-body">
+    <p class="match-summary-date">
+      {fixture?.kickoff ? (
+        <time datetime={fixture.kickoff}>{matchDate(fixture.kickoff)}</time>
+      ) : completed ? (
+        "日付未発表"
+      ) : kind === "last" ? (
+        "結果未発表"
+      ) : (
+        "日程未定"
+      )}
+    </p>
+    <div class="match-summary-teams">
+      {[left, right].map((side, index) => (
+        <>
+          {index === 1 && (
+            <div class="match-summary-centre">
+              <strong
+                class:list={[
+                  "match-summary-score",
+                  {
+                    "is-completed": completed,
+                    "is-pending": !completed && !fixture?.kickoff,
+                  },
+                ]}
+              >
+                {completed
+                  ? (left.score ?? "–") + " - " + (right.score ?? "–")
+                  : fixture?.kickoff
+                    ? matchTime(fixture.kickoff)
+                    : "未定"}
+              </strong>
+              {completed && <span class="match-summary-ft">FT</span>}
+            </div>
+          )}
+          <div class="match-summary-team">
+            {side.own ? (
+              <img src={asset(club.logo)} alt="" width="54" height="54" />
+            ) : fixture?.opponentLogo ? (
+              <img
+                src={asset(fixture.opponentLogo)}
+                alt=""
+                width="54"
+                height="54"
+              />
+            ) : (
+              <span class="match-summary-placeholder" aria-hidden="true">
+                <Icon name="ball" size={30} />
+              </span>
+            )}
+            <strong>
+              {side.own ? club.name : fixture?.opponent || "対戦相手未定"}
+            </strong>
+          </div>
+        </>
+      ))}
+    </div>
+    <div class="match-summary-information">
+      {fixture ? (
+        <>
+          {!fixture.kickoff && !completed && (
+            <p class="match-summary-pending">{emptyMessage}</p>
+          )}
+          <p class="match-summary-competition">
+            {fixture.competition || "大会名未発表"}
+          </p>
+          <p class="match-summary-venue">{fixture.venue || "会場未発表"}</p>
+        </>
+      ) : (
+        <p class="match-summary-pending">{emptyMessage}</p>
+      )}
+    </div>
+    <a class="match-summary-link" href={page("matches/") + "#" + target}>
+      {hasReport
+        ? "試合レポート"
+        : fixture
+          ? "試合情報を見る"
+          : "日程・結果を見る"}
+      <Icon name="arrow" size={16} />
+    </a>
+  </div>
+</article>

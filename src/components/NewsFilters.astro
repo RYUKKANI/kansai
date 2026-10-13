@@ -1,5 +1,5 @@
 ---
-import { storyCategories } from '../data/club';
+import { storyCategories } from "../data/club";
 
 interface Props {
   total: number;
@@ -9,9 +9,15 @@ const { total } = Astro.props;
 ---
 
 <div class="news-filters" aria-label="ニュースのカテゴリ">
-  <button type="button" data-filter="all" aria-pressed="true">すべて</button>
+  <button type="button" data-filter="all" aria-pressed="true">
+    すべて
+  </button>
   {Object.entries(storyCategories).map(([id, category]) => (
-    <button type="button" data-filter={id} aria-pressed="false">{category.filterLabel}</button>
+    <button type="button" data-filter={id} aria-pressed="false">
+      {category.filterLabel}
+    </button>
   ))}
-  <span data-news-count aria-live="polite">{total} {total === 1 ? 'STORY' : 'STORIES'}</span>
+  <span data-news-count aria-live="polite">
+    {total} {total === 1 ? "STORY" : "STORIES"}
+  </span>
 </div>

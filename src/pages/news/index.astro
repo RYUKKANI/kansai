@@ -1,24 +1,35 @@
 ---
-import SiteLayout from '../../layouts/SiteLayout.astro';
-import Icon from '../../components/Icon.astro';
-import NewsCard from '../../components/NewsCard.astro';
-import NewsFilters from '../../components/NewsFilters.astro';
-import { club, stories } from '../../data/club';
-import { page } from '../../lib/urls';
+import SiteLayout from "../../layouts/SiteLayout.astro";
+import Icon from "../../components/Icon.astro";
+import NewsCard from "../../components/NewsCard.astro";
+import NewsFilters from "../../components/NewsFilters.astro";
+import { club } from "../../data/club";
+import { loadPublicContent } from "../../data/cms";
+import { page } from "../../lib/urls";
 // 목록의 기사·분류는 data/club.ts에서 편집합니다. 홈과 공통 카드·필터를 사용합니다.
+const { stories } = await loadPublicContent();
 ---
+
 <SiteLayout title={`ニュース | ${club.name}`}>
   <section class="shell news-archive" data-filter-group>
     <nav class="breadcrumbs" aria-label="パンくず">
-      <a href={page()}>HOME</a><Icon name="chevron" size={13} /><span>NEWS</span>
+      <a href={page()}>HOME</a>
+      <Icon name="chevron" size={13} />
+      <span>NEWS</span>
     </nav>
     <p class="eyebrow">{club.name}のニュース</p>
-    <h1 class="display archive-title">NEWS & STORIES<span class="text-blue">.</span></h1>
+    <h1 class="display archive-title">
+      NEWS & STORIES<span class="text-blue">.</span>
+    </h1>
     <p class="archive-intro">トレーニングの様子から、クラブのお知らせまで。</p>
     <NewsFilters total={stories.length} />
     <div class="news-grid">
-      {stories.map(story => <NewsCard story={story} headingLevel={2} />)}
+      {stories.map((story) => (
+        <NewsCard story={story} headingLevel={2} />
+      ))}
     </div>
-    <p class="source-note">公式Instagramの投稿をもとに編集しています。各記事から原文をご覧いただけます。</p>
+    {stories.length === 0 && (
+      <p class="content-empty">ニュースは、公開をお待ちください。</p>
+    )}
   </section>
 </SiteLayout>

@@ -1,100 +1,96 @@
-# 간사이 유나이티드 FC 홈페이지
+# 간사이 유나이티드 FC 공식 홈페이지
 
-[현재 사이트](https://ryukkani.github.io/kansai/)의 Astro·TypeScript·Tailwind CSS 소스입니다.
-방문자에게 보이는 문구는 일본어로 유지하고, 코드의 주석과 편집 안내는 한국어로 작성합니다.
+Astro 7·TypeScript·Tailwind CSS로 만드는 일본어 공식 홈페이지입니다.
+GitHub Pages의 /kansai/ 주소를 유지하고 운영진은 Supabase 관리자에서 콘텐츠를 편집합니다.
+사람이 읽고 편집하기 쉬운 코드와 한국어 주석을 기본 원칙으로 합니다.
 
-## 이번 단계의 원칙
+## 콘텐츠 편집
 
-사람이 직접 읽고 편집하기 쉽게 만드는 것이 기본 원칙입니다. 디자인 개편은 다음 단계에서 진행합니다.
-기존 화면, 페이지 주소, 사진 원본과 기능을 유지하면서 반복 코드를 줄이고 편집 위치를 정리했습니다.
-앞으로의 작업 원칙은 [AGENTS.md](AGENTS.md)에 있습니다.
+공식 관리자 주소는 /kansai/admin/입니다. 초대받은 이메일로 로그인합니다.
+공개 메뉴에는 관리자 링크를 넣지 않습니다. 실제 접근 권한은 데이터베이스 RLS로 제한합니다.
 
-현재는 디자인 확인용입니다. 모든 페이지의 `DESIGN PREVIEW` 표시와 `noindex, nofollow` 설정을 유지합니다.
-선수 이름·등번호, 경기 일정·결과, 구단 연혁 등 확인되지 않은 정보는 게시하지 않습니다.
-
-## 무엇을 어디서 편집하나요?
-
-| 바꾸려는 내용 | 편집할 파일 |
+| 작업 | 관리자 메뉴 |
 | --- | --- |
-| 구단명·로고 경로·Instagram·기본 페이지 설명 | `src/data/club.ts`의 `club` |
-| 기사 제목·날짜·본문·사진·출처 | `src/data/club.ts`의 기사 객체와 `stories` |
-| 홈 대표 기사·보조 기사·제목 줄바꿈 | `src/data/club.ts`의 `homeHighlights` |
-| 뉴스 분류·필터 이름·분류 검색어 | `src/data/club.ts`의 `storyCategories` |
-| 갤러리 사진·설명·출처 | `src/data/club.ts`의 `gallery` |
-| 헤더·모바일·푸터 메뉴 문구와 주소 | `src/data/navigation.ts` |
-| 홈 섹션 순서·상단 소개 | `src/pages/index.astro` |
-| 홈 각 섹션의 구조·안내 문구 | `src/components/home/` |
-| 공통 뉴스 카드·필터 | `src/components/NewsCard.astro`, `NewsFilters.astro` |
-| 뉴스 목록·상세 페이지 구성 | `src/pages/news/index.astro`, `[slug].astro` |
-| 공통 페이지 틀·메타 정보 | `src/layouts/SiteLayout.astro` |
-| 검색·사진 확대 화면 | `src/components/SearchDialog.astro`, `PhotoDialog.astro` |
-| 메뉴·필터·탭·검색·사진 확대 동작 | `src/scripts/site.ts` |
-| 대표 색상·글꼴·공통 폭 | `src/styles/base.css`의 `@theme`와 공통 규칙 |
-| 화면별 스타일 | `src/styles/header.css`, `home.css`, `footer.css`, `dialogs.css`, `news.css` |
-| PC·태블릿·모바일 화면별 조정 | `src/styles/responsive.css` |
-| 도메인·GitHub Pages 하위 경로 | `astro.config.mjs`의 `site`, `base` |
-| 사진 원본 | `public/assets/` |
-| 제목용 글꼴 원본 | `src/assets/fonts/barlow-condensed-bold.woff2` |
+| 기사 작성·수정·삭제, 초안·발행·발행 취소, 추천 기사 | 뉴스 |
+| 영구 선수 UUID, 활동 상태, 공개 동의 여부 | 선수 등록·동의 |
+| 이름·등번호·포지션·사진·소개·표시 순서, 공개 승인 | 공개 프로필 |
+| 경기 일정·결과·변경·취소·리포트 | 경기 |
+| 훈련 시간·장소·운영 메모 | 훈련 예정 |
+| 사진 업로드·영상 URL·앨범·공개 상태 | 사진·영상, 앨범 |
+| 구단 소개·참가 안내 문구 | 구단·참가 안내 |
+| 운영진 초대·역할 변경·접근 비활성화 | 운영 멤버 (Owner) |
 
-`global.css`는 스타일을 순서대로 불러오는 진입점입니다. 반응형 규칙은 기본 규칙 다음에 적용되므로
-불러오는 순서와 화면 크기 구간의 순서를 유지합니다. 홈 섹션의 `id`는 메뉴의 `#섹션-id`와 연결됩니다.
-반투명 색과 보조색은 해당 화면의 CSS에서, 브라우저 주소창 색은 `SiteLayout.astro`의 `theme-color`에서 조정합니다.
+기사와 선수 프로필의 URL은 첫 발행 후 변경할 수 없습니다. 이름과 제목을 바꿔도 기존 링크를 유지합니다.
+URL은 영문 소문자·숫자·하이픈으로 지정합니다. 본문은 빈 줄로 문단을 나누며 HTML은 텍스트로 처리합니다.
+선수의 내부 정보와 공개 프로필은 분리합니다. Coach는 초안을 작성하고 Owner/Administrator가 공개합니다.
+연락처·출석·평가·건강 정보는 공개 홈페이지에 연결하지 않습니다.
+기존 사진 네 장은 유지하고, 새 업로드는 공개용으로 확인한 뒤 발행합니다.
 
-## 기사 추가·수정
+## 코드 편집 위치
 
-1. `src/data/club.ts`에서 기존 기사 객체를 참고해 제목, 설명, 날짜, 사진, 본문, 출처를 작성합니다.
-2. `id`는 기사 주소가 됩니다. 이미 공개된 기사는 제목을 수정해도 기존 `id`를 유지합니다.
-3. `category`는 `storyCategories`에 등록된 값을 사용하고, 게시일은 `YYYY.MM.DD`로 적습니다.
-4. `stories` 배열에 등록하면 뉴스 목록·검색·상세 페이지에 반영됩니다. 배열 순서가 목록 순서입니다.
-5. 홈 상단 추천 영역은 `homeHighlights`에서 별도로 지정합니다. `titleLines`와 `summaryLines`의 각 항목이 한 줄입니다.
+| 수정할 내용 | 위치 |
+| --- | --- |
+| 구단명·로고·공식 Instagram·뉴스 분류 | src/data/club.ts |
+| 공개 데이터를 읽는 방법과 허용 필드 | src/data/cms.ts |
+| 헤더·모바일·푸터 메뉴 | src/data/navigation.ts |
+| 홈페이지 섹션 순서 | src/pages/index.astro |
+| 추천 뉴스·경기·선수단·미디어·구단 안내 | src/components/home/ |
+| 독립 페이지 | src/pages/team/, matches/, media/, club/, join/ |
+| 관리자 양식의 항목·라벨·메뉴 역할 | src/lib/admin-config.ts |
+| 관리자 로그인·편집·저장 | src/scripts/admin.ts |
+| 메뉴·검색·필터·탭·사진 확대·YouTube | src/scripts/site.ts |
+| 기본 색상·글꼴 | src/styles/base.css |
+| 독립 페이지·카드·모바일 스타일 | src/styles/pages.css |
+| 관리자 스타일 | src/styles/admin.css |
+| 데이터 구조·RLS·게시 승인·감사 이력 | supabase/migrations/ |
+| 운영진 초대 서버 함수 | supabase/functions/invite-staff/ |
+| 배포와 정기 재구축 | .github/workflows/deploy.yml |
 
-홈 뉴스 카드에만 다른 사진을 쓰려면 `homeCardImage`를 지정합니다. 없으면 기사의 `image`를 사용합니다.
-갤러리 사진에는 대체 텍스트와 출처를 함께 적습니다. `Photo.astro`는 기본적으로 지연 로딩하며,
-홈과 기사 상세의 대표 사진에만 높은 로딩 우선순위를 사용합니다.
+CMS 연결을 끄면 club.ts의 기존 기사·사진을 사용합니다. 연결 후에는 관리자 데이터가 기준입니다.
+public/assets/는 수동 원본, public/cms-assets/는 빌드마다 생성하는 공개 사진 복사본입니다.
+자동 생성 폴더에 직접 파일을 보관하지 않습니다.
 
-## 개발과 확인
+## 개발과 검증
 
-Node.js 22.12 이상인 짝수 버전을 사용합니다. 배포 환경은 Node.js 24입니다.
+Node.js 24를 사용합니다. 의존성 버전과 잠금 파일을 함께 관리합니다.
 
-```sh
+~~~sh
 npm ci
 npm run dev
-```
-
-수정 후 형식·타입 검사, 정적 페이지 빌드, 오프라인 미리보기를 확인합니다.
-
-```sh
 npm run check
 npm run build
 npm run export:preview
-```
+npm test
+~~~
 
-빌드한 사이트는 `npm run preview`로 확인합니다. 오프라인 미리보기는 `preview/index.html`을 직접 열면 됩니다.
-홈, 뉴스 목록, 기사 상세의 다섯 페이지가 생성되며 CSS·스크립트·사진·글꼴을 HTML에 담습니다.
-메뉴, 뉴스 검색·분류, 키보드 탭 전환, 사진 확대를 수정했다면 PC와 모바일에서 해당 기능을 확인합니다.
+.env.example을 .env로 복사하고 간사이 프로젝트 URL과 **publishable key**를 설정합니다.
+PUBLIC_CMS_ENABLED=true이면 실제로 발행한 공개 데이터를 빌드합니다.
+연결 이후 조회 실패는 빌드를 중단합니다. secret/service_role key를 브라우저·저장소·빌드 환경에 넣지 않습니다.
 
-## 배포
+npm run preview는 빌드된 사이트를 확인합니다. preview/index.html은 CSS·사진·글꼴·스크립트를 포함한 파일 미리보기입니다.
+관리자 로그인과 실제 저장은 웹으로 제공되는 관리자 주소에서 사용합니다.
+npm test는 PostgreSQL 권한과 실제 빌드 UI의 메뉴·검색·탭·사진 확대·관리자 편집을 검사합니다.
+UI 테스트는 서버 응답을 대체하며 화면 배치를 확인하지 않습니다.
+실제 DB 권한 검사는 supabase/tests/remote-permissions.sql로 별도 실행하고 테스트 행을 전부 롤백합니다.
+실제 공개 API는 공개 환경 변수를 설정한 뒤 node scripts/verify-public-api.mjs로 검사합니다.
 
-GitHub Pages의 Source를 **GitHub Actions**로 설정하면 `main` 변경이 검사·빌드·배포됩니다.
-PR은 검사·빌드만 수행합니다. 검토용 코드는 별도 브랜치에서 준비하고, 반영 시점을 정한 뒤 병합합니다.
+## 반영과 배포
 
-`src/lib/urls.ts`의 `page()`와 `asset()`이 배포 하위 경로를 붙입니다.
-오프라인 변환도 같은 Astro 설정을 읽으므로 `/kansai/`를 각 파일에 반복해서 적지 않습니다.
+GitHub Actions Variables에 다음 값을 설정합니다.
 
-## 자료와 다음 단계
+- PUBLIC_CMS_ENABLED: true
+- PUBLIC_SUPABASE_URL: 간사이 프로젝트 URL
+- PUBLIC_SUPABASE_PUBLISHABLE_KEY: 간사이 publishable key
 
-기사와 훈련 사진은 제공된 공식 Instagram 게시물 두 개를 바탕으로 했습니다.
+PR과 개발 브랜치의 수동 실행은 검사·빌드만 합니다. 운영 배포는 main에서만 합니다.
+발행 내용은 보통 15분 간격의 재구축으로 반영되며 GitHub 작업 지연으로 더 늦어질 수 있습니다.
+변경이 없으면 예약 빌드를 건너뜁니다. 관리자에서 발행 상태와 공개 사이트의 반영 상태를 구분합니다.
+즉시 반영할 때는 공식 배포 workflow를 main에서 수동 실행합니다.
 
-- [10월 3일 훈련 게시물](https://www.instagram.com/p/DeTFBjBD0ab/) — 2026년 10월 9일 게시, 사진 두 장
-- [9월 26일 훈련 게시물](https://www.instagram.com/p/Dd8ytlHjx75/) — 2026년 10월 1일 게시, 사진 두 장
+공개 사진을 비공개로 바꾸면 연결된 기사·프로필도 비공개로 전환하고 다음 배포에서 생성 파일을 제거합니다.
+기존 배포와 방문자 캐시는 재구축 전에 남을 수 있습니다. 즉시 철회가 필요하면 수동 재구축과 캐시를 점검합니다.
+원본인 public/assets/ 파일은 CMS가 직접 삭제하지 않습니다.
 
-사진 파일과 출처는 `public/assets/asset-sources.json`을 참조합니다.
-사진의 검은 여백은 CSS에서만 잘라 보여주며 원본 바이트는 유지합니다.
-구단 로고는 공식 프로필 이미지의 임시본입니다. 정식 공개 단계에서 고해상도 원본과 최종 원고를 반영합니다.
-사진 사용은 요청된 구단·사진 권리자의 허가를 전제로 한 디자인 작업입니다.
-제목용 Barlow Condensed 글꼴 라이선스는 `public/assets/fonts/OFL.txt`에 있습니다.
-
-다음 디자인 단계의 참고 사이트는 [맨체스터 유나이티드](https://www.manutd.com/ko)와
-[카라바흐 FK](https://qarabagh.com/en)입니다. 이번 단계에서는 새로운 디자인을 적용하지 않습니다.
-
-선수단, 경기 일정·결과, 공식 영상, 관리자 기능, 데이터베이스와 별도 도메인은 이후 단계에서 다룹니다.
+계정·메일·백업은 [운영 안내](docs/OPERATIONS.md),
+데이터 반영 방식은 [시스템 구조](docs/ARCHITECTURE.md),
+선수 관리 프로그램의 연동 계약은 [연동 명세](docs/PLAYER_INTEGRATION.md)에 있습니다.

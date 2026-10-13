@@ -1,31 +1,53 @@
 ---
-import Icon from './Icon.astro';
-import { stories, storyCategories } from '../data/club';
-import { page } from '../lib/urls';
+import Icon from "./Icon.astro";
+import { storyCategories } from "../data/club";
+import { loadPublicContent } from "../data/cms";
+import { page } from "../lib/urls";
 
 // 검색 대상은 빌드할 때 기사 데이터에서 생성됩니다. 브라우저는 표시 여부만 바꿉니다.
+const { stories } = await loadPublicContent();
 ---
 
 <dialog class="search-dialog" aria-labelledby="search-title">
   <div class="dialog-top">
     <span class="eyebrow">SEARCH UNITED</span>
-    <button type="button" class="icon-button" data-close-dialog aria-label="検索を閉じる"><Icon name="close" /></button>
+    <button
+      type="button"
+      class="icon-button"
+      data-close-dialog
+      aria-label="検索を閉じる"
+    >
+      <Icon name="close" />
+    </button>
   </div>
   <h2 id="search-title">ニュースを検索</h2>
   <label class="search-field">
     <Icon name="search" />
-    <input type="search" id="news-search" placeholder="キーワードを入力" aria-label="ニュース検索キーワード" autocomplete="off" />
+    <input
+      type="search"
+      id="news-search"
+      placeholder="キーワードを入力"
+      aria-label="ニュース検索キーワード"
+      autocomplete="off"
+    />
   </label>
   <div class="search-results" aria-live="polite">
-    {stories.map(story => (
+    {stories.map((story) => (
       <a
         href={page(`news/${story.id}/`)}
         data-search-text={`${story.title} ${story.summary} ${story.label} ${storyCategories[story.category].searchTerms}`}
       >
-        <small>{story.label} / {story.published}</small>
-        <span>{story.title}<Icon name="arrow" /></span>
+        <small>
+          {story.label} / {story.published}
+        </small>
+        <span>
+          {story.title}
+          <Icon name="arrow" />
+        </span>
       </a>
     ))}
   </div>
-  <p class="search-empty" hidden>一致するニュースはありません。</p>
+  <p class="search-empty" hidden>
+    一致するニュースはありません。
+  </p>
 </dialog>

@@ -1,6 +1,6 @@
 ---
-import Icon from './Icon.astro';
-import { club } from '../data/club';
+import Icon from "./Icon.astro";
+import { club } from "../data/club";
 
 // 사진 주소·대체 텍스트·출처는 클릭한 갤러리 버튼에서 scripts/site.ts가 가져옵니다.
 // 초기 src를 두지 않아, 사진을 확대하지 않은 페이지에서 원본을 미리 내려받지 않습니다.
@@ -9,15 +9,27 @@ import { club } from '../data/club';
 <dialog class="photo-dialog" aria-label="活動写真">
   <div class="dialog-top">
     <span class="eyebrow">UNITED IN PICTURES</span>
-    <button type="button" class="icon-button" data-close-dialog aria-label="写真を閉じる"><Icon name="close" /></button>
+    <button
+      type="button"
+      class="icon-button"
+      data-close-dialog
+      aria-label="写真を閉じる"
+    >
+      <Icon name="close" />
+    </button>
   </div>
   <div class="photo dialog-photo">
     <img id="lightbox-image" alt="" width="1170" height="1560" />
   </div>
   <div class="lightbox-bottom">
     <p id="lightbox-caption"></p>
-    <a id="lightbox-source" href={club.instagram} target="_blank" rel="noopener noreferrer">
-      Instagramの原文を見る <Icon name="external" size={15} />
+    <a
+      id="lightbox-source"
+      href={club.instagram}
+      target="_blank"
+      rel="noopener noreferrer"
+    >
+      関連する公式情報 <Icon name="external" size={15} />
     </a>
   </div>
 </dialog>

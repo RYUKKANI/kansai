@@ -1,33 +1,51 @@
 // [편집 안내] 헤더·모바일 메뉴·푸터의 메뉴 이름과 링크를 한곳에서 관리합니다.
 // path는 /kansai/를 제외한 상대 경로입니다. 홈 내부 이동에는 #섹션-id를 사용합니다.
 export const joinNavigation = {
-  id: 'join',
-  label: 'チームに参加',
-  english: 'JOIN US',
-  path: '#join',
-  footerLabel: '参加・お問い合わせ',
+  id: "join",
+  label: "チームに参加",
+  english: "JOIN US",
+  path: "join/",
+  footerLabel: "参加・お問い合わせ",
 } as const;
 
 export const navigation = [
-  { id: 'news', label: 'ニュース', english: 'NEWS', path: 'news/', footerLabel: 'ニュース' },
   {
-    id: 'matches',
-    label: '試合情報',
-    english: 'MATCHES',
-    path: '#matches',
-    footerLabel: '試合情報',
+    id: "news",
+    label: "ニュース",
+    english: "NEWS",
+    path: "news/",
+    footerLabel: "ニュース",
   },
   {
-    id: 'team',
-    label: '選手・スタッフ',
-    english: 'TEAM',
-    path: '#team',
-    footerLabel: '選手・スタッフ',
+    id: "matches",
+    label: "試合情報",
+    english: "MATCHES",
+    path: "matches/",
+    footerLabel: "試合情報",
   },
-  { id: 'media', label: 'メディア', english: 'MEDIA', path: '#media', footerLabel: 'メディア' },
-  { id: 'club', label: 'クラブ', english: 'CLUB', path: '#club', footerLabel: 'クラブについて' },
+  {
+    id: "team",
+    label: "選手・スタッフ",
+    english: "TEAM",
+    path: "team/",
+    footerLabel: "選手・スタッフ",
+  },
+  {
+    id: "media",
+    label: "メディア",
+    english: "MEDIA",
+    path: "media/",
+    footerLabel: "メディア",
+  },
+  {
+    id: "club",
+    label: "クラブ",
+    english: "CLUB",
+    path: "club/",
+    footerLabel: "クラブについて",
+  },
   joinNavigation,
 ] as const;
 
 // PC 헤더의 참여 메뉴는 별도 버튼으로 표시합니다. 모바일 메뉴와 푸터에는 모두 표시합니다.
-export const headerNavigation = navigation.filter((item) => item.id !== 'join');
+export const headerNavigation = navigation.filter((item) => item.id !== "join");

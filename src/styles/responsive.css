@@ -35,14 +35,6 @@
   .lead-grid {
     height: 490px;
   }
-  .fixture {
-    gap: 34px;
-  }
-  .fixture-team {
-    flex-direction: column;
-    gap: 8px;
-    font-size: 10px;
-  }
   .team-inner {
     grid-template-columns: 245px 1fr;
     gap: 28px;
@@ -76,10 +68,10 @@
   .mobile-menu-toggle {
     display: inline-grid;
   }
-  .mobile-menu-toggle[aria-expanded='true'] > svg:first-child {
+  .mobile-menu-toggle[aria-expanded="true"] > svg:first-child {
     display: none;
   }
-  .mobile-menu-toggle[aria-expanded='true'] .menu-close-icon {
+  .mobile-menu-toggle[aria-expanded="true"] .menu-close-icon {
     display: block;
   }
   .header-inner {
@@ -117,27 +109,50 @@
   .lead-summary {
     font-size: 11px;
   }
+  /* 태블릿은 제목을 위로 올려 카드 3개의 읽을 공간을 확보합니다. */
   .match-section {
-    grid-template-columns: 200px 1fr;
+    grid-template-columns: 1fr;
   }
   .match-heading {
-    padding-inline: 23px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px 20px;
+    padding: 20px 24px;
+    border-right: 0;
+    border-bottom: 1px solid #dfe6ef;
+  }
+  .match-heading .eyebrow {
+    width: 100%;
+    margin: 0;
   }
   .match-heading h2 {
-    font-size: 39px;
+    font-size: 38px;
+    margin: 0;
   }
-  .match-panel {
-    padding-inline: 24px;
+  .match-heading h2 br,
+  .match-intro {
+    display: none;
   }
-  .fixture-bottom {
-    flex-direction: column;
-    gap: 13px;
+  .match-heading .match-all-link {
+    margin: 0 0 0 auto;
   }
-  .fixture-details {
-    text-align: left;
+  .match-cards {
+    gap: 12px;
+    padding: 22px 18px;
   }
-  .fixture-details p {
-    max-width: 100%;
+  .match-summary-body {
+    padding-inline: 12px;
+  }
+  .match-summary-team img,
+  .match-summary-placeholder {
+    width: 48px;
+    height: 48px;
+  }
+  .match-summary-score {
+    min-width: 64px;
+    min-height: 48px;
+    font-size: 29px;
   }
   .news-grid {
     gap: 17px;
@@ -345,66 +360,43 @@
   .secondary-arrow {
     display: none;
   }
+  /* 모바일은 카드 순서를 유지한 세로 배치로 정보가 잘리지 않게 합니다. */
   .match-section {
-    grid-template-columns: 1fr;
     margin-top: 21px;
   }
   .match-heading {
-    border-right: 0;
-    border-bottom: 1px solid #dfe6ef;
-    padding: 20px 22px 17px;
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 10px 20px;
-  }
-  .match-heading .eyebrow {
-    width: 100%;
-    font-size: 9px;
-    margin: 0;
+    padding: 20px;
   }
   .match-heading h2 {
     font-size: 31px;
-    margin: 0;
   }
-  .match-heading h2 br {
-    display: none;
+  .match-cards {
+    grid-template-columns: 1fr;
+    gap: 24px;
+    padding: 22px 18px;
   }
-  .match-tabs {
-    margin-left: auto;
-    gap: 15px;
-    font-size: 10px;
+  .match-summary-heading {
+    flex-direction: row;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
   }
-  .match-tabs button {
-    padding-bottom: 6px;
+  .match-summary-heading .display {
+    font-size: 29px;
   }
-  .match-panel {
-    padding: 18px 22px;
+  .match-summary-body {
+    min-height: 290px;
+    padding: 23px 22px 18px;
   }
-  .fixture {
-    gap: 23px;
-    margin: 19px 0 21px;
-    justify-content: space-around;
+  .match-summary-team img,
+  .match-summary-placeholder {
+    width: 54px;
+    height: 54px;
   }
-  .fixture-team {
-    font-size: 9px;
-    gap: 9px;
-  }
-  .fixture-team img,
-  .opponent-placeholder {
-    width: 52px;
-    height: 52px;
-  }
-  .fixture-bottom {
-    gap: 14px;
-  }
-  .fixture-bottom > p {
-    flex-wrap: wrap;
-    font-size: 9px;
-    gap: 6px;
-  }
-  .fixture-divider {
-    margin-inline: 4px;
+  .match-summary-score {
+    min-width: 76px;
+    min-height: 54px;
+    font-size: 34px;
   }
   .news-section {
     padding-top: 43px;

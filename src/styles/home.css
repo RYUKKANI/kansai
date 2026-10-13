@@ -74,7 +74,13 @@
   position: absolute;
   inset: 0;
   z-index: -1;
-  background: linear-gradient(180deg, #061a3008 16%, #07192d1c 35%, #041329d4 79%, #041329 100%);
+  background: linear-gradient(
+    180deg,
+    #061a3008 16%,
+    #07192d1c 35%,
+    #041329d4 79%,
+    #041329 100%
+  );
 }
 .pick-up {
   position: absolute;
@@ -191,165 +197,194 @@
   bottom: 26px;
 }
 .lead-secondary .story-shade {
-  background: linear-gradient(180deg, #0b244700 5%, #05162b4d 40%, #041329ef 100%);
+  background: linear-gradient(
+    180deg,
+    #0b244700 5%,
+    #05162b4d 40%,
+    #041329ef 100%
+  );
 }
-/* 경기 정보: 다음 경기·결과 탭 */
+/* 경기 정보: 왼쪽 제목과 오른쪽 지난 경기·다음 경기·추후 경기 카드입니다. */
 .match-section {
   display: grid;
-  grid-template-columns: 250px 1fr;
+  grid-template-columns: 210px minmax(0, 1fr);
   margin-top: 22px;
   background: #fff;
   border: 1px solid #dfe6ef;
 }
 .match-heading {
-  padding: 26px 30px 25px;
+  padding: 28px 26px;
   border-right: 1px solid #dfe6ef;
 }
 .match-heading .eyebrow {
-  margin-bottom: 10px;
+  margin-bottom: 12px;
   color: #6d7e91;
   font-size: 10px;
 }
 .match-heading h2 {
-  font-size: 45px;
-  margin: 0 0 24px;
+  font-size: 42px;
+  margin: 0 0 22px;
 }
-.match-tabs {
-  display: flex;
-  gap: 20px;
-  font-size: 11px;
-  font-weight: 700;
+.match-intro {
+  margin: 0;
+  color: #60768e;
+  font-size: 12px;
+  line-height: 1.9;
 }
-.match-tabs button {
-  padding: 0 0 8px;
-  border: 0;
-  border-bottom: 2px solid transparent;
-  background: transparent;
-  color: #748296;
+.match-heading .match-all-link {
+  margin-top: 24px;
 }
-.match-tabs button[aria-selected='true'] {
-  color: var(--color-blue);
-  border-color: var(--color-blue);
-}
-.match-panel {
-  padding: 24px 32px 20px;
+.match-cards {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px;
+  padding: 26px 24px;
+  border-top: 3px solid var(--color-blue);
   min-width: 0;
 }
-.match-panel-top {
+.match-summary {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-.match-panel-top .eyebrow {
-  margin-bottom: 0;
-  font-size: 10px;
-  color: #64768c;
-}
-.pending-tag {
-  font-size: 10px;
-  color: #57728e;
-  background: #eef4fa;
-  padding: 5px 10px;
-}
-.fixture {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  gap: clamp(30px, 5vw, 85px);
-  margin: 14px 0 20px;
-}
-.fixture-team {
-  display: flex;
-  align-items: center;
-  gap: 14px;
+  flex-direction: column;
   min-width: 0;
+}
+.match-summary-heading {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0 0 12px;
+}
+.match-summary-heading .display {
+  font-size: 27px;
+  line-height: 1.1;
+}
+.match-summary-heading small {
+  font-size: 10px;
+  font-weight: 400;
+  color: #6d7e91;
+}
+.match-summary-body {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 310px;
+  padding: 24px 16px 18px;
+  border: 1px solid #e5ecf2;
+  border-radius: 18px;
+  background: #f5f7fa;
+  text-align: center;
+}
+.match-summary-date {
+  margin: 0 0 25px;
   font-size: 12px;
   font-weight: 700;
 }
-.fixture-team img {
-  width: 58px;
-  height: 58px;
-  border-radius: 50%;
+.match-summary-teams {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  gap: 8px;
+  align-items: start;
 }
-.opponent-placeholder {
-  width: 56px;
-  height: 56px;
+.match-summary-team {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+.match-summary-team img {
+  width: 54px;
+  height: 54px;
+  object-fit: contain;
+}
+.match-summary-team strong {
+  font-size: 11px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+.match-summary-placeholder {
   display: grid;
   place-items: center;
-  border: 1px solid #dce5ef;
+  width: 54px;
+  height: 54px;
+  border: 1px dashed #b9ccdf;
   border-radius: 50%;
-  color: #9cb1c7;
-  font-family: var(--font-display);
-  font-size: 25px;
+  color: #6d93b7;
 }
-.versus {
-  font-size: 32px;
-  color: #b9c7d5;
-}
-.fixture-bottom {
+.match-summary-centre {
   display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 25px;
-  border-top: 1px solid #e6edf4;
-  padding-top: 16px;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
 }
-.fixture-bottom > p {
+.match-summary-score {
+  display: grid;
+  place-items: center;
+  min-width: 74px;
+  min-height: 54px;
+  padding: 6px 8px;
+  border-radius: 9px;
+  background: white;
+  font: 700 33px/1.1 var(--font-display);
+  white-space: nowrap;
+}
+.match-summary-score.is-completed {
+  background: var(--color-navy);
+  color: white;
+}
+.match-summary-score.is-pending {
+  color: #60768e;
+  font: 700 18px/1.1 var(--font-sans);
+}
+.match-summary-ft {
+  font-size: 11px;
+  font-weight: 700;
+}
+.match-summary-information {
+  margin-block: 23px 22px;
+}
+.match-summary-pending,
+.match-summary-competition {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.7;
+}
+.match-summary-information > .match-summary-pending {
+  color: var(--color-blue);
+}
+.match-summary-pending + .match-summary-competition {
+  margin-top: 8px;
+}
+.match-summary-venue {
+  margin: 5px 0 0;
+  color: #60768e;
+  font-size: 11px;
+  line-height: 1.6;
+}
+.match-summary-link {
   display: flex;
   align-items: center;
-  gap: 7px;
-  font-size: 10px;
-  margin: 0;
-  color: #6e8094;
-  padding-top: 2px;
-  flex-shrink: 0;
+  justify-content: center;
+  gap: 10px;
+  margin-top: auto;
+  padding: 12px 10px;
+  min-height: 44px;
+  border-radius: 11px;
+  background: var(--color-blue);
+  color: white;
+  font-size: 11px;
+  font-weight: 700;
 }
-.fixture-divider {
-  width: 1px;
-  height: 11px;
-  background: #d5e0eb;
-  margin: 0 7px;
+.match-summary-link:hover {
+  background: var(--color-navy);
 }
+/* 기사와 경기 리포트에서 쓰는 기본 펼침 표시는 기존 구성을 유지합니다. */
 summary {
   list-style: none;
   cursor: pointer;
 }
 summary::-webkit-details-marker {
   display: none;
-}
-.fixture-details {
-  text-align: right;
-  font-size: 10px;
-}
-.fixture-details summary {
-  display: inline-flex;
-  gap: 18px;
-  align-items: center;
-  font-weight: 700;
-  color: var(--color-blue);
-}
-.fixture-details p {
-  color: #6e8094;
-  max-width: 270px;
-  margin: 12px 0 0;
-  line-height: 1.8;
-}
-.empty-result {
-  text-align: center;
-  padding: 23px 10px 10px;
-}
-.empty-result > svg {
-  color: #91afd0;
-  margin-inline: auto;
-}
-.empty-result h3 {
-  font-size: 15px;
-  margin: 13px 0 9px;
-  font-weight: 700;
-}
-.empty-result p {
-  font-size: 11px;
-  color: #758499;
 }
 /* 뉴스 목록·공통 카드·필터 */
 .news-section {
@@ -399,7 +434,7 @@ summary::-webkit-details-marker {
   border-bottom: 2px solid transparent;
   padding: 7px 0 12px;
 }
-.news-filters button[aria-pressed='true'] {
+.news-filters button[aria-pressed="true"] {
   color: var(--color-blue);
   border-color: var(--color-blue);
 }
@@ -494,7 +529,7 @@ summary::-webkit-details-marker {
   overflow: hidden;
 }
 .team-section::after {
-  content: '';
+  content: "";
   position: absolute;
   width: 1000px;
   height: 1200px;
@@ -621,7 +656,7 @@ summary::-webkit-details-marker {
   font-size: 11px;
   font-weight: 700;
 }
-.media-tabs button[aria-selected='true'] {
+.media-tabs button[aria-selected="true"] {
   color: var(--color-blue);
   border-color: var(--color-blue);
 }

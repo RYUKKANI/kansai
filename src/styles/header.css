@@ -102,7 +102,7 @@
   letter-spacing: 0.11em;
 }
 .desktop-navigation a::after {
-  content: '';
+  content: "";
   height: 3px;
   background: var(--color-blue);
   position: absolute;
