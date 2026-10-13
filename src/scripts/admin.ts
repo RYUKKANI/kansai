@@ -354,10 +354,19 @@ async function publicationStatus(version = requestId) {
     const response = await fetch(base + "build.json", { cache: "no-store" });
     if (response.ok) {
       const deployed = await response.json();
+      if (
+        !Number.isFinite(Number(deployed.version)) ||
+        !Number.isFinite(Number(state.data?.version))
+      )
+        throw new Error("発行版を確認できません。");
       if (!deployed.fromCms)
         text =
           "公開サイトへの接続は準備中です。発行した内容はまだ反映されていません。";
-      else if (Number(deployed.version) < Number(state.data?.version)) {
+      else if (scheduleEnabled && deployed.schedulesEnabled !== true) {
+        status = "waiting";
+        text =
+          "公開予定のサイト連携は準備中です。保存した予定はまだホームページに表示されません。運営責任者に連携設定をご確認ください。";
+      } else if (Number(deployed.version) < Number(state.data?.version)) {
         status = "waiting";
         text =
           "発行内容のサイト反映待ちです。次の再構築で更新されます（通常15分間隔。遅れる場合があります）。";

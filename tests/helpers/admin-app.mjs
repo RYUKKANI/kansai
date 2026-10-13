@@ -111,6 +111,7 @@ export async function app(
         version: 1,
         fromCms: true,
         builtAt: new Date().toISOString(),
+        schedulesEnabled: Boolean(authResponses.schedulesDeployed),
       });
     if (url.pathname.endsWith("/auth/v1/token"))
       return Response.json({
