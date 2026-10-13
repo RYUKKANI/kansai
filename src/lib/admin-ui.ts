@@ -303,6 +303,9 @@ export function selectFields(resource: Resource): string {
           ? []
           : ["status", "published_at"]),
       ...(resource === "media_assets" ? ["legacy_path"] : []),
+      ...(resource === "articles" || resource === "site_pages"
+        ? ["translations"]
+        : []),
       ...(resource === "training_sessions" && scheduleEnabled
         ? ["series_id"]
         : []),
@@ -361,7 +364,7 @@ export const editorGroups: Record<
   players: [
     {
       label: t("内部の選手登録"),
-      fields: ["internal_name", "activity_status"],
+      fields: ["internal_name", "activity_status", "photo_asset_id"],
       hint: t("この登録情報は運営専用です。"),
     },
     {
@@ -430,7 +433,14 @@ export const editorGroups: Record<
   media_assets: [
     {
       label: t("写真・動画"),
-      fields: ["title", "kind", "storage_path", "video_url", "album_id"],
+      fields: [
+        "title",
+        "media_category",
+        "kind",
+        "storage_path",
+        "video_url",
+        "album_id",
+      ],
     },
     {
       label: t("説明と撮影情報"),

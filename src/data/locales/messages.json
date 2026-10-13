@@ -1,8 +1,20 @@
 {
-  "{0} PHOTO": { "ko": "사진 {0}장", "en": "{0} PHOTO" },
-  "{0} PHOTOS": { "ko": "사진 {0}장", "en": "{0} PHOTOS" },
-  "{0} STORY": { "ko": "기사 {0}개", "en": "{0} STORY" },
-  "{0} STORIES": { "ko": "기사 {0}개", "en": "{0} STORIES" },
+  "{0} PHOTO": {
+    "ko": "사진 {0}장",
+    "en": "{0} PHOTO"
+  },
+  "{0} PHOTOS": {
+    "ko": "사진 {0}장",
+    "en": "{0} PHOTOS"
+  },
+  "{0} STORY": {
+    "ko": "기사 {0}개",
+    "en": "{0} STORY"
+  },
+  "{0} STORIES": {
+    "ko": "기사 {0}개",
+    "en": "{0} STORIES"
+  },
   "開催予定": {
     "ko": "개최 예정",
     "en": "Scheduled"
@@ -2502,5 +2514,81 @@
   "NOTICE": {
     "ko": "공지",
     "en": "NOTICE"
+  },
+  "言語別の内容": {
+    "ko": "언어별 내용",
+    "en": "Content by language"
+  },
+  "記事の言語": {
+    "ko": "게시글 언어",
+    "en": "Article language"
+  },
+  "日本語を基本に、韓国語・英語を同じ記事に入力できます。URL・写真・公開設定は共通です。": {
+    "ko": "일본어를 기본으로, 같은 게시글에 한국어·영어를 함께 작성할 수 있습니다. URL·사진·게시 설정은 공통입니다.",
+    "en": "Write Japanese, Korean and English in one article. The URL, images and publication settings are shared."
+  },
+  "翻訳しない言語は空欄のままにできます。入力した言語は全項目を完成させてから発行してください。": {
+    "ko": "작성하지 않는 언어는 비워 둘 수 있습니다. 작성한 언어는 모든 항목을 완성한 뒤 게시해 주세요.",
+    "en": "Leave unused languages blank. Complete all fields in each language you use before publishing."
+  },
+  "未入力": {
+    "ko": "미작성",
+    "en": "Not started"
+  },
+  "入力済み": {
+    "ko": "작성 완료",
+    "en": "Complete"
+  },
+  "入力途中": {
+    "ko": "작성 중",
+    "en": "In progress"
+  },
+  "入力途中の翻訳があります。全項目を完成させるか、その言語を空欄にしてから発行してください。": {
+    "ko": "작성 중인 번역이 있습니다. 해당 언어의 모든 항목을 완성하거나 비운 뒤 게시해 주세요.",
+    "en": "A translation is incomplete. Complete all its fields or clear that language before publishing."
+  },
+  "翻訳の入力内容を確認してください。": {
+    "ko": "번역 입력 내용을 확인해 주세요.",
+    "en": "Check the translation fields."
+  },
+  "プレビューの言語": {
+    "ko": "미리보기 언어",
+    "en": "Preview language"
+  },
+  "選手写真": {
+    "ko": "선수 사진",
+    "en": "Player photos"
+  },
+  "試合写真": {
+    "ko": "경기 사진",
+    "en": "Match photos"
+  },
+  "練習写真": {
+    "ko": "훈련 사진",
+    "en": "Training photos"
+  },
+  "写真カテゴリー": {
+    "ko": "사진 카테고리",
+    "en": "Photo category"
+  },
+  "その他": {
+    "ko": "기타",
+    "en": "Other"
+  },
+  "選手カテゴリーの公開承認済み写真を選びます。公開プロフィール作成時に自動入力します。登録だけではプロフィールは公開されません。": {
+    "ko": "선수 카테고리의 공개 승인된 사진을 선택합니다. 공개 프로필을 만들 때 자동으로 입력됩니다. 선수 등록만으로 프로필이 공개되지는 않습니다.",
+    "en": "Choose an approved player photo. It is suggested when creating the public profile. Player registration alone does not publish a profile."
+  },
+  "選手写真がありません。写真・動画で「選手写真」を選び、写真を登録して発行してください。": {
+    "ko": "선수 사진이 없습니다. 사진·영상에서 ‘선수 사진’ 카테고리로 사진을 등록하고 게시해 주세요.",
+    "en": "No player photos are available. Register and publish a photo in the Player photos category in the media library."
+  },
+  "現在の写真（選択候補外）": {
+    "ko": "현재 연결된 사진 (선택 후보 제외)",
+    "en": "Current photo (outside available choices)"
+  },
+  "選手カテゴリーの公開承認済み写真を選択してください。": {
+    "ko": "선수 카테고리의 공개 승인된 사진을 선택해 주세요.",
+    "en": "Choose an approved photo from the Player photos category."
   }
 }

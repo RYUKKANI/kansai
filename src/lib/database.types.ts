@@ -1,4 +1,4 @@
-// 간사이 프로젝트에서 생성한 스키마 타입입니다. 직접 편집하지 않고 DB 변경 후 다시 생성합니다.
+// 간사이 운영 DB에서 생성한 타입입니다. 스키마 변경 후 생성 도구로 갱신합니다.
 export type Json =
   | string
   | number
@@ -8,8 +8,8 @@ export type Json =
   | Json[];
 
 export type Database = {
-  // 프로젝트의 PostgREST 버전에 맞는 클라이언트 타입을 제공합니다.
-  // 스키마가 바뀌면 생성 도구로 다시 갱신합니다.
+  // Allows to automatically instantiate createClient with right options
+  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
     PostgrestVersion: "14.18";
   };
@@ -58,6 +58,7 @@ export type Database = {
           status: string;
           summary: string;
           title: string;
+          translations: Json;
           updated_at: string;
         };
         Insert: {
@@ -75,6 +76,7 @@ export type Database = {
           status?: string;
           summary?: string;
           title: string;
+          translations?: Json;
           updated_at?: string;
         };
         Update: {
@@ -92,6 +94,7 @@ export type Database = {
           status?: string;
           summary?: string;
           title?: string;
+          translations?: Json;
           updated_at?: string;
         };
         Relationships: [];
@@ -126,6 +129,45 @@ export type Database = {
           occurred_at?: string;
           operation?: string;
           record_id?: string | null;
+        };
+        Relationships: [];
+      };
+      club_events: {
+        Row: {
+          ends_at: string | null;
+          id: string;
+          is_public: boolean;
+          notes: string;
+          public_description: string;
+          session_status: string;
+          starts_at: string;
+          title: string;
+          updated_at: string;
+          venue: string;
+        };
+        Insert: {
+          ends_at?: string | null;
+          id?: string;
+          is_public?: boolean;
+          notes?: string;
+          public_description?: string;
+          session_status?: string;
+          starts_at: string;
+          title: string;
+          updated_at?: string;
+          venue?: string;
+        };
+        Update: {
+          ends_at?: string | null;
+          id?: string;
+          is_public?: boolean;
+          notes?: string;
+          public_description?: string;
+          session_status?: string;
+          starts_at?: string;
+          title?: string;
+          updated_at?: string;
+          venue?: string;
         };
         Relationships: [];
       };
@@ -265,6 +307,7 @@ export type Database = {
           id: string;
           kind: string;
           legacy_path: string | null;
+          media_category: string;
           public_approved: boolean | null;
           published_at: string | null;
           source_url: string | null;
@@ -283,6 +326,7 @@ export type Database = {
           id?: string;
           kind?: string;
           legacy_path?: string | null;
+          media_category?: string;
           public_approved?: boolean | null;
           published_at?: string | null;
           source_url?: string | null;
@@ -301,6 +345,7 @@ export type Database = {
           id?: string;
           kind?: string;
           legacy_path?: string | null;
+          media_category?: string;
           public_approved?: boolean | null;
           published_at?: string | null;
           source_url?: string | null;
@@ -327,6 +372,7 @@ export type Database = {
           created_at: string;
           id: string;
           internal_name: string;
+          photo_asset_id: string | null;
           photo_consent: boolean;
           profile_consent: boolean;
           updated_at: string;
@@ -337,6 +383,7 @@ export type Database = {
           created_at?: string;
           id?: string;
           internal_name: string;
+          photo_asset_id?: string | null;
           photo_consent?: boolean;
           profile_consent?: boolean;
           updated_at?: string;
@@ -347,11 +394,20 @@ export type Database = {
           created_at?: string;
           id?: string;
           internal_name?: string;
+          photo_asset_id?: string | null;
           photo_consent?: boolean;
           profile_consent?: boolean;
           updated_at?: string;
         };
-        Relationships: [];
+        Relationships: [
+          {
+            foreignKeyName: "players_photo_asset_id_fkey";
+            columns: ["photo_asset_id"];
+            isOneToOne: false;
+            referencedRelation: "media_assets";
+            referencedColumns: ["id"];
+          },
+        ];
       };
       public_player_profiles: {
         Row: {
@@ -430,6 +486,39 @@ export type Database = {
         };
         Relationships: [];
       };
+      published_schedule: {
+        Row: {
+          description: string;
+          ends_at: string | null;
+          id: string;
+          resource: string;
+          schedule_status: string;
+          starts_at: string | null;
+          title: string;
+          venue: string;
+        };
+        Insert: {
+          description: string;
+          ends_at?: string | null;
+          id: string;
+          resource: string;
+          schedule_status: string;
+          starts_at?: string | null;
+          title: string;
+          venue: string;
+        };
+        Update: {
+          description?: string;
+          ends_at?: string | null;
+          id?: string;
+          resource?: string;
+          schedule_status?: string;
+          starts_at?: string | null;
+          title?: string;
+          venue?: string;
+        };
+        Relationships: [];
+      };
       site_pages: {
         Row: {
           body: string;
@@ -438,6 +527,7 @@ export type Database = {
           published_at: string | null;
           status: string;
           title: string;
+          translations: Json;
           updated_at: string;
         };
         Insert: {
@@ -447,6 +537,7 @@ export type Database = {
           published_at?: string | null;
           status?: string;
           title: string;
+          translations?: Json;
           updated_at?: string;
         };
         Update: {
@@ -456,7 +547,29 @@ export type Database = {
           published_at?: string | null;
           status?: string;
           title?: string;
+          translations?: Json;
           updated_at?: string;
+        };
+        Relationships: [];
+      };
+      training_series: {
+        Row: {
+          created_at: string;
+          id: string;
+          interval_weeks: number;
+          occurrences: number;
+        };
+        Insert: {
+          created_at?: string;
+          id?: string;
+          interval_weeks: number;
+          occurrences: number;
+        };
+        Update: {
+          created_at?: string;
+          id?: string;
+          interval_weeks?: number;
+          occurrences?: number;
         };
         Relationships: [];
       };
@@ -464,7 +577,10 @@ export type Database = {
         Row: {
           ends_at: string | null;
           id: string;
+          is_public: boolean;
           notes: string;
+          public_description: string;
+          series_id: string | null;
           session_status: string;
           starts_at: string;
           title: string;
@@ -474,7 +590,10 @@ export type Database = {
         Insert: {
           ends_at?: string | null;
           id?: string;
+          is_public?: boolean;
           notes?: string;
+          public_description?: string;
+          series_id?: string | null;
           session_status?: string;
           starts_at: string;
           title: string;
@@ -484,21 +603,94 @@ export type Database = {
         Update: {
           ends_at?: string | null;
           id?: string;
+          is_public?: boolean;
           notes?: string;
+          public_description?: string;
+          series_id?: string | null;
           session_status?: string;
           starts_at?: string;
           title?: string;
           updated_at?: string;
           venue?: string;
         };
-        Relationships: [];
+        Relationships: [
+          {
+            foreignKeyName: "training_sessions_series_id_fkey";
+            columns: ["series_id"];
+            isOneToOne: false;
+            referencedRelation: "training_series";
+            referencedColumns: ["id"];
+          },
+        ];
       };
     };
     Views: {
       [_ in never]: never;
     };
     Functions: {
-      [_ in never]: never;
+      cancel_content_release: {
+        Args: { p_entity: string; p_id: string };
+        Returns: undefined;
+      };
+      create_training_series: {
+        Args: {
+          p_interval_weeks: number;
+          p_occurrences: number;
+          p_template: Json;
+        };
+        Returns: {
+          ends_at: string | null;
+          id: string;
+          is_public: boolean;
+          notes: string;
+          public_description: string;
+          series_id: string | null;
+          session_status: string;
+          starts_at: string;
+          title: string;
+          updated_at: string;
+          venue: string;
+        }[];
+        SetofOptions: {
+          from: "*";
+          to: "training_sessions";
+          isOneToOne: false;
+          isSetofReturn: true;
+        };
+      };
+      office_capabilities: { Args: never; Returns: Json };
+      office_content_state: {
+        Args: { p_entity: string; p_id: string };
+        Returns: Json;
+      };
+      office_release_attention: { Args: never; Returns: Json };
+      office_release_states: {
+        Args: { p_entity: string; p_ids: string[] };
+        Returns: Json;
+      };
+      restore_content_revision: {
+        Args: { p_expected: string; p_revision: string };
+        Returns: Json;
+      };
+      save_office_content: {
+        Args: {
+          p_entity: string;
+          p_expected: string;
+          p_id: string;
+          p_publish_at?: string;
+          p_values: Json;
+        };
+        Returns: Json;
+      };
+      update_training_occurrences: {
+        Args: {
+          p_expected: string;
+          p_id: string;
+          p_patch: Json;
+          p_scope: string;
+        };
+        Returns: number;
+      };
     };
     Enums: {
       [_ in never]: never;

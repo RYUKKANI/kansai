@@ -1,6 +1,7 @@
 import type { PublicContent } from "../cms";
 import { translate, localizedDate, type Locale } from "../../lib/i18n";
 import { club } from "../club";
+import { translationComplete } from "../../lib/content-translations";
 export function clubForLocale(locale: Locale) {
   return {
     ...club,
@@ -55,25 +56,47 @@ export function localizeContent(
   const t = (value: string) => translate(value, locale);
   return {
     ...content,
-    stories: content.stories.map((story) => ({
-      ...story,
-      label: t(story.label),
-      title: t(story.title),
-      summary: t(story.summary),
-      alt: t(story.alt),
-      paragraphs: story.paragraphs.map(t),
-      activityDate: story.activityDate
-        ? /^\d{4}-\d{2}-\d{2}$/.test(story.activityDate)
-          ? localizedDate(story.activityDate + "T12:00:00+09:00", locale)
-          : t(story.activityDate)
-        : undefined,
-    })),
-    pages: content.pages.map((page) => ({
-      ...page,
-      title: t(page.title),
-      introduction: t(page.introduction),
-      paragraphs: page.paragraphs.map(t),
-    })),
+    stories: content.stories.map((story) => {
+      const translation = story.translations?.[locale];
+      const explicit = translationComplete(translation, "articles")
+        ? translation
+        : undefined;
+      return {
+        ...story,
+        label: t(story.label),
+        title: explicit?.title ?? t(story.title),
+        summary: explicit?.summary ?? t(story.summary),
+        alt: explicit?.cover_alt ?? t(story.alt),
+        paragraphs: explicit?.body
+          ? explicit.body
+              .split(/\n\s*\n/)
+              .map((value) => value.trim())
+              .filter(Boolean)
+          : story.paragraphs.map(t),
+        activityDate: story.activityDate
+          ? /^\d{4}-\d{2}-\d{2}$/.test(story.activityDate)
+            ? localizedDate(story.activityDate + "T12:00:00+09:00", locale)
+            : t(story.activityDate)
+          : undefined,
+      };
+    }),
+    pages: content.pages.map((page) => {
+      const translation = page.translations?.[locale];
+      const explicit = translationComplete(translation, "site_pages")
+        ? translation
+        : undefined;
+      return {
+        ...page,
+        title: explicit?.title ?? t(page.title),
+        introduction: explicit?.introduction ?? t(page.introduction),
+        paragraphs: explicit?.body
+          ? explicit.body
+              .split(/\n\s*\n/)
+              .map((value) => value.trim())
+              .filter(Boolean)
+          : page.paragraphs.map(t),
+      };
+    }),
     players: content.players.map((player) => ({
       ...player,
       name: t(player.name),

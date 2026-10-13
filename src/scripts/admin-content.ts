@@ -2,6 +2,7 @@ import { text as t } from "../lib/i18n";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { resources, type Resource } from "../lib/admin-config";
 import { action, dateLabel, node, roleLabels, type Row } from "../lib/admin-ui";
+import { translatedFields, translationName } from "../lib/content-translations";
 import {
   draftKey,
   readDraft,
@@ -73,12 +74,20 @@ export function attachContentEditor(options: {
     const draft = stored;
     prompt.append(
       action(t("一時保存を編集画面に戻す"), "admin-secondary", () => {
-        for (const field of resources[resource].fields) {
+        const names = [
+          ...resources[resource].fields.map((field) => field.name),
+          ...["ko", "en"].flatMap((locale) =>
+            translatedFields(resource).map((field) =>
+              translationName(locale as "ko" | "en", field),
+            ),
+          ),
+        ];
+        for (const name of names) {
           const controls = form.querySelectorAll<
             HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
-          >('[name="' + field.name + '"]');
+          >('[name="' + name + '"]');
           const values = draft.values
-            .filter(([name]) => name === field.name)
+            .filter(([fieldName]) => fieldName === name)
             .map(([, value]) => value);
           controls.forEach((control) => {
             if (
@@ -94,6 +103,9 @@ export function attachContentEditor(options: {
             else control.value = values[0] ?? "";
           });
         }
+        form
+          .querySelector(".office-translations input")
+          ?.dispatchEvent(new Event("input", { bubbles: true }));
         options.changed();
         dirty = true;
         flush();

@@ -170,6 +170,7 @@ export async function app(
       if (operator === "in")
         return value.slice(1, -1).split(",").includes(String(actual));
       if (operator === "gte") return actual != null && String(actual) >= value;
+      if (operator === "lte") return actual != null && String(actual) <= value;
       if (operator === "lt") return actual != null && String(actual) < value;
       if (operator === "ilike")
         return String(actual ?? "")
