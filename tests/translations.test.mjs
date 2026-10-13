@@ -241,6 +241,10 @@ test("player registration offers only approved player photos and public profile 
     {
       media_assets: [
         photo("selected-player", "player"),
+        {
+          ...photo("second-player", "player"),
+          legacy_path: "assets/second-player.jpg",
+        },
         photo("training", "training"),
         photo("draft-player", "player", "draft"),
         photo("unapproved", "player", "published", false),
@@ -254,6 +258,14 @@ test("player registration offers only approved player photos and public profile 
           photo_asset_id: "selected-player",
           activity_status: "active",
         },
+        {
+          id: "00000000-0000-4000-8000-000000000002",
+          internal_name: "Test player two",
+          photo_asset_id: "second-player",
+          profile_consent: false,
+          photo_consent: false,
+          activity_status: "active",
+        },
       ],
     },
   );
@@ -263,7 +275,7 @@ test("player registration offers only approved player photos and public profile 
     const photos = d.querySelector('[name="photo_asset_id"]');
     assert.deepEqual(
       [...photos.options].map((o) => o.value),
-      ["", "selected-player"],
+      ["", "selected-player", "second-player"],
     );
     d.querySelector("#editor-close").click();
     d.querySelector('[data-resource="public_player_profiles"]').click();
@@ -278,6 +290,26 @@ test("player registration offers only approved player photos and public profile 
       "assets/club-profile.jpg",
     );
     assert.ok(d.querySelector(".office-selected-photo img"));
+    const playerSelect = d.querySelector('[name="player_id"]');
+    const photoSelect = d.querySelector('[name="photo_path"]');
+    playerSelect.value = "00000000-0000-4000-8000-000000000002";
+    playerSelect.dispatchEvent(
+      new context.window.Event("change", { bubbles: true }),
+    );
+    assert.equal(photoSelect.value, "assets/second-player.jpg");
+    photoSelect.value = "assets/club-profile.jpg";
+    photoSelect.dispatchEvent(
+      new context.window.Event("change", { bubbles: true }),
+    );
+    playerSelect.value = uid;
+    playerSelect.dispatchEvent(
+      new context.window.Event("change", { bubbles: true }),
+    );
+    assert.equal(
+      photoSelect.value,
+      "assets/club-profile.jpg",
+      "manual choice is preserved",
+    );
     assert.equal(d.querySelector('[data-save-status="published"]'), null);
     assert.equal(context.tables.public_player_profiles.length, 0);
   } finally {

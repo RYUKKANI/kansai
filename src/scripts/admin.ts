@@ -877,15 +877,23 @@ async function openEditor(row: Row | null) {
       '[name="photo_path"]',
     )!;
     // 선수 등록에서 지정한 사진을 새 공개 프로필에 제안합니다. 기존 사진과 수동 선택은 덮어쓰지 않습니다.
+    let suggestedPath: string | null = null;
+    let applyingSuggestion = false;
+    photo.addEventListener("change", () => {
+      if (!applyingSuggestion) suggestedPath = null;
+    });
     const suggestPhoto = () => {
-      if (photo.value) return;
+      if (photo.value && photo.value !== suggestedPath) return;
       const assetId = playerConsents.get(player.value)?.photo_asset_id;
       const option = [...photo.options].find(
         (item) => item.dataset.assetId === assetId,
       );
-      if (!option) return;
-      photo.value = option.value;
+      // 자동 제안 사진만 선수 변경에 맞춰 바꿉니다. 다른 선수를 선택했을 때 이전 선수의 사진을 남기지 않습니다.
+      photo.value = option?.value ?? "";
+      suggestedPath = photo.value || null;
+      applyingSuggestion = true;
       photo.dispatchEvent(new Event("change", { bubbles: true }));
+      applyingSuggestion = false;
     };
     player.addEventListener("change", suggestPhoto);
     if (!row) suggestInitialPhoto = suggestPhoto;
