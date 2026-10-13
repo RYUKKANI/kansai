@@ -71,6 +71,12 @@ function notice(text: string, error = false) {
   element.textContent = text;
   element.dataset.error = String(error);
 }
+// Auth 오류는 code로 구분합니다. DB 권한과 이메일 인증을 건너뛰지 않습니다.
+function errorCode(error: unknown): string {
+  return typeof error === "object" && error && "code" in error
+    ? String(error.code)
+    : "";
+}
 function message(error: unknown): string {
   const raw =
     error instanceof Error
@@ -78,6 +84,17 @@ function message(error: unknown): string {
       : typeof error === "object" && error && "message" in error
         ? String(error.message)
         : "操作を完了できませんでした。";
+  const code = errorCode(error);
+  if (["signup_disabled", "email_not_confirmed"].includes(code))
+    return "初回は招待・確認メールのリンクを開いてください。招待されたメールアドレスもご確認ください。";
+  if (code === "invalid_credentials")
+    return "メールアドレスまたはパスワードをご確認ください。パスワードを設定していない場合はメールリンクをご利用ください。";
+  if (["over_email_send_rate_limit", "over_request_rate_limit"].includes(code))
+    return "メールの送信回数に制限がかかっています。少し時間をおいてから再度お試しください。";
+  if (code === "otp_expired")
+    return "メールリンクの有効期限が切れているか、すでに使用されています。最新のメールをご確認ください。";
+  if (code === "email_address_not_authorized")
+    return "メールを送信できません。運営責任者にメール送信設定をご確認ください。";
   if (/row-level|permission denied|owner role|active staff/i.test(raw))
     return "この操作に必要な権限がありません。運営責任者にご確認ください。";
   if (/last owner/i.test(raw)) return "最後のOwnerは無効化・削除できません。";
@@ -110,6 +127,27 @@ async function run(callback: () => Promise<void>) {
     await callback();
   } catch (error) {
     notice(message(error), true);
+  }
+}
+// 로그인 요청을 중복 전송하지 않도록 두 버튼을 함께 잠그고, 실패 시 다시 사용할 수 있게 합니다.
+let loginPending = false;
+async function runLogin(callback: () => Promise<void>) {
+  if (loginPending) return;
+  loginPending = true;
+  const form = $("#login-form");
+  const buttons = form.querySelectorAll<HTMLButtonElement>("button");
+  form.setAttribute("aria-busy", "true");
+  buttons.forEach((button) => {
+    button.disabled = true;
+  });
+  try {
+    await run(callback);
+  } finally {
+    loginPending = false;
+    form.removeAttribute("aria-busy");
+    buttons.forEach((button) => {
+      button.disabled = false;
+    });
   }
 }
 async function result<T extends { error: unknown }>(
@@ -808,7 +846,7 @@ if (!client) {
 } else {
   $("#login-form").addEventListener("submit", (event) => {
     event.preventDefault();
-    void run(async () => {
+    void runLogin(async () => {
       const data = new FormData(event.currentTarget as HTMLFormElement);
       const password = String(data.get("password") ?? "");
       if (!password)
@@ -817,7 +855,9 @@ if (!client) {
         );
       await result(
         client.auth.signInWithPassword({
-          email: String(data.get("email") ?? ""),
+          email: String(data.get("email") ?? "")
+            .trim()
+            .toLowerCase(),
           password,
         }),
       );
@@ -825,18 +865,36 @@ if (!client) {
     });
   });
   $("#magic-link-button").addEventListener("click", () => {
-    void run(async () => {
+    void runLogin(async () => {
       const input = $<HTMLInputElement>('#login-form input[name="email"]');
       if (!input.reportValidity()) return;
-      await result(
-        client.auth.signInWithOtp({
-          email: input.value.trim(),
-          options: {
-            shouldCreateUser: false,
-            emailRedirectTo: new URL(base + "admin/", location.origin).href,
-          },
-        }),
-      );
+      const email = input.value.trim().toLowerCase();
+      const emailRedirectTo = new URL(base + "admin/", location.origin).href;
+      const response = await client.auth.signInWithOtp({
+        email,
+        options: { shouldCreateUser: false, emailRedirectTo },
+      });
+      // 미인증 초대 계정은 OTP 요청에서도 signup_disabled가 반환됩니다.
+      // resend는 이미 존재하는 계정의 확인 메일만 보냅니다. 회원가입은 계속 차단합니다.
+      if (
+        ["signup_disabled", "email_not_confirmed"].includes(
+          errorCode(response.error),
+        )
+      ) {
+        await result(
+          client.auth.resend({
+            type: "signup",
+            email,
+            options: { emailRedirectTo },
+          }),
+        );
+        // 등록 여부를 노출하지 않고, 발송 접수와 실제 로그인 완료를 구분합니다.
+        notice(
+          "確認メールの送信を受け付けました。招待されたアドレスの受信箱・迷惑メールをご確認ください。メールが届かない場合は運営責任者にご確認ください。",
+        );
+        return;
+      }
+      if (response.error) throw response.error;
       notice(
         "ログインリンクを送信しました。招待されたメールの受信箱をご確認ください。",
       );

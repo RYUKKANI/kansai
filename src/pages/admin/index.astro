@@ -14,6 +14,10 @@ import AdminLayout from "../../layouts/AdminLayout.astro";
     <p class="eyebrow">UNITED OPERATIONS</p>
     <h1>運営メンバーのログイン</h1>
     <p>招待されたメールアドレスでログインしてください。</p>
+    <!-- 초대만 받은 계정에는 아직 비밀번호가 없습니다. 첫 인증과 이후 로그인을 구분해 안내합니다. -->
+    <p class="admin-help">
+      初回は招待メールの確認リンクを開いてください。メールが見つからない・期限切れの場合は、下のメールリンク送信をお試しください。
+    </p>
     <form id="login-form">
       <label>
         メールアドレス
