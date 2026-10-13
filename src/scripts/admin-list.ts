@@ -36,7 +36,6 @@ interface Options {
   remove: (row: Row) => void;
   create: () => void;
   onError: (error: unknown) => void;
-  playerActions?: (row: Row) => HTMLElement[];
 }
 export interface ListController {
   element: HTMLElement;
@@ -399,11 +398,11 @@ export function createList(options: Options): ListController {
     }
     add(t("操作"), (row) => {
       const buttons = node("div", "", "admin-row-actions");
-      buttons.append(
-        action(t("編集"), "admin-secondary", () => options.open(row)),
+      const edit = action(t("編集"), "admin-secondary", () =>
+        options.open(row),
       );
-      if (resource === "players" && options.playerActions)
-        buttons.append(...options.playerActions(row));
+      if (resource === "players") edit.dataset.playerAction = "edit";
+      buttons.append(edit);
       if (
         ![
           "players",

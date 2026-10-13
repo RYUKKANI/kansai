@@ -274,32 +274,29 @@ test("player registration offers only approved player photos and public profile 
     let d = await create(context, "players");
     const photos = d.querySelector('[name="photo_asset_id"]');
     assert.deepEqual(
-      [...photos.options].map((o) => o.value),
-      ["", "selected-player", "second-player"],
+      [...photos.options].map((o) => o.value).sort(),
+      ["", "selected-player", "second-player"].sort(),
     );
     d.querySelector("#editor-close").click();
-    await eventually(() => d.querySelector('[data-player-action="profile"]'));
-    d.querySelector('[data-player-action="profile"]').click();
+    await eventually(() => d.querySelector('[data-player-action="edit"]'));
+    d.querySelector('[data-player-action="edit"]').click();
     await eventually(() => d.querySelector("#editor-dialog").open);
     assert.equal(
-      d.querySelector('[name="photo_path"]').value,
-      "assets/club-profile.jpg",
+      d.querySelector('[name="photo_asset_id"]').value,
+      "selected-player",
     );
-    assert.ok(d.querySelector(".office-selected-photo img"));
-    const playerSelect = d.querySelector('[name="player_id"]');
-    const photoSelect = d.querySelector('[name="photo_path"]');
-    assert.equal(
-      playerSelect.disabled,
-      true,
-      "selected player UUID is locked in the unified editor",
-    );
-    photoSelect.value = "assets/second-player.jpg";
+    assert.ok(d.querySelector(".office-player-photo-preview img"));
+    assert.ok(d.querySelector('[name="internal_name"]'));
+    assert.ok(d.querySelector('[name="display_name"]'));
+    assert.equal(d.querySelector('[name="player_id"]'), null);
+    const photoSelect = d.querySelector('[name="photo_asset_id"]');
+    photoSelect.value = "second-player";
     photoSelect.dispatchEvent(
       new context.window.Event("change", { bubbles: true }),
     );
     assert.equal(
       photoSelect.value,
-      "assets/second-player.jpg",
+      "second-player",
       "manual choice is preserved",
     );
     assert.equal(d.querySelector('[data-save-status="published"]'), null);

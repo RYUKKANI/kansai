@@ -155,10 +155,13 @@ export async function app(
         content: Boolean(authResponses.content),
         publisher: Boolean(authResponses.publisher),
       });
-    if (url.pathname.includes("/rpc/") && authResponses.rpc)
-      return Response.json(
-        await authResponses.rpc(name, JSON.parse(options.body || "{}")),
+    if (url.pathname.includes("/rpc/") && authResponses.rpc) {
+      const value = await authResponses.rpc(
+        name,
+        JSON.parse(options.body || "{}"),
       );
+      return value instanceof Response ? value : Response.json(value);
+    }
     if (authResponses.beforeRead) await authResponses.beforeRead(name, url);
     const matches = (row, field, expression) => {
       const [operator, ...pieces] = expression.split(".");
