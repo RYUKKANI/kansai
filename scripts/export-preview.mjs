@@ -109,11 +109,13 @@ for (const file of allFiles.filter((file) => file.endsWith(".html"))) {
     ...html.matchAll(/<link\b(?=[^>]*rel="stylesheet")[^>]*>/g),
   ]) {
     const href = match[0].match(/href="([^"]+)"/)?.[1];
-    if (href)
+    if (href) {
+      const css = await inlineStyle(href);
       html = html.replace(
         match[0],
-        `<style>${await inlineStyle(href)}</style>`,
+        () => "<style>" + css + "</style>",
       );
+    }
   }
 
   // 코드가 커져 Astro가 외부 JS 파일을 생성해도 메뉴·검색·사진 확대가 오프라인에서 동작합니다.
@@ -121,9 +123,11 @@ for (const file of allFiles.filter((file) => file.endsWith(".html"))) {
     ...html.matchAll(/<script\b([^>]*\bsrc="([^"]+)"[^>]*)><\/script>/g),
   ]) {
     const attributes = match[1].replace(/\s*src="[^"]+"/, "");
+    const embedded = await inlineScript(match[2]);
+    // 콜백을 사용해야 JS 안의 $&가 원래 script 태그로 치환되지 않습니다.
     html = html.replace(
       match[0],
-      `<script${attributes}>${await inlineScript(match[2])}</script>`,
+      () => "<script" + attributes + ">" + embedded + "</script>",
     );
   }
 

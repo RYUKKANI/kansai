@@ -177,7 +177,11 @@ export const resources: Record<Resource, ResourceConfig> = {
         name: "activity_status",
         label: "公開する活動状態",
         type: "select",
-        options: options("active", "inactive", "former"),
+        options: [
+          { value: "active", label: "活動中" },
+          { value: "inactive", label: "活動休止" },
+          { value: "former", label: "以前在籍" },
+        ],
       },
       {
         name: "display_order",
@@ -207,7 +211,11 @@ export const resources: Record<Resource, ResourceConfig> = {
         name: "home_away",
         label: "ホーム・アウェイ",
         type: "select",
-        options: options("home", "away", "neutral"),
+        options: [
+          { value: "home", label: "ホーム" },
+          { value: "away", label: "アウェイ" },
+          { value: "neutral", label: "中立地" },
+        ],
       },
       {
         name: "match_status",
@@ -252,7 +260,11 @@ export const resources: Record<Resource, ResourceConfig> = {
         name: "session_status",
         label: "状態",
         type: "select",
-        options: options("scheduled", "completed", "cancelled"),
+        options: [
+          { value: "scheduled", label: "開催予定" },
+          { value: "completed", label: "実施済み" },
+          { value: "cancelled", label: "中止" },
+        ],
       },
       { name: "notes", label: "運営メモ（内部専用）", type: "textarea" },
     ],
@@ -342,7 +354,12 @@ export const resources: Record<Resource, ResourceConfig> = {
         name: "role",
         label: "権限",
         type: "select",
-        options: options("owner", "administrator", "editor", "coach"),
+        options: [
+          { value: "owner", label: "Owner" },
+          { value: "administrator", label: "Administrator" },
+          { value: "editor", label: "Editor" },
+          { value: "coach", label: "Coach" },
+        ],
       },
       { name: "active", label: "管理者アクセスを有効にする", type: "checkbox" },
     ],
