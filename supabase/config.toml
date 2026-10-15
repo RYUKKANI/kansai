@@ -14,8 +14,9 @@ major_version = 17
 enabled = false
 [auth]
 enabled = true
-site_url = "https://ryukkani.github.io/kansai/"
-additional_redirect_urls = ["https://ryukkani.github.io/kansai/admin/"]
+# 운영 프로젝트의 Authentication > URL Configuration에도 같은 값을 적용합니다.
+site_url = "https://kansaiunited.com/"
+additional_redirect_urls = ["https://kansaiunited.com/admin/"]
 jwt_expiry = 3600
 enable_signup = false
 enable_anonymous_sign_ins = false
