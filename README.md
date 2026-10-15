@@ -1,12 +1,12 @@
 # 간사이 유나이티드 FC 공식 홈페이지
 
 Astro 7·TypeScript·Tailwind CSS로 만드는 일본어 공식 홈페이지입니다.
-GitHub Pages의 /kansai/ 주소를 유지하고 운영진은 Supabase 관리자에서 콘텐츠를 편집합니다.
+GitHub Pages에서 https://kansaiunited.com/으로 제공하고 운영진은 Supabase 관리자에서 콘텐츠를 편집합니다.
 사람이 읽고 편집하기 쉬운 코드와 한국어 주석을 기본 원칙으로 합니다.
 
 ## 콘텐츠 편집
 
-공식 관리자 주소는 /kansai/admin/입니다. 초대받은 이메일로 로그인합니다.
+공식 관리자 주소는 https://kansaiunited.com/admin/입니다. 초대받은 이메일로 로그인합니다.
 공개 메뉴에는 관리자 링크를 넣지 않습니다. 실제 접근 권한은 데이터베이스 RLS로 제한합니다.
 
 | 작업 | 관리자 메뉴 |
@@ -75,6 +75,9 @@ UI 테스트는 서버 응답을 대체하며 화면 배치를 확인하지 않�
 실제 공개 API는 공개 환경 변수를 설정한 뒤 node scripts/verify-public-api.mjs로 검사합니다.
 
 ## 반영과 배포
+
+자체 도메인 연결과 전환 순서는 [도메인 운영 안내](docs/DOMAIN.md)를 확인합니다.
+GitHub Actions 배포에서는 `public/CNAME`만으로 Pages 설정이 바뀌지 않으므로 저장소의 Custom domain도 설정합니다.
 
 GitHub Actions Variables에 다음 값을 설정합니다.
 

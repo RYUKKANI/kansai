@@ -2,9 +2,9 @@ import { defineConfig } from "astro/config";
 import tailwindcss from "@tailwindcss/vite";
 
 export default defineConfig({
-  // [편집 안내] 도메인과 배포 하위 경로는 여기서 관리합니다. 링크는 BASE_URL을 통해 따라갑니다.
-  site: "https://ryukkani.github.io",
-  base: "/kansai/",
+  // [편집 안내] 자체 도메인은 루트에 배포합니다. /kansai/를 다시 붙이면 메뉴·사진·관리자 주소가 끊깁니다.
+  site: "https://kansaiunited.com",
+  base: "/",
   trailingSlash: "always",
   // 각 페이지를 정적 HTML로 생성해 GitHub Pages에서 별도 서버 없이 제공합니다.
   output: "static",
