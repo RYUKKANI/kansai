@@ -1,12 +1,12 @@
 # 간사이 유나이티드 FC 공식 홈페이지
 
 Astro 7·TypeScript·Tailwind CSS로 만드는 일본어 공식 홈페이지입니다.
-GitHub Pages에서 https://kansaiunited.com/으로 제공하고 운영진은 Supabase 관리자에서 콘텐츠를 편집합니다.
+GitHub Pages에서 <https://kansaiunited.com/>으로 제공하고 운영진은 Supabase 관리자에서 콘텐츠를 편집합니다.
 사람이 읽고 편집하기 쉬운 코드와 한국어 주석을 기본 원칙으로 합니다.
 
 ## 콘텐츠 편집
 
-공식 관리자 주소는 https://kansaiunited.com/admin/입니다. 초대받은 이메일로 로그인합니다.
+공식 관리자 주소는 <https://kansaiunited.com/admin/>입니다. 초대받은 이메일로 로그인합니다.
 공개 메뉴에는 관리자 링크를 넣지 않습니다. 실제 접근 권한은 데이터베이스 RLS로 제한합니다.
 
 | 작업 | 관리자 메뉴 |
