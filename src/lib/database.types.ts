@@ -729,11 +729,17 @@ export type Database = {
         Returns: boolean;
       };
       staff_auth_reserve: {
-        Args: { p_username: string; p_email: string; p_real_name: string; p_department: string; p_notice_accepted: boolean };
+        Args: { p_username: string; p_email: string; p_real_name: string; p_department: string; p_notice_accepted: boolean; p_email_confirmation_required?: boolean };
         Returns: string;
       };
       staff_auth_finalize: {
         Args: { p_reservation: string; p_user_id: string };
+        Returns: undefined;
+      };
+      office_staff_application_contact: { Args: { p_user_id: string }; Returns: Json };
+      staff_auth_support_password_target: { Args: { p_user_id: string }; Returns: Json };
+      staff_auth_support_password_audit: {
+        Args: { p_user_id: string; p_operation_id: string; p_state: "requested" | "succeeded" | "failed" | "indeterminate"; p_reason: "credential_recovery" | "operator_requested_password_reset" };
         Returns: undefined;
       };
       office_capabilities: { Args: never; Returns: Json };
