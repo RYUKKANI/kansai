@@ -35,7 +35,7 @@ async function walk(directory) {
   return files;
 }
 
-// /kansai/assets/...와 /kansai/_astro/...를 모두 빌드 폴더 기준으로 읽습니다.
+// 배포 경로 아래 assets/...와 _astro/...를 모두 빌드 폴더 기준으로 읽습니다.
 function buildPath(url) {
   const relative = url.startsWith(basePath)
     ? url.slice(basePath.length)
