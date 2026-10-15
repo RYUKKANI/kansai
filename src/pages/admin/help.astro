@@ -1,0 +1,70 @@
+---
+import { club } from "../../data/club";
+import { asset } from "../../lib/urls";
+import { localeFromUrl, localizedPage } from "../../lib/i18n";
+import LanguageSwitcher from "../../components/LanguageSwitcher.astro";
+import "../../styles/global.css";
+import "../../styles/admin.css";
+import "../../styles/languages.css";
+import "../../styles/staff-auth.css";
+const locale = localeFromUrl(Astro.url);
+const page = (path = "") => localizedPage(path, locale);
+const enabled = import.meta.env.PUBLIC_STAFF_IDENTITY_ENABLED === "true";
+const legacyEnabled = enabled && import.meta.env.PUBLIC_STAFF_LEGACY_LOGIN_ENABLED === "true";
+// 관리자 작업 스크립트를 실행하지 않는 전용 복구 화면입니다. 인증 토큰을 다른 URL에 복사하지 않습니다.
+---
+
+<!doctype html>
+<html lang={locale}>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="robots" content="noindex, nofollow" />
+    <meta name="referrer" content="no-referrer" />
+    <meta name="theme-color" content="#0B2447" />
+    <title>KANSAI UNITED FC — CLUB OFFICE HELP</title>
+  </head>
+  <body class="admin-body staff-auth-help-layout">
+    <a class="skip-link" href="#help-main"><span data-i18n="ログインのヘルプ">ログインのヘルプ</span></a>
+    <header class="admin-header">
+      <a href={page("admin/")} class="admin-brand"><img src={asset(club.logo)} alt="" width="44" height="44" /><span><strong>KANSAI UNITED FC</strong><small>CLUB OFFICE</small></span></a>
+      <LanguageSwitcher />
+    </header>
+    <main id="help-main">
+      <section class="staff-auth-portal" id="staff-auth-help" data-enabled={String(enabled)} data-legacy-enabled={String(legacyEnabled)} aria-labelledby="help-heading">
+        <div class="staff-auth-brand">
+          <img src={asset(club.logo)} width="72" height="72" alt="KANSAI UNITED FC" />
+          <p class="eyebrow">CLUB OFFICE</p>
+          <h1 id="help-heading"><span data-i18n="ログインのヘルプ">ログインのヘルプ</span></h1>
+        </div>
+        <div id="staff-help-message" class="staff-auth-message" role="status" aria-live="polite" tabindex="-1"></div>
+        <p id="staff-help-unavailable" class="admin-help" hidden={enabled}><span data-i18n="新しいログイン方式は移行準備中です。現在のログイン画面をご利用ください。">新しいログイン方式は移行準備中です。現在のログイン画面をご利用ください。</span></p>
+        <div id="staff-help-options" hidden={!enabled}>
+          <h2><span data-i18n="パスワードを設定・再設定">パスワードを設定・再設定</span></h2>
+          <p class="admin-help"><span data-i18n="登録した復旧用メールアドレスに確認リンクを送ります。招待後にパスワードを設定していない方もご利用いただけます。">登録した復旧用メールアドレスに確認リンクを送ります。招待後にパスワードを設定していない方もご利用いただけます。</span></p>
+          <p class="admin-help"><span data-i18n="確認メールのリンクは、送信を申請した同じブラウザーで開いてください。別のブラウザーで開いた場合は、そこで新しい確認メールを申請してください。">確認メールのリンクは、送信を申請した同じブラウザーで開いてください。別のブラウザーで開いた場合は、そこで新しい確認メールを申請してください。</span></p>
+          <form id="staff-recovery-form">
+            <label for="staff-recovery-email"><span data-i18n="確認・復旧用メールアドレス">確認・復旧用メールアドレス</span></label>
+            <input id="staff-recovery-email" name="email" type="email" autocomplete="email" required maxlength="254" spellcheck="false" autocapitalize="none" />
+            <button type="submit" class="admin-primary"><span data-i18n="確認リンクを送信">確認リンクを送信</span></button>
+          </form>
+          {legacyEnabled && <div class="staff-auth-alternate"><p class="admin-help"><span data-i18n="移行中の既存メンバーは、登録済みメールアドレスのリンクでもログインできます。">移行中の既存メンバーは、登録済みメールアドレスのリンクでもログインできます。</span></p><button type="button" id="staff-help-legacy" class="admin-secondary"><span data-i18n="メールリンクでログイン">メールリンクでログイン</span></button></div>}
+        </div>
+        <div id="staff-new-password-panel" hidden>
+          <h2 tabindex="-1"><span data-i18n="新しいパスワードを設定">新しいパスワードを設定</span></h2>
+          <form id="staff-new-password-form">
+            <label for="staff-new-password"><span data-i18n="パスワード">パスワード</span></label>
+            <div class="staff-password-field"><input id="staff-new-password" name="password" type="password" autocomplete="new-password" required minlength="12" maxlength="128" aria-describedby="staff-new-password-help" /><button type="button" data-password-toggle="staff-new-password" aria-controls="staff-new-password" aria-pressed="false"><span data-i18n="表示">表示</span></button></div>
+            <p id="staff-new-password-help" class="admin-help"><span data-i18n="パスワードは12〜128文字で設定してください。">パスワードは12〜128文字で設定してください。</span></p>
+            <label for="staff-new-password-confirm"><span data-i18n="パスワードの確認">パスワードの確認</span></label>
+            <div class="staff-password-field"><input id="staff-new-password-confirm" name="password_confirmation" type="password" autocomplete="new-password" required minlength="12" maxlength="128" /><button type="button" data-password-toggle="staff-new-password-confirm" aria-controls="staff-new-password-confirm" aria-pressed="false"><span data-i18n="表示">表示</span></button></div>
+            <button type="submit" class="admin-primary"><span data-i18n="パスワードを保存">パスワードを保存</span></button>
+          </form>
+        </div>
+        <p class="admin-help"><span data-i18n="ログインIDが不明な場合や復旧用メールを受信できない場合は、運営責任者にご相談ください。">ログインIDが不明な場合や復旧用メールを受信できない場合は、運営責任者にご相談ください。</span></p>
+        <a href={page("admin/")} class="staff-auth-help"><span data-i18n="ログインに戻る">ログインに戻る</span></a>
+      </section>
+    </main>
+    <script src="../../scripts/staff-auth-help.ts"></script>
+  </body>
+</html>
