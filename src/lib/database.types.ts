@@ -719,6 +719,10 @@ export type Database = {
         Returns: Json;
       };
       // 서비스 키 전용 RPC입니다. 타입의 존재는 anon/authenticated 실행 권한을 뜻하지 않습니다.
+      staff_auth_bootstrap_owner: {
+        Args: { p_user_id: string; p_username: string };
+        Returns: Json;
+      };
       staff_auth_identity: { Args: { p_username: string }; Returns: Json };
       staff_auth_rate_limit: {
         Args: { p_key_hash: string; p_bucket: string; p_limit: number; p_window_seconds: number };
