@@ -1,7 +1,8 @@
 import { requireOwner } from "../_shared/auth.ts";
 // [편집 안내] 이메일 전송과 Auth 관리용 비밀키는 이 서버 함수에만 둡니다.
 // 최초 Owner는 운영자가 별도 부트스트랩하고, 이후 초대는 현재 활성 Owner만 실행합니다.
-const origin = "https://ryukkani.github.io";
+// 도메인 전환 시 CORS 허용 출처와 초대 복귀 주소를 함께 바꾸고 이 함수를 재배포합니다.
+const origin = "https://kansaiunited.com";
 const headers = {
   "Access-Control-Allow-Origin": origin,
   "Access-Control-Allow-Headers":
@@ -46,7 +47,7 @@ Deno.serve(async (request) => {
         409,
       );
     const invite = await service.auth.admin.inviteUserByEmail(email, {
-      redirectTo: origin + "/kansai/admin/",
+      redirectTo: origin + "/admin/",
     });
     if (invite.error || !invite.data.user)
       return reply(
