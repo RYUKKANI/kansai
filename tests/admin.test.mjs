@@ -29,7 +29,7 @@ test("confirmed member receives a login link without signup or confirmation rese
     assert.equal(JSON.parse(otpRequests[0].body).email, "test@example.invalid");
     assert.equal(
       new URL(otpRequests[0].url).searchParams.get("redirect_to"),
-      "https://ryukkani.github.io/kansai/admin/",
+      "https://kansaiunited.com/admin/",
     );
     assert.equal(
       requests.some((r) => new URL(r.url).pathname.endsWith("/auth/v1/resend")),
@@ -66,7 +66,7 @@ test("unconfirmed invitation resends confirmation and keeps signup disabled", as
     assert.equal(JSON.parse(confirmation.body).email, "test@example.invalid");
     assert.equal(
       new URL(confirmation.url).searchParams.get("redirect_to"),
-      "https://ryukkani.github.io/kansai/admin/",
+      "https://kansaiunited.com/admin/",
     );
     assert.equal(
       requests.some((r) => new URL(r.url).pathname.endsWith("/auth/v1/signup")),

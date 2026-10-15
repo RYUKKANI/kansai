@@ -90,7 +90,7 @@ test("one editor retains three language values, previews chosen language and sav
   let saved;
   const context = await app(
     "owner",
-    "https://ryukkani.github.io/kansai/admin/?lang=ko",
+    "https://kansaiunited.com/admin/?lang=ko",
     {
       content: true,
       rpc: (name, values) => {
@@ -149,7 +149,7 @@ test("partial translations can be drafted but publication is blocked with an act
   let calls = 0;
   const context = await app(
     "owner",
-    "https://ryukkani.github.io/kansai/admin/?lang=en",
+    "https://kansaiunited.com/admin/?lang=en",
     {
       content: true,
       rpc: (name) => {
@@ -309,7 +309,7 @@ test("player registration offers only approved player photos and public profile 
 test("media category filter is sent to the server and new category field retains its value", async () => {
   const context = await app(
     "editor",
-    "https://ryukkani.github.io/kansai/admin/?lang=ko",
+    "https://kansaiunited.com/admin/?lang=ko",
     {},
     {
       media_assets: [

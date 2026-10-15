@@ -16,7 +16,7 @@ function dialogSupport(window) {
   };
   window.matchMedia = () => ({ matches: false, addEventListener() {} });
 }
-async function interactive(name, url = "https://ryukkani.github.io/kansai/") {
+async function interactive(name, url = "https://kansaiunited.com/") {
   const html = await file(name);
   const dom = new JSDOM(html, {
     url,
@@ -30,7 +30,7 @@ async function interactive(name, url = "https://ryukkani.github.io/kansai/") {
           path.join(
             root,
             "dist",
-            new URL(script.src).pathname.replace("/kansai/", ""),
+            new URL(script.src).pathname.replace(/^\//, ""),
           ),
         )
       : script.textContent;
@@ -53,7 +53,9 @@ test("existing articles and independent page links stay valid", async () => {
     "admin/index.html",
   ];
   for (const page of pages) {
-    const dom = new JSDOM(await file(page));
+    const dom = new JSDOM(await file(page), {
+      url: new URL(page.replace(/index\.html$/, ""), "https://kansaiunited.com/"),
+    });
     const { document } = dom.window;
     assert.equal(document.documentElement.lang, "ja");
     assert.equal(
@@ -62,15 +64,26 @@ test("existing articles and independent page links stay valid", async () => {
     );
     if (page !== "admin/index.html")
       assert.ok(!/design preview/i.test(document.body.textContent));
-    for (const link of document.querySelectorAll('a[href^="/kansai/"]')) {
-      const url = new URL(link.href, "https://ryukkani.github.io");
+    // 독립 도메인의 루트 경로에서 메뉴와 로컬 자산이 실제 배포 파일로 연결되는지 확인합니다.
+    for (const link of document.querySelectorAll('a[href^="/"]')) {
+      const url = new URL(link.href);
+      if (url.origin !== "https://kansaiunited.com") continue;
+      assert.ok(!url.pathname.startsWith("/kansai/"), link.href);
       const destination = path.join(
         root,
         "dist",
-        url.pathname.replace("/kansai/", ""),
+        url.pathname.replace(/^\//, ""),
         "index.html",
       );
       await readFile(destination);
+    }
+    for (const asset of document.querySelectorAll(
+      'img[src],script[src],link[rel="stylesheet"][href]',
+    )) {
+      const url = new URL(asset.src ?? asset.href);
+      if (url.origin !== "https://kansaiunited.com") continue;
+      assert.ok(!url.pathname.startsWith("/kansai/"), url.href);
+      await readFile(path.join(root, "dist", url.pathname.replace(/^\//, "")));
     }
     dom.window.close();
   }
@@ -151,7 +164,7 @@ test("home keeps all three match cards visible and announces undetermined fixtur
       assert.ok(card.textContent.includes("試合はまだ未定です"));
       assert.equal(card.querySelector("time"), null);
       assert.ok(
-        card.querySelector('a[href="/kansai/matches/#schedule-panel"]'),
+        card.querySelector('a[href="/matches/#schedule-panel"]'),
       );
     }
     assert.ok(
@@ -167,7 +180,7 @@ test("home keeps all three match cards visible and announces undetermined fixtur
 test("result links open the results tab without changing unrelated tabs", async () => {
   const dom = await interactive(
     "matches/index.html",
-    "https://ryukkani.github.io/kansai/matches/#results-panel",
+    "https://kansaiunited.com/matches/#results-panel",
   );
   try {
     const document = dom.window.document;

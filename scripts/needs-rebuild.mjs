@@ -17,7 +17,7 @@ if (process.env.EVENT_NAME === "schedule") {
     const [state] = await response.json();
     if (!state) throw new Error("발행 버전이 없습니다.");
     const live = await fetch(
-      "https://ryukkani.github.io/kansai/build.json?check=" + Date.now(),
+      "https://kansaiunited.com/build.json?check=" + Date.now(),
       { cache: "no-store" },
     );
     if (live.ok) {

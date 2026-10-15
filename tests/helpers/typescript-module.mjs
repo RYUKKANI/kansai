@@ -7,7 +7,7 @@ export async function typescriptModule(file) {
     write: false,
     format: "esm",
     platform: "node",
-    define: { "import.meta.env.BASE_URL": JSON.stringify("/kansai/") },
+    define: { "import.meta.env.BASE_URL": JSON.stringify("/") },
   });
   return import(
     "data:text/javascript;base64," +

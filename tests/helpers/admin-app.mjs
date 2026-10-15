@@ -28,7 +28,7 @@ export async function eventually(condition) {
 }
 export async function app(
   staffRole = "owner",
-  appUrl = "https://ryukkani.github.io/kansai/admin/",
+  appUrl = "https://kansaiunited.com/admin/",
   authResponses = {},
   tableOverrides = {},
 ) {
@@ -248,7 +248,7 @@ export async function app(
     });
   };
   for (const script of window.document.querySelectorAll("script[src]")) {
-    const relative = new URL(script.src).pathname.replace("/kansai/", "");
+    const relative = new URL(script.src).pathname.replace(/^\//, "");
     window.eval(await browserScript(path.join("dist", relative)));
   }
   await eventually(() => !window.document.querySelector("#login-panel").hidden);

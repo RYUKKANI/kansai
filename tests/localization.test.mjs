@@ -25,21 +25,24 @@ const read = (relative) =>
 test("three languages retain all published pages, internal links and equivalent SEO URLs", async () => {
   for (const locale of ["ja", "ko", "en"]) {
     for (const page of pages) {
-      const relative = (locale === "ja" ? "" : locale + "/") + page;
+      const relative = [locale === "ja" ? "" : locale, page]
+        .filter(Boolean)
+        .join("/");
+      const canonical =
+        "https://kansaiunited.com/" + (relative ? relative + "/" : "");
       const dom = new JSDOM(await read(relative), {
-        url: "https://ryukkani.github.io/kansai/" + relative + "/",
+        url: canonical,
       });
       const doc = dom.window.document;
       assert.equal(doc.documentElement.lang, locale);
       assert.equal(doc.querySelectorAll("h1").length, 1);
-      assert.ok(
-        doc
-          .querySelector("link[rel=canonical]")
-          .href.includes("/kansai/" + relative),
+      assert.equal(
+        doc.querySelector("link[rel=canonical]").href,
+        canonical,
       );
       for (const target of ["ja", "ko", "en"]) {
         const expected =
-          "https://ryukkani.github.io/kansai/" +
+          "https://kansaiunited.com/" +
           (target === "ja" ? "" : target + "/") +
           (page ? page + "/" : "");
         assert.equal(
@@ -53,9 +56,11 @@ test("three languages retain all published pages, internal links and equivalent 
           expected,
         );
       }
-      for (const link of doc.querySelectorAll('a[href^="/kansai/"]')) {
+      for (const link of doc.querySelectorAll('a[href^="/"]')) {
         const url = new URL(link.href);
-        const destination = url.pathname.replace("/kansai/", "");
+        if (url.origin !== "https://kansaiunited.com") continue;
+        assert.ok(!url.pathname.startsWith("/kansai/"), link.href);
+        const destination = url.pathname.replace(/^\//, "");
         await readFile(path.join("dist", destination, "index.html"));
         if (
           !link.closest(".language-switcher") &&
@@ -116,7 +121,7 @@ test("translations preserve article facts, photos and the unknown match state", 
 test("translated search, category filters, photo descriptions and language menu keyboard controls work", async () => {
   for (const locale of ["ko", "en"]) {
     const dom = new JSDOM(await read(locale), {
-      url: "https://ryukkani.github.io/kansai/" + locale + "/",
+      url: "https://kansaiunited.com/" + locale + "/",
       runScripts: "outside-only",
       pretendToBeVisual: true,
     });
@@ -133,7 +138,7 @@ test("translated search, category filters, photo descriptions and language menu 
         await browserScript(
           path.join(
             "dist",
-            new URL(script.src).pathname.replace("/kansai/", ""),
+            new URL(script.src).pathname.replace(/^\//, ""),
           ),
         ),
       );
@@ -173,49 +178,56 @@ test("translated search, category filters, photo descriptions and language menu 
   }
 });
 test("locale routing and date formatting keep Japanese time and exclude auth tokens", async () => {
-  const bundled = await build({
-    entryPoints: ["src/lib/i18n.ts"],
-    bundle: true,
-    write: false,
-    format: "esm",
-    platform: "node",
-    define: { "import.meta.env.BASE_URL": JSON.stringify("/kansai/") },
-  });
-  const api = await import(
-    "data:text/javascript;base64," +
-      Buffer.from(bundled.outputFiles[0].text).toString("base64")
-  );
-  const url = new URL(
-    "https://ryukkani.github.io/kansai/admin/?lang=ko&access_token=TEST#access_token=TEST",
-  );
-  assert.equal(api.localeFromUrl(url), "ko");
-  assert.equal(api.languageUrl(url, "en"), "/kansai/admin/?lang=en");
-  assert.equal(
-    api.languageUrl(
-      new URL("https://ryukkani.github.io/kansai/en/news/attacking-training/"),
-      "ko",
-    ),
-    "/kansai/ko/news/attacking-training/",
-  );
-  assert.equal(
-    api.localeFromUrl(
-      new URL("https://ryukkani.github.io/kansai/admin/?lang=invalid"),
-    ),
-    "ja",
-  );
-  assert.match(api.localizedDate("2026-10-13T15:05:00Z", "ko", true), /14/);
-  assert.match(api.localizedDate("2026-10-13T15:05:00Z", "en", true), /14/);
-  assert.deepEqual(api.weekdayNames("en"), [
-    "Sun",
-    "Mon",
-    "Tue",
-    "Wed",
-    "Thu",
-    "Fri",
-    "Sat",
-  ]);
-  assert.equal(api.formatForLocale("en")("{0}を編集", "News"), "Edit News");
-  assert.equal(api.translate("未翻訳の新しい本文", "en"), "未翻訳の新しい本文");
+  // 운영 루트 경로와 별도 하위 경로 배포를 함께 검사해 BASE_URL 호환성을 유지합니다.
+  for (const base of ["/", "/kansai/"]) {
+    const bundled = await build({
+      entryPoints: ["src/lib/i18n.ts"],
+      bundle: true,
+      write: false,
+      format: "esm",
+      platform: "node",
+      define: { "import.meta.env.BASE_URL": JSON.stringify(base) },
+    });
+    const api = await import(
+      "data:text/javascript;base64," +
+        Buffer.from(bundled.outputFiles[0].text).toString("base64")
+    );
+    const url = new URL(
+      "https://kansaiunited.com" +
+        base +
+        "admin/?lang=ko&access_token=TEST#access_token=TEST",
+    );
+    assert.equal(api.localeFromUrl(url), "ko");
+    assert.equal(api.languageUrl(url, "en"), base + "admin/?lang=en");
+    assert.equal(
+      api.languageUrl(
+        new URL(
+          "https://kansaiunited.com" + base + "en/news/attacking-training/",
+        ),
+        "ko",
+      ),
+      base + "ko/news/attacking-training/",
+    );
+    assert.equal(
+      api.localeFromUrl(
+        new URL("https://kansaiunited.com" + base + "admin/?lang=invalid"),
+      ),
+      "ja",
+    );
+    assert.match(api.localizedDate("2026-10-13T15:05:00Z", "ko", true), /14/);
+    assert.match(api.localizedDate("2026-10-13T15:05:00Z", "en", true), /14/);
+    assert.deepEqual(api.weekdayNames("en"), [
+      "Sun",
+      "Mon",
+      "Tue",
+      "Wed",
+      "Thu",
+      "Fri",
+      "Sat",
+    ]);
+    assert.equal(api.formatForLocale("en")("{0}を編集", "News"), "Edit News");
+    assert.equal(api.translate("未翻訳の新しい本文", "en"), "未翻訳の新しい本文");
+  }
 });
 test("Korean staff UI preserves original content, server field names and draft state", async () => {
   const row = {
@@ -232,7 +244,7 @@ test("Korean staff UI preserves original content, server field names and draft s
   };
   const { dom, window, requests } = await app(
     "owner",
-    "https://ryukkani.github.io/kansai/admin/?lang=ko",
+    "https://kansaiunited.com/admin/?lang=ko",
     {},
     { articles: [row] },
   );
@@ -245,7 +257,7 @@ test("Korean staff UI preserves original content, server field names and draft s
     );
     assert.equal(
       doc.querySelector(".office-public-link").getAttribute("href"),
-      "/kansai/ko/",
+      "/ko/",
     );
     await login(window);
     assert.equal(doc.querySelector("#resource-title").textContent, "대시보드");
@@ -285,7 +297,7 @@ test("Korean staff UI preserves original content, server field names and draft s
 test("English login notices remain invitation-only and return to the selected language", async () => {
   const { dom, window, requests } = await app(
     "owner",
-    "https://ryukkani.github.io/kansai/admin/?lang=en",
+    "https://kansaiunited.com/admin/?lang=en",
   );
   try {
     const doc = window.document;
@@ -308,7 +320,7 @@ test("English login notices remain invitation-only and return to the selected la
     assert.equal(JSON.parse(request.body).create_user, false);
     assert.equal(
       new URL(request.url).searchParams.get("redirect_to"),
-      "https://ryukkani.github.io/kansai/admin/",
+      "https://kansaiunited.com/admin/",
     );
     assert.equal(window.localStorage.getItem("kansai-language"), "en");
   } finally {
@@ -319,7 +331,7 @@ test("English login notices remain invitation-only and return to the selected la
 test("Korean email rate-limit errors are readable and English coach access stays restricted", async () => {
   const limited = await app(
     "owner",
-    "https://ryukkani.github.io/kansai/admin/?lang=ko",
+    "https://kansaiunited.com/admin/?lang=ko",
     { otpError: "over_email_send_rate_limit" },
   );
   try {
@@ -344,7 +356,7 @@ test("Korean email rate-limit errors are readable and English coach access stays
   }
   const coach = await app(
     "coach",
-    "https://ryukkani.github.io/kansai/admin/?lang=en",
+    "https://kansaiunited.com/admin/?lang=en",
   );
   try {
     await login(coach.window);

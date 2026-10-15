@@ -1,4 +1,4 @@
-// GitHub Pages의 /kansai/ 경로를 자동으로 붙입니다. 배포 경로는 astro.config.mjs에서 변경합니다.
+// Astro의 배포 경로를 자동으로 붙입니다. 자체 도메인의 루트 경로는 astro.config.mjs에서 관리합니다.
 // 페이지와 이미지가 동일한 규칙을 사용하므로 경로 결합은 한 번만 정의합니다.
 const baseUrl = import.meta.env.BASE_URL.replace(/\/?$/, "/");
 
