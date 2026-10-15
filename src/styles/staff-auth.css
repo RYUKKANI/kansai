@@ -1,0 +1,32 @@
+/* [편집 안내] 기존 구단 색상·로고를 유지하고 인증 화면을 작은 한 열로 구성합니다.
+   [hidden]은 전환 중에도 반드시 숨겨져 승인 대기 화면과 관리 화면이 겹치지 않게 합니다. */
+.staff-auth-portal { width: min(100% - 2rem, 460px); margin: clamp(1.5rem, 5vw, 4rem) auto; padding: clamp(1.3rem, 4vw, 2.5rem); border: 1px solid #d8e1ed; border-top: 4px solid #1265c7; border-radius: 14px; background: #fff; color: #0b2447; box-shadow: 0 16px 48px #0b24470b; }
+.staff-auth-portal [hidden], .staff-auth-portal[hidden] { display: none !important; }
+.staff-auth-brand { text-align: center; margin-bottom: 1.5rem; }
+.staff-auth-brand img { display: block; object-fit: contain; margin: 0 auto 0.85rem; }
+.staff-auth-brand .eyebrow { margin-bottom: 0.4rem; }
+.staff-auth-brand h1 { font-size: 1.4rem; margin: 0; }
+.staff-auth-portal h2 { margin: 0 0 0.8rem; font-size: 1.15rem; }
+.staff-auth-portal form { display: grid; gap: 0.65rem; }
+.staff-auth-portal label { font-size: 0.88rem; font-weight: 650; }
+.staff-auth-portal input:not([type="checkbox"]) { min-width: 0; width: 100%; min-height: 46px; border: 1px solid #bccbdd; border-radius: 7px; background: #fff; padding: 0.65rem 0.8rem; color: #0b2447; font: inherit; }
+.staff-auth-portal input[aria-invalid="true"] { border-color: #b42336; }
+.staff-auth-portal :is(input, button, a):focus-visible { outline: 3px solid #2283e5; outline-offset: 3px; }
+.staff-auth-portal .admin-help { margin: 0 0 0.6rem; font-size: 0.8rem; line-height: 1.65; color: #526579; }
+.staff-auth-portal form > .admin-primary { width: 100%; min-height: 46px; margin-top: 0.65rem; }
+.staff-password-field { display: flex; align-items: stretch; gap: 0.45rem; }
+.staff-password-field > input { flex: 1; }
+.staff-password-field > button { flex: 0 0 auto; min-width: 52px; border: 1px solid #bccbdd; border-radius: 7px; background: #f4f7fc; font-size: 0.78rem; color: #0b2447; padding: 0.5rem; cursor: pointer; }
+.staff-auth-portal .staff-auth-consent { display: flex; gap: 0.65rem; align-items: flex-start; font-weight: 400; line-height: 1.65; margin: 0.6rem 0; }
+.staff-auth-consent input { flex: 0 0 auto; width: 1.1rem; height: 1.1rem; margin-top: 0.3rem; accent-color: #1265c7; }
+.staff-auth-alternate { display: flex; align-items: center; justify-content: space-between; gap: 1rem; border-top: 1px solid #e5ebf3; margin-top: 1.5rem; padding-top: 1.2rem; font-size: 0.82rem; }
+.staff-auth-text-button { display: block; background: none; border: 0; color: #1265c7; text-decoration: underline; text-underline-offset: 3px; padding: 0.7rem 0; cursor: pointer; font: inherit; font-size: 0.85rem; }
+.staff-auth-help { display: block; margin-top: 1.3rem; text-align: center; color: #526579; font-size: 0.8rem; text-decoration: underline; text-underline-offset: 3px; }
+.staff-auth-message:not(:empty) { margin-bottom: 1.2rem; padding: 0.8rem; border-radius: 6px; background: #eef5ff; color: #0b417c; font-size: 0.85rem; line-height: 1.6; overflow-wrap: anywhere; }
+.staff-auth-message[data-error="true"] { background: #fff0f1; color: #a51e30; }
+.staff-account-state { display: grid; grid-template-columns: minmax(5.5rem, auto) minmax(0, 1fr); gap: 0.75rem 1rem; font-size: 0.87rem; margin: 1.2rem 0; }
+.staff-account-state dt { color: #526579; }
+.staff-account-state dd { margin: 0; overflow-wrap: anywhere; white-space: pre-wrap; }
+.staff-auth-portal button:disabled { cursor: wait; opacity: 0.65; }
+.staff-auth-help-layout .admin-header { flex-wrap: wrap; }
+@media (max-width: 480px) { .staff-auth-portal { width: calc(100% - 1.25rem); padding: 1.25rem; } .staff-auth-brand h1 { font-size: 1.25rem; } .staff-account-state { grid-template-columns: 1fr; gap: 0.25rem; } .staff-account-state dd { margin-bottom: 0.65rem; } }

@@ -1,0 +1,226 @@
+/* [편집 안내] 관계자 개인정보가 긴 경우에도 카드와 계정 UUID가 모바일 너비를 넘지 않게 합니다.
+   로그인 화면과 공개 홈페이지에는 적용되지 않는 관계자 업무 전용 스타일입니다. */
+.staff-directory,
+.staff-management,
+.staff-audit,
+.staff-name-requests {
+  display: grid;
+  gap: 1rem;
+  min-width: 0;
+}
+.staff-card,
+.staff-audit-entry {
+  background: #fff;
+  border: 1px solid #dce4ef;
+  border-radius: 12px;
+  padding: clamp(1rem, 2.6vw, 1.5rem);
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.staff-section-title {
+  color: #132b51;
+  font-size: 1.1rem;
+  margin: 0;
+}
+.staff-card-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.6rem 1rem;
+}
+.staff-card-heading h3 {
+  color: #132b51;
+  font-size: 1.08rem;
+  margin: 0;
+}
+.staff-card-heading time {
+  color: #64748b;
+  font-size: 0.83rem;
+}
+.staff-help {
+  color: #52637b;
+  font-size: 0.88rem;
+  line-height: 1.7;
+  margin: 0.4rem 0;
+  max-width: 85ch;
+  overflow-wrap: anywhere;
+}
+.staff-details {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.85rem 1.4rem;
+  margin: 1rem 0;
+}
+.staff-detail dt {
+  color: #62718a;
+  font-size: 0.78rem;
+  font-weight: 600;
+  margin-bottom: 0.25rem;
+}
+.staff-detail dd {
+  color: #172b49;
+  font-size: 0.93rem;
+  line-height: 1.55;
+  margin: 0;
+  white-space: pre-wrap;
+}
+.staff-status {
+  background: #eef2f8;
+  border-radius: 100px;
+  padding: 0.28rem 0.65rem;
+  color: #43536c;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+.staff-status[data-kind="approved"],
+.staff-status[data-kind="active"] {
+  background: #e7f6ef;
+  color: #166444;
+}
+.staff-status[data-kind="pending"] {
+  background: #fff5db;
+  color: #7d5b08;
+}
+.staff-status[data-kind="rejected"],
+.staff-status[data-kind="suspended"] {
+  background: #fff0f0;
+  color: #a13131;
+}
+.staff-form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.85rem;
+  padding-top: 1.1rem;
+  margin-top: 1.1rem;
+  border-top: 1px solid #e2e8f1;
+}
+.staff-form h4 {
+  margin: 0;
+  color: #1a365e;
+  grid-column: 1 / -1;
+  font-size: 0.95rem;
+}
+.staff-field {
+  display: grid;
+  align-content: start;
+  gap: 0.4rem;
+  color: #334b69;
+  font-weight: 600;
+  font-size: 0.82rem;
+}
+.staff-field input,
+.staff-field select,
+.staff-field textarea {
+  width: 100%;
+  min-width: 0;
+  min-height: 44px;
+  padding: 0.65rem 0.75rem;
+  border: 1px solid #bac8db;
+  border-radius: 7px;
+  font: inherit;
+  font-weight: 400;
+  color: #132b51;
+  background: #fff;
+}
+.staff-field textarea {
+  min-height: 86px;
+  resize: vertical;
+}
+.staff-field:has(textarea) {
+  grid-column: 1 / -1;
+}
+.staff-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  min-height: 44px;
+  color: #334b69;
+  font-size: 0.88rem;
+}
+.staff-checkbox input {
+  width: 20px;
+  height: 20px;
+}
+.staff-button {
+  justify-self: start;
+  min-height: 44px;
+  border-radius: 7px;
+  border: 0;
+  background: #154f99;
+  color: #fff;
+  padding: 0.7rem 1rem;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+.staff-button:disabled {
+  opacity: 0.65;
+  cursor: wait;
+}
+.staff-button:focus-visible,
+.staff-field :focus-visible,
+.staff-contact summary:focus-visible {
+  outline: 3px solid #57a6ff;
+  outline-offset: 3px;
+}
+.staff-form-notice {
+  grid-column: 1 / -1;
+  color: #52637b;
+  margin: 0;
+  line-height: 1.6;
+  font-size: 0.88rem;
+}
+.staff-form-notice[data-error="true"] {
+  color: #a13131;
+}
+.staff-contact {
+  border: 1px solid #dce4ef;
+  border-radius: 7px;
+  margin: 0.75rem 0;
+  padding: 0.7rem;
+}
+.staff-contact summary {
+  color: #435c7d;
+  cursor: pointer;
+  min-height: 28px;
+  font-size: 0.85rem;
+}
+.staff-contact p {
+  overflow-wrap: anywhere;
+  margin: 0.5rem 0 0;
+}
+.staff-audit-fields {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 0.4rem;
+}
+.staff-audit-fields li {
+  display: grid;
+  grid-template-columns: minmax(8rem, 0.3fr) minmax(0, 1fr);
+  gap: 0.6rem;
+  border-top: 1px solid #e6ebf3;
+  padding: 0.55rem 0;
+  font-size: 0.83rem;
+  color: #52637b;
+  white-space: pre-wrap;
+}
+.staff-audit-fields strong {
+  color: #334b69;
+  font-weight: 600;
+}
+@media (max-width: 640px) {
+  .staff-details,
+  .staff-form {
+    grid-template-columns: 1fr;
+  }
+  .staff-audit-fields li {
+    grid-template-columns: 1fr;
+    gap: 0.25rem;
+  }
+  .staff-button {
+    width: 100%;
+  }
+}
