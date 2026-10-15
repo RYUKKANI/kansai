@@ -693,6 +693,26 @@ export type Database = {
       };
       office_staff_directory: { Args: never; Returns: Json };
       office_staff_applications: { Args: never; Returns: Json };
+      office_owner_account: {
+        Args: { p_user_id: string };
+        Returns: Json;
+      };
+      office_owner_update_identity: {
+        Args: { p_user_id: string; p_username: string; p_real_name: string; p_reason: string };
+        Returns: Json;
+      };
+      office_owner_begin_password_reset: {
+        Args: { p_user_id: string; p_operation_id: string; p_reason: string };
+        Returns: Json;
+      };
+      staff_auth_owner_password_claim: {
+        Args: { p_operation_id: string; p_actor_id: string };
+        Returns: Json;
+      };
+      staff_auth_owner_password_finish: {
+        Args: { p_operation_id: string; p_actor_id: string; p_state: string };
+        Returns: undefined;
+      };
       office_review_staff: {
         Args: { p_user_id: string; p_decision: string; p_role: string | null; p_reason: string };
         Returns: undefined;

@@ -21,7 +21,7 @@ export function isStaffOfficePage(page: OfficePage): page is StaffOfficePage {
 export function staffOfficeTitle(page: StaffOfficePage): string {
   return t({
     staff_directory: "関係者名簿",
-    staff_applications: "加入申請・権限",
+    staff_applications: "メンバー管理",
     staff_account: "自分のアカウント",
     staff_audit: "実名の作業履歴",
   }[page]);
@@ -132,8 +132,8 @@ export const officePages: Record<
     description: t("承認された関係者の実名、担当業務、活動状態を確認します。"),
   },
   staff_applications: {
-    group: "SYSTEM", english: "APPLICATIONS & ACCESS", icon: "shield",
-    description: t("メール確認と加入承認を区別し、実名確認と権限を管理します。"),
+    group: "SYSTEM", english: "MEMBER MANAGEMENT", icon: "shield",
+    description: t("Ownerのみが加入承認、ID・実名・パスワード、権限を管理します。"),
   },
   staff_account: {
     group: "SYSTEM", english: "MY ACCOUNT", icon: "profile",
