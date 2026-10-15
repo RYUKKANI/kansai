@@ -163,6 +163,37 @@ test("registration checks confirmation and sends Unicode real names without gran
     for (const key of ["role", "actor_id", "user_id", "approval_status", "desired_role"]) assert.equal(key in body, false);
     assert.equal(app.sessions.length, 0);
     assert.equal(app.document.querySelector("#staff-signup-password").value, "");
+    assert.match(app.document.querySelector("#staff-auth-message").textContent, /メールの確認は不要/);
+    assert.doesNotMatch(app.document.querySelector("#staff-auth-message").textContent, /確認メールをご確認/);
+  } finally { app.dom.window.close(); }
+});
+
+test("signup rejects over-byte passwords before a request and accepts the native Unicode boundary", async () => {
+  const app = application();
+  try {
+    app.document.querySelector('[data-staff-show="signup"]').click();
+    const tooLong = "한".repeat(25);
+    app.set("#staff-signup-form", { ...signup, password: tooLong, password_confirmation: tooLong });
+    app.submit("#staff-signup-form");
+    await eventually(() => app.document.querySelector("#staff-signup-password").getAttribute("aria-invalid") === "true");
+    assert.equal(app.requests.length, 0);
+    const boundary = "한".repeat(24);
+    app.set("#staff-signup-form", { ...signup, password: boundary, password_confirmation: boundary });
+    app.submit("#staff-signup-form");
+    await eventually(() => app.requests.length === 1);
+    assert.equal(app.requests[0].body.password, boundary);
+  } finally { app.dom.window.close(); }
+});
+
+test("manual-policy state does not claim mailbox verification or offer orphan enrollment", () => {
+  const app = application();
+  try {
+    app.controller.showAccount({ ...account, identity_enrolled: false, email_confirmed: true,
+      email_confirmation_required: false, email_verification_status: "not_required" });
+    const term = [...app.document.querySelectorAll("#staff-account-state dt")].find(node => node.textContent === "メール確認");
+    assert.equal(term.nextElementSibling.textContent, "確認不要（メール所有未確認）");
+    assert.equal(app.document.querySelector("#staff-account-enroll").hidden, true);
+    assert.equal(app.requests.length, 0);
   } finally { app.dom.window.close(); }
 });
 
@@ -181,7 +212,7 @@ test("pending accounts display only their own state and never interpret a real n
   } finally { app.dom.window.close(); }
 });
 
-for (const [language, heading, status, placeholder] of [["ja", "関係者アカウント", "承認待ち", "ログインID"], ["ko", "관계자 계정", "승인 대기", "로그인 아이디"], ["en", "Club member account", "Awaiting approval", "Login ID"]]) {
+for (const [language, heading, status, placeholder, emailStatus] of [["ja", "関係者アカウント", "承認待ち", "ログインID", "確認不要（メール所有未確認）"], ["ko", "관계자 계정", "승인 대기", "로그인 아이디", "확인 불필요(이메일 소유 미확인)"], ["en", "Club member account", "Awaiting approval", "Login ID", "Not required (email ownership unverified)"]]) {
   test(`the ${language} UI translates labels and status while preserving the original real name`, () => {
     const app = application({ language });
     try {
@@ -190,9 +221,10 @@ for (const [language, heading, status, placeholder] of [["ja", "関係者アカ�
       assert.equal(app.document.querySelector("#staff-login-username").placeholder, placeholder);
       assert.equal(app.document.querySelector("#staff-signup-username").placeholder, placeholder);
       assert.equal(app.document.querySelector('label[for="staff-login-username"]').textContent, placeholder);
-      app.controller.showAccount(account);
+      app.controller.showAccount({ ...account, email_confirmation_required: false, email_verification_status: "not_required" });
       assert.ok(app.document.querySelector("#staff-account-state").textContent.includes(account.real_name));
       assert.ok(app.document.querySelector("#staff-account-state").textContent.includes(status));
+      assert.ok(app.document.querySelector("#staff-account-state").textContent.includes(emailStatus));
     } finally { app.dom.window.close(); }
   });
 }

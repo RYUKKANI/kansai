@@ -71,6 +71,9 @@ test(
           approval_status,
           active: false,
           legacy_account: false,
+          email_confirmed: false,
+          email_confirmation_required: false,
+          email_verification_status: "not_required",
           approved_real_name: null,
           name_verified_at: null,
         },
@@ -117,6 +120,24 @@ test(
         await dispose(context);
       }
     }
+  },
+);
+
+test(
+  "flag-on approved manual-policy member enters the workspace without claiming email verification",
+  { skip: !enabled },
+  async () => {
+    const context = await helper.app("owner", undefined, {
+      staffIdentity: true,
+      accountState: { ...approved, legacy_account: false, email_confirmed: false,
+        email_confirmation_required: false, email_verification_status: "not_required" },
+    });
+    try {
+      await idLogin(context);
+      await ready(context);
+      assert.equal(context.window.document.querySelector("#workspace").hidden, false);
+      assert.equal(context.requests.some(request => name(request) === "admin_roles"), true);
+    } finally { await dispose(context); }
   },
 );
 test(
