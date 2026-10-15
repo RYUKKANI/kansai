@@ -24,7 +24,7 @@ const legacyEnabled = enabled && import.meta.env.PUBLIC_STAFF_LEGACY_LOGIN_ENABL
     <meta name="theme-color" content="#0B2447" />
     <title>KANSAI UNITED FC — CLUB OFFICE HELP</title>
   </head>
-  <body class="admin-body staff-auth-help-layout">
+  <body class="admin-body staff-auth-help-layout staff-identity-auth">
     <a class="skip-link" href="#help-main"><span data-i18n="ログインのヘルプ">ログインのヘルプ</span></a>
     <header class="admin-header">
       <a href={page("admin/")} class="admin-brand"><img src={asset(club.logo)} alt="" width="44" height="44" /><span><strong>KANSAI UNITED FC</strong><small>CLUB OFFICE</small></span></a>
@@ -32,37 +32,39 @@ const legacyEnabled = enabled && import.meta.env.PUBLIC_STAFF_LEGACY_LOGIN_ENABL
     </header>
     <main id="help-main">
       <section class="staff-auth-portal" id="staff-auth-help" data-enabled={String(enabled)} data-legacy-enabled={String(legacyEnabled)} aria-labelledby="help-heading">
-        <div class="staff-auth-brand">
-          <img src={asset(club.logo)} width="72" height="72" alt="KANSAI UNITED FC" />
-          <p class="eyebrow">CLUB OFFICE</p>
-          <h1 id="help-heading"><span data-i18n="ログインのヘルプ">ログインのヘルプ</span></h1>
+        <div class="staff-auth-card">
+          <div class="staff-auth-brand">
+            <img src={asset(club.logo)} width="72" height="72" alt="KANSAI UNITED FC" />
+            <p class="eyebrow">CLUB OFFICE</p>
+            <h1 id="help-heading"><span data-i18n="ログインのヘルプ">ログインのヘルプ</span></h1>
+          </div>
+          <div id="staff-help-message" class="staff-auth-message" role="status" aria-live="polite" tabindex="-1"></div>
+          <p id="staff-help-unavailable" class="admin-help" hidden={enabled}><span data-i18n="新しいログイン方式は移行準備中です。現在のログイン画面をご利用ください。">新しいログイン方式は移行準備中です。現在のログイン画面をご利用ください。</span></p>
+          <div id="staff-help-options" hidden={!enabled}>
+            <h2><span data-i18n="パスワードを設定・再設定">パスワードを設定・再設定</span></h2>
+            <p class="admin-help"><span data-i18n="登録した復旧用メールアドレスに確認リンクを送ります。招待後にパスワードを設定していない方もご利用いただけます。">登録した復旧用メールアドレスに確認リンクを送ります。招待後にパスワードを設定していない方もご利用いただけます。</span></p>
+            <p class="admin-help"><span data-i18n="確認メールのリンクは、送信を申請した同じブラウザーで開いてください。別のブラウザーで開いた場合は、そこで新しい確認メールを申請してください。">確認メールのリンクは、送信を申請した同じブラウザーで開いてください。別のブラウザーで開いた場合は、そこで新しい確認メールを申請してください。</span></p>
+            <form id="staff-recovery-form">
+              <label for="staff-recovery-email"><span data-i18n="確認・復旧用メールアドレス">確認・復旧用メールアドレス</span></label>
+              <input id="staff-recovery-email" placeholder="確認・復旧用メールアドレス" data-i18n-placeholder="確認・復旧用メールアドレス" name="email" type="email" autocomplete="email" required maxlength="254" spellcheck="false" autocapitalize="none" />
+              <button type="submit" class="admin-primary"><span data-i18n="確認リンクを送信">確認リンクを送信</span></button>
+            </form>
+            {legacyEnabled && <div class="staff-auth-alternate"><p class="admin-help"><span data-i18n="移行中の既存メンバーは、登録済みメールアドレスのリンクでもログインできます。">移行中の既存メンバーは、登録済みメールアドレスのリンクでもログインできます。</span></p><button type="button" id="staff-help-legacy" class="admin-secondary"><span data-i18n="メールリンクでログイン">メールリンクでログイン</span></button></div>}
+          </div>
+          <div id="staff-new-password-panel" hidden>
+            <h2 tabindex="-1"><span data-i18n="新しいパスワードを設定">新しいパスワードを設定</span></h2>
+            <form id="staff-new-password-form">
+              <label for="staff-new-password"><span data-i18n="パスワード">パスワード</span></label>
+              <div class="staff-password-field"><input id="staff-new-password" placeholder="パスワード" data-i18n-placeholder="パスワード" name="password" type="password" autocomplete="new-password" required minlength="12" maxlength="128" aria-describedby="staff-new-password-help" /><button type="button" data-password-toggle="staff-new-password" aria-controls="staff-new-password" aria-pressed="false"><span data-i18n="表示">表示</span></button></div>
+              <p id="staff-new-password-help" class="admin-help"><span data-i18n="パスワードは12〜128文字で設定してください。">パスワードは12〜128文字で設定してください。</span></p>
+              <label for="staff-new-password-confirm"><span data-i18n="パスワードの確認">パスワードの確認</span></label>
+              <div class="staff-password-field"><input id="staff-new-password-confirm" placeholder="パスワードの確認" data-i18n-placeholder="パスワードの確認" name="password_confirmation" type="password" autocomplete="new-password" required minlength="12" maxlength="128" /><button type="button" data-password-toggle="staff-new-password-confirm" aria-controls="staff-new-password-confirm" aria-pressed="false"><span data-i18n="表示">表示</span></button></div>
+              <button type="submit" class="admin-primary"><span data-i18n="パスワードを保存">パスワードを保存</span></button>
+            </form>
+          </div>
+          <p class="admin-help"><span data-i18n="ログインIDが不明な場合や復旧用メールを受信できない場合は、運営責任者にご相談ください。">ログインIDが不明な場合や復旧用メールを受信できない場合は、運営責任者にご相談ください。</span></p>
         </div>
-        <div id="staff-help-message" class="staff-auth-message" role="status" aria-live="polite" tabindex="-1"></div>
-        <p id="staff-help-unavailable" class="admin-help" hidden={enabled}><span data-i18n="新しいログイン方式は移行準備中です。現在のログイン画面をご利用ください。">新しいログイン方式は移行準備中です。現在のログイン画面をご利用ください。</span></p>
-        <div id="staff-help-options" hidden={!enabled}>
-          <h2><span data-i18n="パスワードを設定・再設定">パスワードを設定・再設定</span></h2>
-          <p class="admin-help"><span data-i18n="登録した復旧用メールアドレスに確認リンクを送ります。招待後にパスワードを設定していない方もご利用いただけます。">登録した復旧用メールアドレスに確認リンクを送ります。招待後にパスワードを設定していない方もご利用いただけます。</span></p>
-          <p class="admin-help"><span data-i18n="確認メールのリンクは、送信を申請した同じブラウザーで開いてください。別のブラウザーで開いた場合は、そこで新しい確認メールを申請してください。">確認メールのリンクは、送信を申請した同じブラウザーで開いてください。別のブラウザーで開いた場合は、そこで新しい確認メールを申請してください。</span></p>
-          <form id="staff-recovery-form">
-            <label for="staff-recovery-email"><span data-i18n="確認・復旧用メールアドレス">確認・復旧用メールアドレス</span></label>
-            <input id="staff-recovery-email" name="email" type="email" autocomplete="email" required maxlength="254" spellcheck="false" autocapitalize="none" />
-            <button type="submit" class="admin-primary"><span data-i18n="確認リンクを送信">確認リンクを送信</span></button>
-          </form>
-          {legacyEnabled && <div class="staff-auth-alternate"><p class="admin-help"><span data-i18n="移行中の既存メンバーは、登録済みメールアドレスのリンクでもログインできます。">移行中の既存メンバーは、登録済みメールアドレスのリンクでもログインできます。</span></p><button type="button" id="staff-help-legacy" class="admin-secondary"><span data-i18n="メールリンクでログイン">メールリンクでログイン</span></button></div>}
-        </div>
-        <div id="staff-new-password-panel" hidden>
-          <h2 tabindex="-1"><span data-i18n="新しいパスワードを設定">新しいパスワードを設定</span></h2>
-          <form id="staff-new-password-form">
-            <label for="staff-new-password"><span data-i18n="パスワード">パスワード</span></label>
-            <div class="staff-password-field"><input id="staff-new-password" name="password" type="password" autocomplete="new-password" required minlength="12" maxlength="128" aria-describedby="staff-new-password-help" /><button type="button" data-password-toggle="staff-new-password" aria-controls="staff-new-password" aria-pressed="false"><span data-i18n="表示">表示</span></button></div>
-            <p id="staff-new-password-help" class="admin-help"><span data-i18n="パスワードは12〜128文字で設定してください。">パスワードは12〜128文字で設定してください。</span></p>
-            <label for="staff-new-password-confirm"><span data-i18n="パスワードの確認">パスワードの確認</span></label>
-            <div class="staff-password-field"><input id="staff-new-password-confirm" name="password_confirmation" type="password" autocomplete="new-password" required minlength="12" maxlength="128" /><button type="button" data-password-toggle="staff-new-password-confirm" aria-controls="staff-new-password-confirm" aria-pressed="false"><span data-i18n="表示">表示</span></button></div>
-            <button type="submit" class="admin-primary"><span data-i18n="パスワードを保存">パスワードを保存</span></button>
-          </form>
-        </div>
-        <p class="admin-help"><span data-i18n="ログインIDが不明な場合や復旧用メールを受信できない場合は、運営責任者にご相談ください。">ログインIDが不明な場合や復旧用メールを受信できない場合は、運営責任者にご相談ください。</span></p>
-        <a href={page("admin/")} class="staff-auth-help"><span data-i18n="ログインに戻る">ログインに戻る</span></a>
+        <footer class="staff-auth-footer"><a href={page("admin/")} class="staff-auth-help"><span data-i18n="ログインに戻る">ログインに戻る</span></a></footer>
       </section>
     </main>
     <script src="../../scripts/staff-auth-help.ts"></script>
