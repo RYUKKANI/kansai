@@ -369,3 +369,30 @@ test("Korean email rate-limit errors are readable and English coach access stays
     coach.dom.window.close();
   }
 });
+
+// 복구 메일의 고정 주소에 언어 query가 없어도 선택한 관리자 언어를 유지합니다.
+test("recovery callback preserves the saved office language and excludes Auth codes from language links", async () => {
+  for (const base of ["/", "/kansai/"]) {
+    const bundled = await build({
+      entryPoints: ["src/lib/i18n.ts"], bundle: true, write: false,
+      format: "iife", globalName: "OfficeLocale",
+      define: { "import.meta.env.BASE_URL": JSON.stringify(base) },
+    });
+    for (const locale of ["ja", "ko", "en"]) {
+      const dom = new JSDOM("", {
+        url: "https://kansaiunited.com" + base + "admin/help/?code=TEST_ONLY#access_token=TEST_ONLY",
+        runScripts: "outside-only",
+      });
+      try {
+        dom.window.localStorage.setItem("kansai-language", locale);
+        dom.window.eval(bundled.outputFiles[0].text + ";window.localeApi = OfficeLocale;");
+        assert.equal(dom.window.localeApi.currentLocale(), locale);
+        assert.equal(
+          dom.window.localeApi.languageUrl(new URL(dom.window.location.href), "ko"),
+          base + "admin/help/?lang=ko",
+        );
+        assert.match(dom.window.location.search, /code=TEST_ONLY/);
+      } finally { dom.window.close(); }
+    }
+  }
+});

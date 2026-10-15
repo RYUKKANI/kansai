@@ -3,6 +3,7 @@ import { resources, type Resource, type Field } from "./admin-config";
 export let scheduleEnabled = false;
 export let contentEnabled = false;
 export let publisherEnabled = false;
+export let staffIdentityDatabaseEnabled = false;
 const publicFields: Field[] = [
   {
     name: "is_public",
@@ -16,6 +17,7 @@ export function configureOffice(capabilities: Record<string, unknown>) {
   scheduleEnabled = capabilities.schedule === true;
   contentEnabled = capabilities.content === true;
   publisherEnabled = capabilities.publisher === true;
+  staffIdentityDatabaseEnabled = capabilities.staff_identity === true;
   resources.training_sessions.fields =
     resources.training_sessions.fields.filter(
       (field) => !publicFields.some((item) => item.name === field.name),

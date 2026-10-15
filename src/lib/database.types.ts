@@ -1,4 +1,5 @@
-// 간사이 운영 DB에서 생성한 타입입니다. 스키마 변경 후 생성 도구로 갱신합니다.
+// 간사이 운영 DB 생성 타입을 보존하며, 미적용 staff_identity_accounts 마이그레이션의 공개 계약만 추가했습니다.
+// 운영 적용 후 생성 도구로 다시 대조합니다. private 테이블은 클라이언트 타입에 노출하지 않습니다.
 export type Json =
   | string
   | number
@@ -102,6 +103,15 @@ export type Database = {
       audit_logs: {
         Row: {
           actor_id: string | null;
+          actor_name: string | null;
+          actor_name_status: string;
+          source: string;
+          executor: string | null;
+          requested_by: string | null;
+          action: string | null;
+          before_values: Json;
+          after_values: Json;
+          reason: string | null;
           actor_role: string | null;
           changed_fields: string[];
           entity: string;
@@ -112,6 +122,15 @@ export type Database = {
         };
         Insert: {
           actor_id?: string | null;
+          actor_name?: string | null;
+          actor_name_status?: string;
+          source?: string;
+          executor?: string | null;
+          requested_by?: string | null;
+          action?: string | null;
+          before_values?: Json;
+          after_values?: Json;
+          reason?: string | null;
           actor_role?: string | null;
           changed_fields?: string[];
           entity: string;
@@ -122,6 +141,15 @@ export type Database = {
         };
         Update: {
           actor_id?: string | null;
+          actor_name?: string | null;
+          actor_name_status?: string;
+          source?: string;
+          executor?: string | null;
+          requested_by?: string | null;
+          action?: string | null;
+          before_values?: Json;
+          after_values?: Json;
+          reason?: string | null;
           actor_role?: string | null;
           changed_fields?: string[];
           entity?: string;
@@ -657,6 +685,56 @@ export type Database = {
           isOneToOne: false;
           isSetofReturn: true;
         };
+      };
+      office_account_state: { Args: never; Returns: Json };
+      office_enroll_identity: {
+        Args: { p_username: string; p_real_name: string; p_department: string; p_notice_accepted: boolean };
+        Returns: Json;
+      };
+      office_staff_directory: { Args: never; Returns: Json };
+      office_staff_applications: { Args: never; Returns: Json };
+      office_review_staff: {
+        Args: { p_user_id: string; p_decision: string; p_role: string | null; p_reason: string };
+        Returns: undefined;
+      };
+      office_set_staff_access: {
+        Args: { p_user_id: string; p_role: string; p_active: boolean; p_reason: string };
+        Returns: undefined;
+      };
+      office_verify_staff_identity: {
+        Args: { p_user_id: string; p_real_name: string; p_reason: string };
+        Returns: undefined;
+      };
+      office_request_name_change: {
+        Args: { p_real_name: string; p_reason: string };
+        Returns: undefined;
+      };
+      office_staff_name_requests: { Args: never; Returns: Json };
+      office_review_name_change: {
+        Args: { p_request_id: string; p_approve: boolean; p_reason: string };
+        Returns: undefined;
+      };
+      office_staff_audit: {
+        Args: { p_limit?: number; p_before_id?: number | null };
+        Returns: Json;
+      };
+      // 서비스 키 전용 RPC입니다. 타입의 존재는 anon/authenticated 실행 권한을 뜻하지 않습니다.
+      staff_auth_bootstrap_owner: {
+        Args: { p_user_id: string; p_username: string };
+        Returns: Json;
+      };
+      staff_auth_identity: { Args: { p_username: string }; Returns: Json };
+      staff_auth_rate_limit: {
+        Args: { p_key_hash: string; p_bucket: string; p_limit: number; p_window_seconds: number };
+        Returns: boolean;
+      };
+      staff_auth_reserve: {
+        Args: { p_username: string; p_email: string; p_real_name: string; p_department: string; p_notice_accepted: boolean };
+        Returns: string;
+      };
+      staff_auth_finalize: {
+        Args: { p_reservation: string; p_user_id: string };
+        Returns: undefined;
       };
       office_capabilities: { Args: never; Returns: Json };
       office_content_state: {

@@ -9,7 +9,7 @@ async function main() {
     [
       "create role anon; create role authenticated; create role service_role bypassrls;",
       "create schema auth; create schema storage;",
-      "create table auth.users(id uuid primary key);",
+      "create table auth.users(id uuid primary key,email text,email_confirmed_at timestamptz default now(),created_at timestamptz default clock_timestamp(),raw_user_meta_data jsonb default '{}');",
       "create function auth.uid() returns uuid language sql stable as $$ select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid; $$;",
       "grant usage on schema auth,storage,public to anon,authenticated;",
       "grant execute on function auth.uid() to anon,authenticated;",
@@ -30,7 +30,7 @@ async function main() {
     await db.exec(await readFile("supabase/migrations/" + file, "utf8"));
   const user = (n) => "00000000-0000-4000-8000-" + String(n).padStart(12, "0");
   for (let n = 1; n <= 6; n++)
-    await db.query("insert into auth.users values($1)", [user(n)]);
+    await db.query("insert into auth.users(id) values($1)", [user(n)]);
   for (const [n, role, active] of [
     [1, "owner", true],
     [2, "administrator", true],

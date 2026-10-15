@@ -1,5 +1,7 @@
 node_modules/
 dist/
+dist-identity/
+dist-legacy/
 preview/
 public/cms-assets/
 supabase/.temp/

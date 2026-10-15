@@ -1,6 +1,10 @@
 ---
 // data-i18n 문구는 로그인 세션을 읽기 전에 선택 언어로 표시합니다. 입력된 콘텐츠는 번역하지 않습니다.
 import AdminLayout from "../../layouts/AdminLayout.astro";
+import StaffAuthPortal from "../../components/admin/StaffAuthPortal.astro";
+import "../../styles/admin-staff.css";
+// 운영 Owner의 실제 전환 검증이 끝날 때까지 기존 로그인 화면을 유지합니다.
+const staffIdentityEnabled = import.meta.env.PUBLIC_STAFF_IDENTITY_ENABLED === "true";
 // 양식·목록은 브라우저에서 확인한 세션과 DB 역할에 따라 구성합니다. 실제 접근 권한은 RLS가 결정합니다.
 ---
 
@@ -11,6 +15,7 @@ import AdminLayout from "../../layouts/AdminLayout.astro";
     role="status"
     aria-live="polite"
   ></div>
+  {staffIdentityEnabled ? <div id="login-panel"><StaffAuthPortal /></div> : (
   <section class="admin-login" id="login-panel">
     <p class="eyebrow">CLUB OFFICE</p>
     <h1>
@@ -60,6 +65,7 @@ import AdminLayout from "../../layouts/AdminLayout.astro";
       </span>
     </p>
   </section>
+  )}
   <div class="admin-workspace" id="workspace" hidden>
     <div id="sidebar-backdrop" class="office-sidebar-backdrop" hidden></div>
     <aside

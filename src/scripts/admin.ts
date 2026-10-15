@@ -26,7 +26,14 @@ import {
   type OfficePage,
   type ListFilter,
   selectFields,
+  isStaffOfficePage,
+  staffOfficePages,
+  staffOfficeTitle,
+  type StaffOfficePage,
 } from "../lib/admin-ui";
+import { mountStaffAuth } from "./staff-auth";
+import type { StaffAccountState } from "../lib/staff-auth-types";
+import { renderStaffOffice } from "./admin-staff";
 import { buildDashboard } from "./admin-dashboard";
 import { attachPlayerEditor, type PlayerEditor } from "./admin-player";
 import { uploadOfficePhoto } from "./admin-photo";
@@ -52,6 +59,7 @@ import {
   configureOffice,
   resourceAvailable,
   scheduleEnabled,
+  staffIdentityDatabaseEnabled,
 } from "../lib/office-features";
 
 // [편집 안내] 로그인 → 역할 확인 → 목록/대시보드 → 양식 저장 순서입니다.
@@ -59,6 +67,8 @@ import {
 const base = import.meta.env.BASE_URL.replace(/\/?$/, "/");
 const url = import.meta.env.PUBLIC_SUPABASE_URL;
 const key = import.meta.env.PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+// 화면 전환은 배포 변수로 제어하고, 실제 승인·권한 제한은 항상 DB가 검사합니다.
+const staffIdentityUiEnabled = import.meta.env.PUBLIC_STAFF_IDENTITY_ENABLED === "true";
 // 저장한 HTML은 화면 검토용입니다. 로그인과 실제 편집은 웹 주소에서만 실행합니다.
 const onWeb = ["https:", "http:"].includes(window.location.protocol);
 const $ = <T extends HTMLElement>(selector: string): T => {
@@ -81,6 +91,11 @@ let role: StaffRole | null = null;
 let userId: string | null = null;
 let current: OfficePage = "dashboard";
 let currentList: ListController | null = null;
+let currentStaff: Awaited<ReturnType<typeof renderStaffOffice>> | null = null;
+let staffAuth: ReturnType<typeof mountStaffAuth> | null = null;
+let ownIdentity: StaffAccountState | null = null;
+let staffIdentityAvailable = false;
+let authenticationVersion = 0;
 let editorBaseline = "";
 let editorDirty = false;
 let editorSaving = false;
@@ -223,6 +238,10 @@ async function run(callback: () => Promise<void>) {
     await callback();
   } catch (error) {
     notice(message(error), true);
+    if (role && errorCode(error) === "42501") {
+      resetLogin();
+      void authenticate().catch(() => resetLogin());
+    }
   }
 }
 // 로그인 요청을 중복 전송하지 않도록 두 버튼을 함께 잠그고, 실패 시 다시 사용할 수 있게 합니다.
@@ -254,7 +273,14 @@ async function result<T extends { error: unknown }>(
   return response;
 }
 // 로그아웃·권한 상실 시 비공개 DOM과 열린 편집 화면을 함께 정리합니다.
-function resetLogin() {
+function resetLogin(invalidateRequests = true) {
+  // 로그아웃 직전에 시작한 비동기 권한 조회가 비공개 화면을 다시 열지 못하게 합니다.
+  if (invalidateRequests) authenticationVersion++;
+  currentStaff?.dispose();
+  currentStaff = null;
+  ownIdentity = null;
+  staffIdentityAvailable = false;
+  staffAuth?.showLogin();
   playerEditorRequest++;
   playerEditor?.dispose();
   playerEditor = null;
@@ -308,10 +334,33 @@ function resetLogin() {
 }
 async function authenticate() {
   if (!client) return;
+  const attempt = ++authenticationVersion;
   const { data, error } = await client.auth.getUser();
+  if (attempt !== authenticationVersion) return;
   if (error || !data.user) {
     resetLogin();
     return;
+  }
+  let identity: StaffAccountState | null = null;
+  if (staffIdentityUiEnabled) {
+    // 가입 대기자는 역할·선수·콘텐츠를 조회하기 전에 본인 상태만 받습니다.
+    const response = await client.rpc("office_account_state");
+    if (attempt !== authenticationVersion) return;
+    const value = response.data;
+    if (response.error || !value || typeof value !== "object" || Array.isArray(value) || value.user_id !== data.user.id) {
+      resetLogin();
+      notice(t("アカウントの確認を完了できません。時間をおいて再度お試しください。"), true);
+      return;
+    }
+    identity = value as unknown as StaffAccountState;
+    const allowed = identity.active === true && Boolean(identity.role) &&
+      (identity.legacy_account === true || (identity.approval_status === "approved" && identity.email_confirmed === true));
+    if (!allowed) {
+      resetLogin();
+      ownIdentity = identity;
+      staffAuth?.showAccount(identity);
+      return;
+    }
   }
   const membership = await result(
     client
@@ -320,6 +369,7 @@ async function authenticate() {
       .eq("user_id", data.user.id)
       .maybeSingle(),
   );
+  if (attempt !== authenticationVersion) return;
   if (
     !membership.data?.active ||
     !["owner", "administrator", "editor", "coach"].includes(
@@ -334,12 +384,16 @@ async function authenticate() {
     role === membership.data.role &&
     userId === data.user.id &&
     !$("#workspace").hidden;
-  if (role && role !== membership.data.role) resetLogin();
+  if (role && role !== membership.data.role) resetLogin(false);
   role = membership.data.role as StaffRole;
   userId = data.user.id;
-  $("#account-email").textContent = data.user.email ?? membership.data.email;
+  ownIdentity = identity;
+  const approvedName = identity?.approved_real_name;
+  $("#account-email").textContent = staffIdentityUiEnabled
+    ? (approvedName || t("実名確認前のアカウント"))
+    : (data.user.email ?? membership.data.email);
   $("#account-role").textContent = roleLabels[role] ?? role;
-  $("#account-avatar").textContent = (data.user.email ?? "KU")
+  $("#account-avatar").textContent = (approvedName || (staffIdentityUiEnabled ? "KU" : data.user.email) || "KU")
     .slice(0, 2)
     .toUpperCase();
   $("#header-account").hidden = false;
@@ -347,10 +401,12 @@ async function authenticate() {
   document.body.dataset.authenticated = "true";
   $("#login-panel").hidden = true;
   $("#workspace").hidden = false;
+  staffAuth?.hide();
   syncSidebar();
   // 토큰 갱신 때 진행 중인 검색·달력·편집 화면을 덮어쓰지 않습니다.
   if (unchanged) return;
   const capabilities = await client.rpc("office_capabilities");
+  if (attempt !== authenticationVersion) return;
   configureOffice(
     !capabilities.error &&
       capabilities.data &&
@@ -358,6 +414,7 @@ async function authenticate() {
       ? capabilities.data
       : {},
   );
+  staffIdentityAvailable = staffIdentityUiEnabled && staffIdentityDatabaseEnabled;
   navigation();
   await show("dashboard");
 }
@@ -370,22 +427,29 @@ function navigation() {
     for (const name of [
       "dashboard",
       ...(scheduleEnabled ? ["schedule"] : []),
+      ...(staffIdentityAvailable ? staffOfficePages : []),
       ...Object.keys(resources),
     ] as OfficePage[]) {
       const info = officePages[name];
+      const staffPage = isStaffOfficePage(name);
+      const permitted = staffPage
+        ? Boolean(role) && (name !== "staff_applications" || ["owner", "administrator"].includes(role!))
+        : name === "dashboard"
+          ? Boolean(role)
+          : name === "schedule"
+            ? Boolean(role) && ["owner", "administrator", "coach"].includes(role!)
+            : Boolean(role) && resourceAvailable(name) && resources[name].roles.includes(role!);
       if (
         name === "public_player_profiles" ||
+        (staffIdentityDatabaseEnabled && name === "admin_roles") ||
         info.group !== group ||
-        (name === "schedule"
-          ? !role || !["owner", "administrator", "coach"].includes(role)
-          : name !== "dashboard" &&
-            (!role ||
-              !resourceAvailable(name) ||
-              !resources[name].roles.includes(role)))
+        !permitted
       )
         continue;
       const label =
-        name === "dashboard"
+        staffPage
+          ? staffOfficeTitle(name)
+          : name === "dashboard"
           ? t("ダッシュボード")
           : name === "schedule"
             ? t("統合カレンダー")
@@ -475,6 +539,10 @@ async function show(
   resetPage = true,
   initialFilter?: ListFilter,
 ) {
+  if (isStaffOfficePage(resource)) {
+    await showStaffPage(resource);
+    return;
+  }
   // 공개 프로필의 기존 대시보드 진입점도 선수 관리에 모읍니다. 저장 테이블과 권한은 분리해 유지합니다.
   if (resource === "public_player_profiles") {
     initialFilter = {
@@ -498,6 +566,8 @@ async function show(
     await Promise.all([publicationStatus(), currentList.refresh()]);
     return;
   }
+  currentStaff?.dispose();
+  currentStaff = null;
   currentList?.dispose();
   currentList = null;
   current = resource;
@@ -626,6 +696,49 @@ async function show(
   await publicationStatus(version);
   $("#resource-title").focus();
 }
+async function showStaffPage(page: StaffOfficePage) {
+  if (!client || !role || !userId || !staffIdentityAvailable ||
+      (page === "staff_applications" && !["owner", "administrator"].includes(role))) return;
+  currentList?.dispose();
+  currentList = null;
+  currentStaff?.dispose();
+  currentStaff = null;
+  const version = ++requestId;
+  current = page;
+  const title = staffOfficeTitle(page);
+  const info = officePages[page];
+  $("#resource-title").textContent = title;
+  $("#header-page-title").textContent = title;
+  $("#page-eyebrow").textContent = info.group + " / " + info.english;
+  $("#page-description").textContent = info.description;
+  $("#new-button").hidden = true;
+  $("#publication-status").replaceChildren();
+  $("#admin-navigation").querySelectorAll<HTMLElement>("[data-resource]").forEach((button) => {
+    if (button.dataset.resource === page) button.setAttribute("aria-current", "page");
+    else button.removeAttribute("aria-current");
+  });
+  const controller = await renderStaffOffice({
+    client, container: $("#admin-content"), page, role, userId,
+    notice,
+    isCurrent: () => version === requestId && Boolean(role) && current === page,
+    refresh: authenticate,
+  });
+  if (version !== requestId || !role) { controller.dispose(); return; }
+  currentStaff = controller;
+  if (page === "staff_account" && ownIdentity && !ownIdentity.identity_enrolled) {
+    const identity = ownIdentity;
+    $("#admin-content").prepend(action(t("既存のアカウントにログインIDを登録"), "admin-primary", () => {
+      // 기존 UUID·역할을 유지한 채 본인 확인 세션에서만 아이디를 연결합니다.
+      requestId++;
+      currentStaff?.dispose();
+      currentStaff = null;
+      $("#workspace").hidden = true;
+      $("#login-panel").hidden = false;
+      staffAuth?.showMigration(identity);
+    }));
+  }
+  $("#resource-title").focus();
+}
 async function createResource(resource: Resource) {
   await show(resource);
   if (current !== resource || !role) return;
@@ -750,7 +863,7 @@ async function openEditor(
   row: Row | null,
   context: EditorContext | null = null,
 ) {
-  if (!client || !role || current === "dashboard" || current === "schedule")
+  if (!client || !role || current === "dashboard" || current === "schedule" || isStaffOfficePage(current))
     return;
   const resource = context?.resource ?? current;
   if (!resources[resource].roles.includes(role)) return;
@@ -1582,12 +1695,16 @@ if (!client) {
     $("#config-warning").textContent = t(
       "このファイルは画面確認用です。ログインと編集は公式サイトの管理画面をご利用ください。",
     );
-  $("#login-form")
+  $("#login-panel")
     .querySelectorAll<HTMLInputElement | HTMLButtonElement>("input,button")
     .forEach((element) => {
       element.disabled = true;
     });
 } else {
+  if (staffIdentityUiEnabled) {
+    staffAuth = mountStaffAuth({ client, notice, refresh: authenticate });
+    staffAuth.showLogin();
+  } else {
   $("#login-form").addEventListener("submit", (event) => {
     event.preventDefault();
     void runLogin(async () => {
@@ -1649,6 +1766,7 @@ if (!client) {
       );
     });
   });
+  }
   $("#logout-button").addEventListener("click", () => {
     void run(async () => {
       await result(client.auth.signOut());
@@ -1657,12 +1775,20 @@ if (!client) {
     });
   });
   let authPending = false;
+  let authRefreshQueued = false;
   const refresh = () => {
-    if (authPending) return;
+    if (authPending) {
+      authRefreshQueued = true;
+      return;
+    }
     authPending = true;
     setTimeout(() => {
       void run(authenticate).finally(() => {
         authPending = false;
+        if (authRefreshQueued) {
+          authRefreshQueued = false;
+          refresh();
+        }
       });
     }, 0);
   };
@@ -1684,6 +1810,8 @@ if (!client) {
   });
 }
 $("#new-button").addEventListener("click", () => {
+  if (isStaffOfficePage(current)) return;
+  if (current === "admin_roles" && staffIdentityDatabaseEnabled) return;
   if (current === "admin_roles")
     $<HTMLDialogElement>("#invite-dialog").showModal();
   else void run(() => openEditor(null));
@@ -1738,7 +1866,7 @@ $("#invite-cancel").addEventListener("click", () =>
 $("#invite-form").addEventListener("submit", (event) => {
   event.preventDefault();
   void run(async () => {
-    if (!client || role !== "owner") return;
+    if (!client || role !== "owner" || staffIdentityDatabaseEnabled) return;
     const form = event.currentTarget as HTMLFormElement;
     const data = new FormData(form);
     await result(

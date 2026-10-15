@@ -2726,5 +2726,689 @@
   "選手写真の最新情報を確認してください。写真を選び直して保存してください。": {
     "ko": "선수 사진의 최신 정보를 확인하고, 사진을 다시 선택해 저장해 주세요.",
     "en": "Check the latest player photo, then choose the photo again before saving."
+  },
+  "はじめての方": {
+    "ko": "처음 이용하시나요?",
+    "en": "New here?"
+  },
+  "パスワードが一致しません。": {
+    "ko": "비밀번호가 일치하지 않습니다.",
+    "en": "The passwords do not match."
+  },
+  "パスワードの確認": {
+    "ko": "비밀번호 확인",
+    "en": "Confirm password"
+  },
+  "パスワードは12〜128文字で設定してください。": {
+    "ko": "비밀번호는 12~128자로 설정해주세요.",
+    "en": "Use 12–128 characters for your password."
+  },
+  "パスワードを保存": {
+    "ko": "비밀번호 저장",
+    "en": "Save password"
+  },
+  "パスワードを保存しました。ログインIDと新しいパスワードでログインしてください。": {
+    "ko": "비밀번호를 저장했습니다. 아이디와 새 비밀번호로 로그인해주세요.",
+    "en": "Password saved. Sign in with your login ID and new password."
+  },
+  "パスワードを保存しました。ログイン画面に戻ってください。": {
+    "ko": "비밀번호를 저장했습니다. 로그인 화면으로 돌아가주세요.",
+    "en": "Password saved. Return to the login screen."
+  },
+  "パスワードを設定できませんでした。新しい確認メールのリンクからお試しください。": {
+    "ko": "비밀번호를 설정하지 못했습니다. 새 확인 이메일의 링크에서 다시 시도해주세요.",
+    "en": "The password could not be set. Try again using a new verification email link."
+  },
+  "パスワードを設定・再設定": {
+    "ko": "비밀번호 설정·재설정",
+    "en": "Set or reset your password"
+  },
+  "メールリンクでログイン": {
+    "ko": "이메일 링크로 로그인",
+    "en": "Sign in with an email link"
+  },
+  "メール確認": {
+    "ko": "이메일 확인",
+    "en": "Email verification"
+  },
+  "メール確認と運営責任者の承認後に、担当業務をご利用いただけます。": {
+    "ko": "이메일 확인과 운영진 승인 후 담당 업무를 이용할 수 있습니다.",
+    "en": "Your office access starts after email verification and approval by club management."
+  },
+  "ログインID": {
+    "ko": "로그인 아이디",
+    "en": "Login ID"
+  },
+  "ログインIDが不明な場合や復旧用メールを受信できない場合は、運営責任者にご相談ください。": {
+    "ko": "아이디를 모르거나 복구 이메일을 받을 수 없으면 운영 책임자에게 문의해주세요.",
+    "en": "Contact club management if you do not know your login ID or cannot receive recovery email."
+  },
+  "ログインIDと実名を登録": {
+    "ko": "아이디와 실명 등록",
+    "en": "Register your login ID and real name"
+  },
+  "ログインIDまたはパスワードをご確認ください。": {
+    "ko": "아이디 또는 비밀번호를 확인해주세요.",
+    "en": "Check your login ID or password."
+  },
+  "ログインIDを登録しました。実名の確認状態はアカウント画面で確認できます。": {
+    "ko": "아이디를 등록했습니다. 실명 확인 상태는 계정 화면에서 확인할 수 있습니다.",
+    "en": "Login ID registered. View your real-name verification status on your account screen."
+  },
+  "ログインに戻る": {
+    "ko": "로그인으로 돌아가기",
+    "en": "Back to login"
+  },
+  "ログインのヘルプ": {
+    "ko": "로그인 도움말",
+    "en": "Login help"
+  },
+  "ログインリンクの送信を受け付けました。登録済みの場合はメールをご確認ください。": {
+    "ko": "로그인 링크 발송을 접수했습니다. 등록된 계정이라면 이메일을 확인해주세요.",
+    "en": "Your login-link request was received. Check your email if you already have an account."
+  },
+  "会員登録": {
+    "ko": "회원가입",
+    "en": "Sign up"
+  },
+  "入力内容をご確認ください。登録済みの場合はログインまたは復旧をご利用ください。": {
+    "ko": "입력 내용을 확인해주세요. 이미 가입했다면 로그인 또는 계정 복구를 이용해주세요.",
+    "en": "Check your entries. If you already registered, use login or account recovery."
+  },
+  "利用停止": {
+    "ko": "이용 정지",
+    "en": "Suspended"
+  },
+  "半角英数字・ピリオド・ハイフン・アンダースコアで3〜32文字。大文字と小文字は区別しません。": {
+    "ko": "영문·숫자·마침표·하이픈·밑줄로 3~32자. 대소문자는 구분하지 않습니다.",
+    "en": "Use 3–32 Latin letters, digits, periods, hyphens or underscores. IDs are case-insensitive."
+  },
+  "実名": {
+    "ko": "실명",
+    "en": "Real name"
+  },
+  "実名と担当業務を承認済み関係者に表示し、操作履歴に記録することを確認しました。公開サイトへの名前・写真掲載の同意とは別です。": {
+    "ko": "승인된 관계자에게 실명과 담당 업무가 표시되고 작업 이력에 기록됨을 확인했습니다. 공개 홈페이지의 이름·사진 게시 동의와는 별개입니다.",
+    "en": "I understand that approved club members can see my real name and duties, and that these are recorded in the activity history. This is separate from consent to publish my name or photo on the public site."
+  },
+  "実名確認": {
+    "ko": "실명 확인",
+    "en": "Real-name verification"
+  },
+  "所属・担当業務": {
+    "ko": "소속·담당 업무",
+    "en": "Department or duties"
+  },
+  "承認待ちの間は、ご本人の申請状態のみ確認できます。": {
+    "ko": "승인 대기 중에는 본인의 신청 상태만 확인할 수 있습니다.",
+    "en": "While approval is pending, you can only view your own application status."
+  },
+  "承認済み": {
+    "ko": "승인됨",
+    "en": "Approved"
+  },
+  "承認状態": {
+    "ko": "승인 상태",
+    "en": "Approval status"
+  },
+  "招待で作成され、パスワードが未設定の場合は「ログインのヘルプ」から確認メールを受け取り、設定してください。": {
+    "ko": "초대 계정에 비밀번호가 없다면 로그인 도움말에서 확인 이메일을 받아 설정해주세요.",
+    "en": "If your invited account has no password, use Login help to request a verification email and set one."
+  },
+  "操作を完了できませんでした。時間をおいて再度お試しください。": {
+    "ko": "작업을 완료하지 못했습니다. 잠시 후 다시 시도해주세요.",
+    "en": "The request could not be completed. Please try again later."
+  },
+  "新しいパスワードを設定": {
+    "ko": "새 비밀번호 설정",
+    "en": "Set a new password"
+  },
+  "新しいログイン方式は移行準備中です。現在のログイン画面をご利用ください。": {
+    "ko": "새 로그인 방식은 전환 준비 중입니다. 현재 로그인 화면을 이용해주세요.",
+    "en": "The new login method is being prepared. Use the current login screen."
+  },
+  "権限は運営責任者が承認時に設定します。登録だけで管理権限は付与されません。": {
+    "ko": "권한은 운영 책임자가 승인할 때 설정합니다. 가입만으로 관리 권한이 부여되지 않습니다.",
+    "en": "Club management assigns permissions on approval. Signing up does not grant administrative access."
+  },
+  "状態を再確認": {
+    "ko": "상태 다시 확인",
+    "en": "Refresh status"
+  },
+  "現在のアカウントをそのまま使用します。既存の権限・データ・操作履歴は引き継がれます。実名は運営責任者が確認します。": {
+    "ko": "현재 계정을 그대로 사용합니다. 기존 권한·데이터·작업 이력을 유지하며, 운영 책임자가 실명을 확인합니다.",
+    "en": "Your current account, permissions, data and activity history are preserved. Club management verifies your real name."
+  },
+  "現在の画面に戻る": {
+    "ko": "현재 화면으로 돌아가기",
+    "en": "Back to the current screen"
+  },
+  "申請・アカウントの状態": {
+    "ko": "신청·계정 상태",
+    "en": "Application and account status"
+  },
+  "申請見送り": {
+    "ko": "신청 반려",
+    "en": "Application declined"
+  },
+  "登録した復旧用メールアドレスに確認リンクを送ります。招待後にパスワードを設定していない方もご利用いただけます。": {
+    "ko": "등록된 복구 이메일로 확인 링크를 보냅니다. 초대 후 비밀번호를 설정하지 않은 분도 이용할 수 있습니다.",
+    "en": "We send a verification link to your registered recovery email. You can also use it if you have not set a password after being invited."
+  },
+  "登録する": {
+    "ko": "등록하기",
+    "en": "Register"
+  },
+  "登録を完了できませんでした。IDを確認し、必要な場合は運営責任者にご相談ください。": {
+    "ko": "등록을 완료하지 못했습니다. 아이디를 확인하고 필요하면 운영 책임자에게 문의해주세요.",
+    "en": "Registration could not be completed. Check the ID and contact club management if needed."
+  },
+  "登録を申請": {
+    "ko": "가입 신청",
+    "en": "Submit registration"
+  },
+  "登録申請を受け付けました。確認メールをご確認ください。すでに登録済みの場合はログインまたは復旧をご利用ください。": {
+    "ko": "가입 신청을 접수했습니다. 확인 이메일을 확인해주세요. 이미 가입했다면 로그인 또는 복구를 이용해주세요.",
+    "en": "Your registration request was received. Check for a verification email. If you already registered, use login or recovery."
+  },
+  "確認リンクの送信を受け付けました。登録済みの場合は、最新のメールからお手続きください。": {
+    "ko": "확인 링크 발송을 접수했습니다. 등록된 계정이라면 가장 최근 이메일에서 진행해주세요.",
+    "en": "Your verification-link request was received. If registered, continue from the latest email."
+  },
+  "確認リンクを送信": {
+    "ko": "확인 링크 보내기",
+    "en": "Send verification link"
+  },
+  "確認・復旧用メールアドレス": {
+    "ko": "가입 확인·복구 이메일",
+    "en": "Verification and recovery email"
+  },
+  "確認済みのログインが必要です。確認メールのリンクを開き直してください。": {
+    "ko": "확인된 로그인이 필요합니다. 확인 이메일의 링크를 다시 열어주세요.",
+    "en": "Verified authentication is required. Open the verification email link again."
+  },
+  "移行中の既存メンバーは、登録済みメールアドレスのリンクでもログインできます。": {
+    "ko": "전환 중인 기존 멤버는 등록된 이메일의 링크로도 로그인할 수 있습니다.",
+    "en": "During migration, existing members can also sign in with a link sent to their registered email."
+  },
+  "移行前のアカウント": {
+    "ko": "전환 전 계정",
+    "en": "Account awaiting migration"
+  },
+  "表示": {
+    "ko": "표시",
+    "en": "Show"
+  },
+  "試行回数が制限されています。少し時間をおいてから再度お試しください。": {
+    "ko": "시도 횟수가 제한되었습니다. 잠시 후 다시 시도해주세요.",
+    "en": "Too many attempts. Please wait and try again."
+  },
+  "関係者アカウント": {
+    "ko": "관계자 계정",
+    "en": "Club member account"
+  },
+  "非表示": {
+    "ko": "숨기기",
+    "en": "Hide"
+  },
+  "確認メールのリンクは、送信を申請した同じブラウザーで開いてください。別のブラウザーで開いた場合は、そこで新しい確認メールを申請してください。": {
+    "ko": "확인 이메일의 링크는 발송을 신청한 같은 브라우저에서 열어주세요. 다른 브라우저에서 열었다면 그 브라우저에서 새 확인 이메일을 신청해주세요.",
+    "en": "Open the verification email link in the same browser that requested it. If you open it in another browser, request a new verification email there."
+  },
+  "関係者名簿": {
+    "ko": "관계자 명부",
+    "en": "Staff directory"
+  },
+  "加入申請": {
+    "ko": "가입 신청",
+    "en": "Applications"
+  },
+  "アカウントと実名": {
+    "ko": "계정과 실명",
+    "en": "Account and real name"
+  },
+  "実名作業履歴": {
+    "ko": "실명 작업 이력",
+    "en": "Account activity"
+  },
+  "承認済み関係者の実名と担当業務を確認します。": {
+    "ko": "승인된 관계자의 실명과 담당 업무를 확인합니다.",
+    "en": "View approved staff names and duties."
+  },
+  "加入申請・実名確認・権限を審査します。": {
+    "ko": "가입 신청, 실명 확인, 권한을 심사합니다.",
+    "en": "Review applications, identity verification and access."
+  },
+  "アイディと実名・訂正申請を管理します。": {
+    "ko": "아이디, 실명, 정정 신청을 관리합니다.",
+    "en": "Manage your username, real name and correction requests."
+  },
+  "確認済み実名とサーバー記録の操作履歴を確認します。": {
+    "ko": "확인된 실명과 서버에 기록된 작업 이력을 확인합니다.",
+    "en": "Review verified names and server recorded activity."
+  },
+  "アカウントの確認を完了できません。時間をおいて再度お試しください。": {
+    "ko": "계정을 확인할 수 없습니다. 잠시 후 다시 시도해주세요.",
+    "en": "Unable to verify your account. Please try again later."
+  },
+  "実名確認前のアカウント": {
+    "ko": "실명 확인 전 계정",
+    "en": "Account awaiting real-name verification"
+  },
+  "アイディと実名を登録": {
+    "ko": "아이디와 실명 등록",
+    "en": "Register username and real name"
+  },
+  "アイディと実名の登録": {
+    "ko": "아이디와 실명 등록",
+    "en": "Register username and real name"
+  },
+  "DB直接操作 / 実行者確認不可": {
+    "ko": "DB 직접 작업 / 실행자 확인 불가",
+    "en": "Direct database operation / executor unknown"
+  },
+  "{0} → {1}": {
+    "ko": "{0} → {1}",
+    "en": "{0} → {1}"
+  },
+  "この操作に必要な権限がありません。最新の申請状態を確認してください。": {
+    "ko": "이 작업에 필요한 권한이 없습니다. 최신 신청 상태를 확인해주세요.",
+    "en": "You do not have permission for this action. Check your current application status."
+  },
+  "アカウントUUID": {
+    "ko": "계정 UUID",
+    "en": "Account UUID"
+  },
+  "メールアドレスの確認後に承認してください。": {
+    "ko": "이메일 주소 확인 후 승인해주세요.",
+    "en": "Approve after the email address has been confirmed."
+  },
+  "メール確認と運営責任者の承認は別々に行われます。承認前は自分の申請状態のみ確認できます。": {
+    "ko": "이메일 확인과 운영진 승인은 별도로 진행됩니다. 승인 전에는 본인의 신청 상태만 확인할 수 있습니다.",
+    "en": "Email confirmation and staff approval are separate steps. Until approval, you can only view your own application status."
+  },
+  "予約処理": {
+    "ko": "예약 작업",
+    "en": "Scheduled task"
+  },
+  "付与する権限": {
+    "ko": "부여할 권한",
+    "en": "Role to assign"
+  },
+  "以前の記録 / 作業者確認不可": {
+    "ko": "이전 기록 / 작업자 확인 불가",
+    "en": "Previous record / actor unknown"
+  },
+  "作成": {
+    "ko": "작성",
+    "en": "Create"
+  },
+  "作業時の権限": {
+    "ko": "작업 당시 권한",
+    "en": "Role at the time"
+  },
+  "作業者アカウントUUID": {
+    "ko": "작업자 계정 UUID",
+    "en": "Actor account UUID"
+  },
+  "先に実名と関係者であることを確認してください。": {
+    "ko": "먼저 실명과 구단 관계자 여부를 확인해주세요.",
+    "en": "First verify the real name and club affiliation."
+  },
+  "公開取消": {
+    "ko": "공개 취소",
+    "en": "Unpublish"
+  },
+  "内部の実名登録と、公開ホームページへの名前・写真の掲載同意は別の手続きです。": {
+    "ko": "내부 실명 등록과 공개 홈페이지의 이름·사진 게시 동의는 별도 절차입니다.",
+    "en": "Internal real-name registration and consent to publish a name or photo on the website are separate procedures."
+  },
+  "処理区分": {
+    "ko": "작업 구분",
+    "en": "Operation source"
+  },
+  "利用を許可": {
+    "ko": "접근 허용",
+    "en": "Allow access"
+  },
+  "加入申請と関係者管理": {
+    "ko": "가입 신청 및 관계자 관리",
+    "en": "Applications and staff management"
+  },
+  "加入申請の却下": {
+    "ko": "가입 신청 반려",
+    "en": "Application rejected"
+  },
+  "加入申請の審査結果を保存しました。": {
+    "ko": "가입 신청 심사 결과를 저장했습니다.",
+    "en": "The application review has been saved."
+  },
+  "加入申請の承認": {
+    "ko": "가입 신청 승인",
+    "en": "Application approved"
+  },
+  "加入申請を審査": {
+    "ko": "가입 신청 심사",
+    "en": "Review application"
+  },
+  "反映しない・却下": {
+    "ko": "반영하지 않음·반려",
+    "en": "Reject"
+  },
+  "変更": {
+    "ko": "변경",
+    "en": "Update"
+  },
+  "変更理由": {
+    "ko": "변경 사유",
+    "en": "Reason for change"
+  },
+  "定期練習": {
+    "ko": "정기 훈련",
+    "en": "Recurring training"
+  },
+  "実名と関係者であることを確認": {
+    "ko": "실명 및 구단 관계자 여부 확인",
+    "en": "Verify real name and club affiliation"
+  },
+  "実名と関係者であることを確認しました。": {
+    "ko": "실명과 구단 관계자 여부를 확인했습니다.",
+    "en": "I have verified the real name and club affiliation."
+  },
+  "実名と関係者の確認を記録しました。": {
+    "ko": "실명 및 구단 관계자 확인을 기록했습니다.",
+    "en": "The real-name and affiliation verification has been recorded."
+  },
+  "実名の作業履歴": {
+    "ko": "실명 작업 이력",
+    "en": "Named activity history"
+  },
+  "実名の確認": {
+    "ko": "실명 확인",
+    "en": "Real-name verification"
+  },
+  "実名の訂正を申請": {
+    "ko": "실명 정정 신청",
+    "en": "Request a name correction"
+  },
+  "実名の訂正を申請しました。承認まで現在の確認済み氏名を使用します。": {
+    "ko": "실명 정정을 신청했습니다. 승인될 때까지 현재 확인된 실명을 사용합니다.",
+    "en": "Your name correction has been requested. Your current verified name remains in use until approval."
+  },
+  "実名訂正": {
+    "ko": "실명 정정",
+    "en": "Name correction"
+  },
+  "実名訂正: {0} / {1}": {
+    "ko": "실명 정정: {0} / {1}",
+    "en": "Name correction: {0} / {1}"
+  },
+  "実名訂正の却下": {
+    "ko": "실명 정정 반려",
+    "en": "Name correction rejected"
+  },
+  "実名訂正の審査結果を保存しました。過去の作業者UUIDは維持されます。": {
+    "ko": "실명 정정 심사 결과를 저장했습니다. 과거 작업자의 UUID는 유지됩니다.",
+    "en": "The name correction review has been saved. Historical actor UUIDs are preserved."
+  },
+  "実名訂正の承認": {
+    "ko": "실명 정정 승인",
+    "en": "Name correction approved"
+  },
+  "実名訂正の申請": {
+    "ko": "실명 정정 신청",
+    "en": "Name correction requests"
+  },
+  "実行主体": {
+    "ko": "실제 수행 주체",
+    "en": "Executor"
+  },
+  "審査待ちの実名訂正はありません。": {
+    "ko": "심사 대기 중인 실명 정정 신청이 없습니다.",
+    "en": "There are no name corrections awaiting review."
+  },
+  "審査理由": {
+    "ko": "심사 사유",
+    "en": "Review reason"
+  },
+  "審査結果": {
+    "ko": "심사 결과",
+    "en": "Review decision"
+  },
+  "審査結果を保存": {
+    "ko": "심사 결과 저장",
+    "en": "Save review decision"
+  },
+  "対象": {
+    "ko": "대상 종류",
+    "en": "Record type"
+  },
+  "対象ID": {
+    "ko": "대상 ID",
+    "en": "Record ID"
+  },
+  "希望する役割": {
+    "ko": "희망 역할",
+    "en": "Requested role"
+  },
+  "希望する役割は申請内容です。実際の権限は承認時に別途設定します。自分自身の承認・本人確認・権限変更はできません。": {
+    "ko": "희망 역할은 신청 내용일 뿐이며 실제 권한은 승인 시 별도로 부여합니다. 본인의 신청 승인·실명 확인·권한 변경은 할 수 없습니다.",
+    "en": "A requested role is part of the application. Actual access is assigned separately during approval. You cannot approve or verify yourself, or change your own access."
+  },
+  "承認": {
+    "ko": "승인",
+    "en": "Approve"
+  },
+  "承認された関係者の実名・担当業務・活動状態を表示します。氏名は翻訳しません。": {
+    "ko": "승인된 관계자의 실명·담당 업무·활동 상태를 표시합니다. 이름은 번역하지 않습니다.",
+    "en": "View approved staff members’ real names, responsibilities and activity status. Names are not translated."
+  },
+  "承認担当者向けの連絡先": {
+    "ko": "승인 담당자용 연락처",
+    "en": "Contact details for reviewers"
+  },
+  "操作を完了できませんでした。変更は成功として扱っていません。再読み込みしてご確認ください。": {
+    "ko": "작업을 완료하지 못했습니다. 변경은 성공으로 처리하지 않았습니다. 새로고침 후 확인해주세요.",
+    "en": "The action could not be completed. The change has not been marked as successful. Reload to check the current state."
+  },
+  "操作回数が上限に達しました。少し待ってからお試しください。": {
+    "ko": "요청 횟수가 한도에 도달했습니다. 잠시 후 다시 시도해주세요.",
+    "en": "The request limit has been reached. Wait a little before trying again."
+  },
+  "最後の有効なOwnerは停止・降格できません。": {
+    "ko": "마지막 활성 Owner는 정지하거나 강등할 수 없습니다.",
+    "en": "The last active Owner cannot be suspended or demoted."
+  },
+  "最新100件を表示しています。保管・削除は運営責任者が定める方針に従います。": {
+    "ko": "최근 100건을 표시합니다. 보관·삭제는 운영 책임자가 정한 정책을 따릅니다.",
+    "en": "Showing the latest 100 records. Retention and deletion follow the policy set by club management."
+  },
+  "未設定": {
+    "ko": "미설정",
+    "en": "Not set"
+  },
+  "本人確認": {
+    "ko": "실명·관계자 확인",
+    "en": "Identity verification"
+  },
+  "本人確認を記録": {
+    "ko": "실명·관계자 확인 기록",
+    "en": "Record verification"
+  },
+  "業務権限の範囲でサーバーが確認した履歴のみ表示します。自動処理の実行主体と依頼者は分けて記録します。": {
+    "ko": "업무 권한 범위에서 서버가 확인한 이력만 표시합니다. 자동 작업의 수행 주체와 요청자는 구분해 기록합니다.",
+    "en": "Only server-verified records within your work permissions are shown. Automated task executors and requesters are recorded separately."
+  },
+  "権限とアクセスを保存": {
+    "ko": "권한 및 접근 상태 저장",
+    "en": "Save role and access"
+  },
+  "権限とアクセスを更新しました。既存のセッションにも適用されます。": {
+    "ko": "권한과 접근 상태를 변경했습니다. 기존 세션에도 적용됩니다.",
+    "en": "Role and access have been updated. Existing sessions are also affected."
+  },
+  "権限とアクセスを管理": {
+    "ko": "권한 및 접근 상태 관리",
+    "en": "Manage role and access"
+  },
+  "権限・アクセスの変更": {
+    "ko": "권한·접근 상태 변경",
+    "en": "Role / access changed"
+  },
+  "現在の実名": {
+    "ko": "현재 실명",
+    "en": "Current real name"
+  },
+  "現在の権限": {
+    "ko": "현재 권한",
+    "en": "Current role"
+  },
+  "理由: {0}": {
+    "ko": "사유: {0}",
+    "en": "Reason: {0}"
+  },
+  "申請却下": {
+    "ko": "신청 반려",
+    "en": "Rejected"
+  },
+  "申請日時": {
+    "ko": "신청 일시",
+    "en": "Requested at"
+  },
+  "申請状態": {
+    "ko": "신청 상태",
+    "en": "Application status"
+  },
+  "確認した実名": {
+    "ko": "확인한 실명",
+    "en": "Verified real name"
+  },
+  "確認不可": {
+    "ko": "확인 불가",
+    "en": "Unknown"
+  },
+  "確認日時": {
+    "ko": "확인 일시",
+    "en": "Verified at"
+  },
+  "確認根拠・理由": {
+    "ko": "확인 근거·사유",
+    "en": "Verification basis / reason"
+  },
+  "確認済みの依頼者UUID: {0}": {
+    "ko": "확인된 요청자 UUID: {0}",
+    "en": "Verified requester UUID: {0}"
+  },
+  "確認済みの実名を変更する場合は、正しい氏名と理由を入力して訂正を申請してください。以前の作業記録とアカウントUUIDは維持されます。": {
+    "ko": "확인된 실명을 변경하려면 올바른 이름과 사유를 입력해 정정을 신청해주세요. 기존 작업 이력과 계정 UUID는 유지됩니다.",
+    "en": "To change a verified real name, submit the correct name and a reason. Existing activity records and your account UUID are preserved."
+  },
+  "確認者": {
+    "ko": "확인자",
+    "en": "Verified by"
+  },
+  "自分の申請とアカウント": {
+    "ko": "내 신청 및 계정",
+    "en": "My application and account"
+  },
+  "自分自身の変更は別の承認担当者に依頼してください。": {
+    "ko": "본인의 변경은 다른 승인 담당자에게 요청해주세요.",
+    "en": "Ask another authorised reviewer to make changes to your account."
+  },
+  "自分自身の承認・本人確認・権限変更はできません。": {
+    "ko": "본인의 신청 승인·실명 확인·권한 변경은 할 수 없습니다.",
+    "en": "You cannot approve or verify yourself, or change your own access."
+  },
+  "自分自身の訂正申請は承認できません。": {
+    "ko": "본인의 정정 신청은 승인할 수 없습니다.",
+    "en": "You cannot approve your own correction request."
+  },
+  "表示できる作業履歴はありません。": {
+    "ko": "표시할 수 있는 작업 이력이 없습니다.",
+    "en": "There are no activity records available to display."
+  },
+  "表示できる申請はありません。": {
+    "ko": "표시할 수 있는 신청이 없습니다.",
+    "en": "There are no applications available to display."
+  },
+  "表示できる関係者はいません。": {
+    "ko": "표시할 수 있는 관계자가 없습니다.",
+    "en": "There are no staff members available to display."
+  },
+  "複合データを変更": {
+    "ko": "복합 데이터 변경",
+    "en": "Structured data changed"
+  },
+  "訂正の審査結果を保存": {
+    "ko": "정정 심사 결과 저장",
+    "en": "Save correction review"
+  },
+  "訂正後の実名": {
+    "ko": "정정할 실명",
+    "en": "Corrected real name"
+  },
+  "訂正理由": {
+    "ko": "정정 사유",
+    "en": "Reason for correction"
+  },
+  "試合記録": {
+    "ko": "경기 기록",
+    "en": "Match records"
+  },
+  "認証済みアカウントの操作": {
+    "ko": "인증된 계정의 작업",
+    "en": "Authenticated account operation"
+  },
+  "運営権限": {
+    "ko": "운영 권한",
+    "en": "Staff access"
+  },
+  "選手情報": {
+    "ko": "선수 정보",
+    "en": "Player information"
+  },
+  "関係者情報を取得できませんでした。再読み込みして最新の状態を確認してください。": {
+    "ko": "관계자 정보를 불러오지 못했습니다. 새로고침해 최신 상태를 확인해주세요.",
+    "en": "Staff information could not be loaded. Reload to check the current state."
+  },
+  "関係者情報を読み込んでいます。": {
+    "ko": "관계자 정보를 불러오는 중입니다.",
+    "en": "Loading staff information."
+  },
+  "非公開項目を変更（値は表示しません）": {
+    "ko": "비공개 항목 변경(값은 표시하지 않음)",
+    "en": "Private field changed (values are hidden)"
+  },
+  "項目を変更": {
+    "ko": "항목 변경",
+    "en": "Field changed"
+  },
+  "加入申請・権限": {
+    "ko": "가입 신청·권한",
+    "en": "Applications and access"
+  },
+  "自分のアカウント": {
+    "ko": "내 계정",
+    "en": "My account"
+  },
+  "承認された関係者の実名、担当業務、活動状態を確認します。": {
+    "ko": "승인된 관계자의 실명, 담당 업무, 활동 상태를 확인합니다.",
+    "en": "View approved staff names, duties and activity status."
+  },
+  "メール確認と加入承認を区別し、実名確認と権限を管理します。": {
+    "ko": "이메일 확인과 가입 승인을 구분하여 실명 확인과 권한을 관리합니다.",
+    "en": "Manage name verification and access separately from email confirmation and staff approval."
+  },
+  "既存のアカウントを維持し、ログインIDと実名の登録・訂正を行います。": {
+    "ko": "기존 계정을 유지하면서 로그인 아이디와 실명을 등록·정정합니다.",
+    "en": "Register your username and manage name corrections while keeping your existing account."
+  },
+  "権限のある業務について、サーバーが記録した作業者と変更を確認します。": {
+    "ko": "접근 권한이 있는 업무의 서버 기록에서 작업자와 변경 내용을 확인합니다.",
+    "en": "Review server recorded actors and changes for work you can access."
+  },
+  "既存のアカウントにログインIDを登録": {
+    "ko": "기존 계정에 로그인 아이디 등록",
+    "en": "Register a username for your existing account"
   }
 }

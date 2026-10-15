@@ -6,7 +6,26 @@ import { scheduleEnabled } from "./office-features";
 
 // [편집 안내] 공통 DOM, 아이콘, 상태, 메뉴·양식 그룹입니다. DB에 저장할 필드와 화면 표시를 분리합니다.
 export type Row = Record<string, unknown>;
-export type OfficePage = Resource | "dashboard" | "schedule";
+export type StaffOfficePage =
+  | "staff_directory"
+  | "staff_applications"
+  | "staff_account"
+  | "staff_audit";
+export type OfficePage = Resource | "dashboard" | "schedule" | StaffOfficePage;
+export const staffOfficePages: StaffOfficePage[] = [
+  "staff_directory", "staff_applications", "staff_account", "staff_audit",
+];
+export function isStaffOfficePage(page: OfficePage): page is StaffOfficePage {
+  return staffOfficePages.includes(page as StaffOfficePage);
+}
+export function staffOfficeTitle(page: StaffOfficePage): string {
+  return t({
+    staff_directory: "関係者名簿",
+    staff_applications: "加入申請・権限",
+    staff_account: "自分のアカウント",
+    staff_audit: "実名の作業履歴",
+  }[page]);
+}
 export type ListFilter = {
   search?: string;
   status?: string;
@@ -107,6 +126,22 @@ export const officePages: Record<
     english: "STAFF & ACCESS",
     icon: "shield",
     description: t("運営メンバーの招待、権限、アクセス状態を管理します。"),
+  },
+  staff_directory: {
+    group: "SYSTEM", english: "STAFF DIRECTORY", icon: "users",
+    description: t("承認された関係者の実名、担当業務、活動状態を確認します。"),
+  },
+  staff_applications: {
+    group: "SYSTEM", english: "APPLICATIONS & ACCESS", icon: "shield",
+    description: t("メール確認と加入承認を区別し、実名確認と権限を管理します。"),
+  },
+  staff_account: {
+    group: "SYSTEM", english: "MY ACCOUNT", icon: "profile",
+    description: t("既存のアカウントを維持し、ログインIDと実名の登録・訂正を行います。"),
+  },
+  staff_audit: {
+    group: "SYSTEM", english: "AUDIT HISTORY", icon: "clock",
+    description: t("権限のある業務について、サーバーが記録した作業者と変更を確認します。"),
   },
 };
 export const stateLabels: Record<string, string> = {

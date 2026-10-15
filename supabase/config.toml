@@ -16,7 +16,7 @@ enabled = false
 enabled = true
 # 운영 프로젝트의 Authentication > URL Configuration에도 같은 값을 적용합니다.
 site_url = "https://kansaiunited.com/"
-additional_redirect_urls = ["https://kansaiunited.com/admin/"]
+additional_redirect_urls = ["https://kansaiunited.com/admin/", "https://kansaiunited.com/admin/help/"]
 jwt_expiry = 3600
 enable_signup = false
 enable_anonymous_sign_ins = false
@@ -30,3 +30,9 @@ file_size_limit = "10MiB"
 enabled = true
 verify_jwt = true
 entrypoint = "./functions/invite-staff/index.ts"
+# [편집 안내] 로그인·가입은 익명 진입이 필요합니다. staff-auth 내부에서 bearer·DB 권한·반복 제한을 검사합니다.
+# STAFF_AUTH_ENABLED 및 STAFF_AUTH_REGISTRATION_ENABLED는 테스트 통과 후 서버 환경에서 별도로 켭니다.
+[functions.staff-auth]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/staff-auth/index.ts"

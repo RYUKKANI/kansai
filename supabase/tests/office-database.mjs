@@ -6,7 +6,7 @@ export async function officeDatabase() {
   await db.exec(`
     create role anon; create role authenticated; create role service_role bypassrls;
     create schema auth; create schema storage;
-    create table auth.users(id uuid primary key);
+    create table auth.users(id uuid primary key,email text,email_confirmed_at timestamptz default now(),created_at timestamptz default clock_timestamp(),raw_user_meta_data jsonb default '{}');
     create function auth.uid() returns uuid language sql stable as $$select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid$$;
     grant usage on schema auth,storage,public to anon,authenticated,service_role;
     create table storage.buckets(id text primary key,name text,public boolean,file_size_limit bigint,allowed_mime_types text[]);
@@ -32,7 +32,7 @@ export async function officeDatabase() {
     [4, "coach", true],
     [5, "coach", false],
   ]) {
-    await db.query("insert into auth.users values($1)", [user(n)]);
+    await db.query("insert into auth.users(id) values($1)", [user(n)]);
     await db.query(
       "insert into public.admin_roles(user_id,email,role,active) values($1,$2,$3,$4)",
       [user(n), "test" + n + "@example.invalid", role, active],

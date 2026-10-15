@@ -27,7 +27,7 @@ export function currentLocale(): Locale {
   if (typeof window === "undefined") return "ja";
   const url = new URL(window.location.href);
   // 인증 메일의 기존 허용된 복귀 주소를 유지합니다. 관리자 언어만 이 브라우저의 선택을 기억합니다.
-  if (url.pathname === base + "admin/" && !url.searchParams.has("lang")) {
+  if (url.pathname.startsWith(base + "admin/") && !url.searchParams.has("lang")) {
     try {
       const saved = localStorage.getItem("kansai-language");
       if (isLocale(saved)) return saved;
