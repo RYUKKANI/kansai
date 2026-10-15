@@ -16,7 +16,7 @@ Owner는 실명만 대조하지 않고 **실제 관계자에게 신청 아이디
 
 기존 역할이 없는 Auth 계정은 공개 enrollment RPC로 다른 아이디를 등록할 수 없습니다. 포털 가입 확정 실패 후 Auth 계정이 남아도 새로운 역할이나 이메일 확인 정책을 만들어 붙이지 않습니다. Auth 생성과 DB 확정은 서로 다른 서비스이므로 원자적이지 않으며, 중간 실패는 권한 없이 격리하고 프로젝트 관리자가 UUID·예약을 대조합니다.
 
-분실 비밀번호의 메일 없는 지원 절차는 [관리자 지원 문서](STAFF_PASSWORD_SUPPORT.md)의 선택적 도구를 사용합니다. 일반 사용자가 비밀번호를 임의 초기화하는 공개 API는 추가하지 않습니다. 신뢰한 프로젝트 관리자가 본인 확인 후 같은 UUID에 Supabase Admin API를 사용하며, 새 비밀번호와 서버 키는 본인의 신뢰한 관리 기기에서 숨김 입력합니다. 모바일 브라우저에 새 재설정 버튼이 생겼다는 뜻은 아닙니다. 기존 Owner의 실제 비밀번호 로그인을 확인하기 전 기존 도움말 fallback은 보존합니다.
+메일 없는 지원은 [프로젝트 관리자용 선택적 TTY 도구](STAFF_PASSWORD_SUPPORT.md)와 후속 [Owner 전용 계정 관리](OWNER_ACCOUNT_MANAGEMENT.md)를 구분합니다. 후자는 현재 세션·MFA와 초기화용 최근 인증 조건을 통과한 활성 Owner만 같은 UUID의 새 비밀번호를 설정하는 경로이며, 일반 사용자의 공개 재설정 API가 아닙니다. 원래 비밀번호를 조회하지 않습니다. 실제 Owner의 새 로그인·복구가 확인되기 전 기존 도움말 fallback은 보존합니다.
 
 ## 지켜야 하는 데이터 경계
 
@@ -108,7 +108,7 @@ Origin은 최대 10개이며 공개 HTTP는 허용하지 않습니다. 로컬 �
 
 `supabase/config.toml`의 저장된 기본값은 가입을 계속 끕니다. 테스트 프로젝트에서 가입을 시험할 때만 Auth의 일반 가입과 이메일 가입을 허용하고 이메일 확인은 유지합니다. Site URL은 테스트 홈페이지, 허용 redirect는 정확한 테스트 `/admin/`와 `/admin/help/` 두 경로로 설정합니다. 신규 비밀번호 최소 12자 정책, 실제 Auth 속도 제한, 보안 이메일 변경, 복구 링크·만료, 실제 메일 수신을 확인합니다. 새 포털은 service 전용 Admin 생성이므로 공개 Auth 가입 스위치와 독립적입니다. 공개 Auth의 Confirm Email은 그대로 두고, 포털 가입 허용·CAPTCHA 정책·예약 RPC·Admin 비밀번호 정책을 함께 검증합니다.
 
-`staff-auth`는 공개 로그인·가입 진입을 위해 `verify_jwt=false`이고, enrollment·비밀번호 변경은 내부에서 Bearer를 Auth 서버로 확인합니다. 요청자가 redirect·역할·actor를 보낼 수 없습니다. 공개 로그인 응답은 세션 토큰만 반환하고, 가입·복구는 이메일 존재 여부나 승인 여부를 알려주지 않는 일반 응답입니다. 가입 접수 응답은 계정 생성·매핑 확정 성공의 증거가 아니므로 선택한 아이디로 로그인해 자기 상태를 확인합니다. 비밀번호 변경은 확인된 Bearer와 같은 UUID의 최근 15분 이내 서명된 복구·초대 AMR, 또는 실제 현재 비밀번호 재인증을 요구합니다. 비밀번호 저장은 Supabase Auth의 `/auth/v1/user`로 전달하며 브라우저 refresh token을 서버에 수집하지 않습니다.
+`staff-auth`는 공개 로그인·가입 진입을 위해 `verify_jwt=false`이고, enrollment·비밀번호 변경은 내부에서 Bearer를 Auth 서버로 확인합니다. 요청자가 redirect·역할·actor를 보낼 수 없습니다. 공개 로그인 응답은 세션 토큰만 반환하고, 가입·복구는 이메일 존재 여부나 승인 여부를 알려주지 않는 일반 응답입니다. 가입 접수 응답은 계정 생성·매핑 확정 성공의 증거가 아니므로 선택한 아이디로 로그인해 자기 상태를 확인합니다. 본인용 `set_password`는 확인된 Bearer와 같은 UUID의 최근 15분 이내 서명된 복구·초대 AMR, 또는 실제 현재 비밀번호 재인증을 요구합니다. 이 본인용 저장은 Supabase Auth의 `/auth/v1/user`로 전달하며 브라우저 refresh token을 서버에 수집하지 않습니다. 후속 Owner 초기화는 별도의 관리 경로와 추가 조건을 사용합니다.
 
 복구 메일은 도움말 페이지의 공식 SDK가 PKCE 검증기를 브라우저에 보관하고 S256 challenge만 만듭니다. `src/lib/staff-auth-recovery.ts`의 fetch 어댑터가 `/recover` 요청을 `staff-auth`로 보내며, 서버는 challenge와 고정된 도움말 redirect만 Auth에 전달합니다. 검증기(`code_verifier`)를 게이트웨이에 보내지 않습니다. 링크는 요청한 같은 브라우저에서 열어 공식 SDK가 코드를 교환해야 합니다. 다른 기기·브라우저, 검증기 삭제, 오래된 링크에서 실패할 때는 그 브라우저에서 복구를 새로 요청합니다. URL에 `type=recovery`를 붙이거나 일반 로그인 세션을 보유한 것만으로 비밀번호 양식을 열지 않습니다. 실제 Auth의 PKCE 코드 교환과 복구 AMR은 테스트 배포에서 확인해야 합니다.
 
@@ -121,21 +121,21 @@ Origin은 최대 10개이며 공개 HTTP는 허용하지 않습니다. 로컬 �
 | RPC | 호출 주체 | 인자·역할 |
 | --- | --- | --- |
 | `office_account_state()` | 인증된 본인 | 자기 신청·이메일 확인·역할·실명 확인 상태만 조회 |
-| `office_enroll_identity(...)` | 인증된 본인 | `p_username`, `p_real_name`, `p_department`, `p_notice_accepted`; 기존 역할은 유지하고 없는 계정은 `pending` |
+| `office_enroll_identity(...)` | 기존 역할이 있는 인증된 본인·빈 이전 프로필 본인 | `p_username`, `p_real_name`, `p_department`, `p_notice_accepted`; 기존 UUID·역할 유지. 새 Auth orphan은 이 경로로 신청·정책을 만들지 못함 |
 | `office_staff_directory()` | 현재 활성 운영진 | 확인된 실명·소속·활동 상태; 이메일·로그인 아이디 제외 |
-| `office_staff_applications()` | Owner/Administrator | 승인 관리용 최소 신청 상태; 이메일 주소 제외 |
-| `office_staff_application_contact(p_user_id)` | Owner만 | 메일 확인을 생략한 승인 대기 신청자의 연락 이메일만 별도로 확인; 일반 명부나 배열 조회 아님 |
-| `office_review_staff(...)` | 타인을 검토하는 Owner/Administrator; 메일 생략 계정 승인은 Owner만 | `p_user_id`, `p_decision` (`approved`/`rejected`), `p_role`, `p_reason`; 정책에 맞는 관계·실명·연락 주소 확인 후 승인 |
-| `office_verify_staff_identity(...)` | 권한 있는 다른 담당자 | `p_user_id`, `p_real_name`, `p_reason`; 승인된 기존 계정의 아직 확인하지 않은 정확한 신청 실명만 확인 |
-| `office_set_staff_access(...)` | 타인을 관리하는 Owner/Administrator | `p_user_id`, `p_role`, `p_active`, `p_reason`; 자기 변경·과권한·마지막 Owner 제거 금지 |
+| `office_staff_applications()` | 현재 세션의 Owner만 | 승인 관리용 최소 신청 상태; 이메일 주소 제외 |
+| `office_staff_application_contact(p_user_id)` | 현재 세션의 Owner만 | 메일 확인을 생략한 승인 대기 신청자의 연락 이메일만 별도로 확인; 일반 명부나 배열 조회 아님 |
+| `office_review_staff(...)` | 타인을 검토하는 현재 세션의 Owner만 | `p_user_id`, `p_decision` (`approved`/`rejected`), `p_role`, `p_reason`; 정책에 맞는 관계·실명·연락 주소 확인 후 승인 |
+| `office_verify_staff_identity(...)` | 현재 세션의 다른 Owner만 | `p_user_id`, `p_real_name`, `p_reason`; 승인된 기존 계정의 아직 확인하지 않은 정확한 신청 실명만 확인 |
+| `office_set_staff_access(...)` | 타인을 관리하는 현재 세션의 Owner만 | `p_user_id`, `p_role`, `p_active`, `p_reason`; 자기 변경·마지막 Owner 제거 금지 |
 | `office_request_name_change(...)` | 현재 활성 본인 | `p_real_name`, `p_reason`; 확인된 이름은 승인 전까지 유지 |
-| `office_staff_name_requests()` | Owner/Administrator | 이름 정정 검토 목록 |
-| `office_review_name_change(...)` | 권한 있는 다른 담당자 | `p_request_id`, `p_approve`, `p_reason`; 과거 감사 snapshot은 변경하지 않음 |
+| `office_staff_name_requests()` | 현재 세션의 Owner만 | 이름 정정 검토 목록 |
+| `office_review_name_change(...)` | 현재 세션의 다른 Owner만 | `p_request_id`, `p_approve`, `p_reason`; 과거 감사 snapshot은 변경하지 않음 |
 | `office_staff_audit(...)` | 현재 활성 운영진 | `p_limit` (1~100), `p_before_id`; 실제 RLS의 업무별 조회 범위 적용 |
 | `staff_auth_bootstrap_owner(p_user_id, p_username)` | 함수의 service role만 | 현재 활성 기존 Owner의 UUID에 아이디만 연결; 역할·실명·소속·동의·비밀번호를 만들거나 바꾸지 않음 |
 | `staff_auth_identity`, `staff_auth_reserve`, `staff_auth_finalize`, `staff_auth_rate_limit` | 함수의 service role만 | 비공개 매핑·가입 예약/확정·중앙 제한; 익명/일반 인증 EXECUTE 금지 |
 
-Administrator는 Owner/Administrator를 승인·확인·변경하거나 그 역할을 부여하지 못합니다. Owner 검증에는 다른 Owner가 필요합니다. 계정 사유에는 비밀번호·이메일·전화·민감한 개인 정보를 쓰지 않습니다.
+후속 Owner 관리 migration 이후 관계자 관리 메뉴와 승인·확인·권한·이름 정정 검토 RPC는 모두 Owner만 사용합니다. Administrator의 기존 관리 권한을 새 계정 창의 우회 경로로 남겨 두지 않습니다. Owner 검증에는 다른 Owner가 필요합니다. 새 아이디·실명 직접 수정과 비밀번호 초기화의 최근 인증·세션·MFA 조건 및 RPC 계약은 [Owner 계정 관리 문서](OWNER_ACCOUNT_MANAGEMENT.md)에 따릅니다. 계정 사유에는 비밀번호·이메일·전화·민감한 개인 정보를 쓰지 않습니다.
 
 RPC는 실제 인증된 사용자 JWT로 호출해야 합니다. SQL Editor에서 다른 사람 UUID를 `request.jwt.claim.sub`로 설정하는 방식은 운영 사용자 인증이 아니며 사람 귀속 증거가 되지 않습니다. 아래는 시험 도구에서 **각 인자를 별도로 바인딩**하는 SQL 형태입니다. `$1` 등에 실제 비밀값을 문자열로 이어 붙이거나 예시 이름으로 실행하지 않습니다.
 
@@ -163,7 +163,7 @@ select public.office_set_staff_access($1, $2, $3, $4);
 
 빈 프로필 상태는 `legacy_account=true`, `profile_enrollment_pending=true`인 행에서만 허용합니다. 새 신청자는 여전히 실명·소속·실제 안내 확인이 모두 필요합니다. `office_account_state()`는 아이디가 있어도 `identity_enrolled=false`, 현재 Owner 권한이 있으면 `legacy=true`를 반환합니다. 기존 업무 접근은 보존하지만 확인된 실명 명부에 나타나지 않고 감사 이름은 미확인 상태입니다. 아이디만 연결했다는 이유로 실명이나 동의가 확인됐다고 표시하지 않습니다.
 
-Owner가 로그인한 뒤 본인의 실제 실명·소속을 입력하고 안내를 직접 확인하여 `office_enroll_identity(...)`를 호출하면 **이미 연결된 동일한 아이디로 한 번만** 빈 프로필을 완성할 수 있습니다. 이때도 본인의 실명을 확인하지는 않습니다. 이름 정정은 프로필을 완성한 뒤 신청합니다. 완료된 프로필을 다시 빈 초기 상태로 되돌리거나 이미 연결된 아이디를 다른 값으로 바꾸는 요청은 거절합니다. 같은 아이디에 대한 서버 bootstrap 재시도는 기존 값·동의·확인 결과를 그대로 유지합니다.
+Owner가 로그인한 뒤 본인의 실제 실명·소속을 입력하고 안내를 직접 확인하여 `office_enroll_identity(...)`를 호출하면 **이미 연결된 동일한 아이디로 한 번만** 빈 프로필을 완성할 수 있습니다. 이때도 본인의 실명을 확인하지는 않습니다. 이름 정정은 프로필을 완성한 뒤 신청합니다. enrollment/bootstrap 경로에서 완료된 프로필을 빈 초기 상태로 되돌리거나 다른 아이디로 재연결하는 요청은 거절합니다. 후속 Owner 전용 아이디 수정은 별도 권한·예약·감사 검사를 거치며 UUID를 바꾸지 않습니다. 같은 아이디에 대한 서버 bootstrap 재시도는 기존 값·동의·확인 결과를 그대로 유지합니다.
 
 아이디 연결은 가입 예약·enrollment와 같은 이름 잠금 및 고유 제약을 사용합니다. 현재 사용 중인 아이디와 만료 전 가입 예약을 덮어쓰지 않습니다. 역할 변경과 같은 Owner 잠금을 공유하며 활성 Owner가 아닌 UUID, 본인에게만 공개된 아이디를 알아내려는 일반 사용자·익명 RPC 호출은 허용하지 않습니다. 실제 대상 UUID와 아이디는 운영자가 읽기 전용 대조 후 별도 바인딩해야 하며 예시 UUID·이메일에서 추측한 이름을 넣지 않습니다. 이 문서는 운영 RPC 실행이나 비밀번호 변경의 성공 증거가 아닙니다.
 
@@ -204,6 +204,7 @@ DB는 기존 역할 호환 경로를 유지하지만 역할 직접 CRUD는 회�
 | 개인 계정·승인·안전한 명부·감사·역할 경계 | `supabase/migrations/20261015043050_staff_identity_accounts.sql` |
 | 메일 확인 생략·Owner 승인 정책 | `supabase/migrations/20261015083315_staff_manual_approval_email_policy.sql` |
 | 메일 없는 프로젝트 관리자 비밀번호 지원 | `scripts/reset-staff-password.mjs`, `docs/STAFF_PASSWORD_SUPPORT.md` |
+| Owner 전용 아이디·실명·비밀번호 관리 | `supabase/migrations/20261015093911_owner_account_management.sql`, `src/scripts/owner-account-management.ts`, `supabase/functions/staff-auth/owner-password-reset.ts`, `docs/OWNER_ACCOUNT_MANAGEMENT.md` |
 | 이름·동의 추측 없는 기존 Owner 아이디 연결 | `supabase/migrations/20261015052545_legacy_owner_username_bootstrap.sql` |
 | 공개 인증 gateway·환경·Auth REST 어댑터 | `supabase/functions/staff-auth/` |
 | 기존 초대 중단 보호 | `supabase/functions/invite-staff/handler.ts` |
@@ -215,3 +216,5 @@ DB는 기존 역할 호환 경로를 유지하지만 역할 직접 CRUD는 회�
 | 공식 SDK PKCE·새 화면 전체 통합 | `tests/staff-auth-recovery.test.mjs`, `tests/staff-identity-app.test.mjs` |
 
 현재 SDK 계약 검토에는 저장소에 고정된 `@supabase/supabase-js`와 `@supabase/auth-js` 소스를 사용합니다. 외부 검토 기준은 [Auth JWT claims](https://supabase.com/docs/guides/auth/jwt-fields), [비밀번호 보안](https://supabase.com/docs/guides/auth/password-security), [PKCE](https://supabase.com/docs/guides/auth/sessions/pkce-flow), [Auth 속도 제한](https://supabase.com/docs/guides/auth/rate-limits)입니다. 문서의 기능 지원만으로 현재 프로젝트의 실제 설정·메일 흐름이 확인된 것은 아닙니다.
+
+후속 Owner 계정 관리까지 포함한 최종 격리 검사는 check 72개 파일 오류·경고·힌트 0개, 새 화면 build/export 32페이지·32개 HTML, 기존 화면 fixture 빌드 통과입니다. `ADMIN_TEST_DIST=dist-legacy npm test`에서 SQL 409개와 Node 171개가 통과했고 Node 6개는 건너뛰었으며 실패는 0개입니다. 별도 새 화면 빌드의 통합 6개도 모두 통과했습니다. 실제 운영 초기화·새 비밀번호 로그인·MFA·모바일·세션 회수의 완료 증거는 아니며 상세 명령과 한계는 [Owner 문서](OWNER_ACCOUNT_MANAGEMENT.md)와 [검증표](STAFF_IDENTITY_TEST_MATRIX.md)에 기록합니다.
