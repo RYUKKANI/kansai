@@ -1,32 +1,139 @@
-/* [편집 안내] 기존 구단 색상·로고를 유지하고 인증 화면을 작은 한 열로 구성합니다.
-   [hidden]은 전환 중에도 반드시 숨겨져 승인 대기 화면과 관리 화면이 겹치지 않게 합니다. */
-.staff-auth-portal { width: min(100% - 2rem, 460px); margin: clamp(1.5rem, 5vw, 4rem) auto; padding: clamp(1.3rem, 4vw, 2.5rem); border: 1px solid #d8e1ed; border-top: 4px solid #1265c7; border-radius: 14px; background: #fff; color: #0b2447; box-shadow: 0 16px 48px #0b24470b; }
+/* [편집 안내] 참고 이미지의 어두운 카드·얇은 밑줄·큰 버튼은 인증 화면에만 적용합니다.
+   구단 블루와 로고를 유지하며, 인증 후 업무 화면의 색상과 배치는 변경하지 않습니다. */
+.staff-identity-auth:not([data-authenticated="true"]) {
+  background: #1f1f1f;
+  color: #f2f4f7;
+  color-scheme: dark;
+}
+.staff-identity-auth:not([data-authenticated="true"]) > .admin-header {
+  min-height: 72px;
+  padding: 14px clamp(20px, 4vw, 48px);
+  background: #1f1f1f;
+  border: 0;
+  position: static;
+  gap: 20px;
+}
+.staff-identity-auth:not([data-authenticated="true"]) > .admin-header .admin-brand { display: none; }
+.staff-identity-auth:not([data-authenticated="true"]) > .admin-header .language-switcher { margin-left: auto; color: #bfc5cf; }
+.staff-identity-auth:not([data-authenticated="true"]) > .admin-header .office-public-link { color: #bfc5cf; margin-left: 0; font-weight: 500; }
+.staff-identity-auth:not([data-authenticated="true"]) .language-switcher summary:hover,
+.staff-identity-auth:not([data-authenticated="true"]) .language-switcher[open] summary { background: #2a2a2a; }
+.staff-identity-auth:not([data-authenticated="true"]) .language-options { background: #292929; color: #e6e9ef; border-color: #434343; box-shadow: 0 12px 32px #0003; }
+.staff-identity-auth:not([data-authenticated="true"]) .language-options a:hover,
+.staff-identity-auth:not([data-authenticated="true"]) .language-options a[aria-current] { background: #343c48; color: #a9ceff; }
+.staff-identity-auth:not([data-authenticated="true"]) .language-options small { color: #bfc5cf; }
+.staff-identity-auth:not([data-authenticated="true"]) > main {
+  min-height: calc(100svh - 72px);
+  padding: clamp(20px, 5vh, 54px) 16px 48px;
+}
+.staff-auth-portal {
+  --staff-auth-accent: #2171df;
+  --staff-auth-muted: #a8abb2;
+  width: min(100%, 520px);
+  margin: 0 auto;
+  color: #f2f4f7;
+  color-scheme: dark;
+}
+.staff-auth-card { background: #202020; border: 1px solid #393939; border-radius: 22px; padding: 40px 48px 44px; }
 .staff-auth-portal [hidden], .staff-auth-portal[hidden] { display: none !important; }
-.staff-auth-brand { text-align: center; margin-bottom: 1.5rem; }
-.staff-auth-brand img { display: block; object-fit: contain; margin: 0 auto 0.85rem; }
-.staff-auth-brand .eyebrow { margin-bottom: 0.4rem; }
-.staff-auth-brand h1 { font-size: 1.4rem; margin: 0; }
-.staff-auth-portal h2 { margin: 0 0 0.8rem; font-size: 1.15rem; }
-.staff-auth-portal form { display: grid; gap: 0.65rem; }
-.staff-auth-portal label { font-size: 0.88rem; font-weight: 650; }
-.staff-auth-portal input:not([type="checkbox"]) { min-width: 0; width: 100%; min-height: 46px; border: 1px solid #bccbdd; border-radius: 7px; background: #fff; padding: 0.65rem 0.8rem; color: #0b2447; font: inherit; }
-.staff-auth-portal input[aria-invalid="true"] { border-color: #b42336; }
-.staff-auth-portal :is(input, button, a):focus-visible { outline: 3px solid #2283e5; outline-offset: 3px; }
-.staff-auth-portal .admin-help { margin: 0 0 0.6rem; font-size: 0.8rem; line-height: 1.65; color: #526579; }
-.staff-auth-portal form > .admin-primary { width: 100%; min-height: 46px; margin-top: 0.65rem; }
-.staff-password-field { display: flex; align-items: stretch; gap: 0.45rem; }
-.staff-password-field > input { flex: 1; }
-.staff-password-field > button { flex: 0 0 auto; min-width: 52px; border: 1px solid #bccbdd; border-radius: 7px; background: #f4f7fc; font-size: 0.78rem; color: #0b2447; padding: 0.5rem; cursor: pointer; }
-.staff-auth-portal .staff-auth-consent { display: flex; gap: 0.65rem; align-items: flex-start; font-weight: 400; line-height: 1.65; margin: 0.6rem 0; }
-.staff-auth-consent input { flex: 0 0 auto; width: 1.1rem; height: 1.1rem; margin-top: 0.3rem; accent-color: #1265c7; }
-.staff-auth-alternate { display: flex; align-items: center; justify-content: space-between; gap: 1rem; border-top: 1px solid #e5ebf3; margin-top: 1.5rem; padding-top: 1.2rem; font-size: 0.82rem; }
-.staff-auth-text-button { display: block; background: none; border: 0; color: #1265c7; text-decoration: underline; text-underline-offset: 3px; padding: 0.7rem 0; cursor: pointer; font: inherit; font-size: 0.85rem; }
-.staff-auth-help { display: block; margin-top: 1.3rem; text-align: center; color: #526579; font-size: 0.8rem; text-decoration: underline; text-underline-offset: 3px; }
-.staff-auth-message:not(:empty) { margin-bottom: 1.2rem; padding: 0.8rem; border-radius: 6px; background: #eef5ff; color: #0b417c; font-size: 0.85rem; line-height: 1.6; overflow-wrap: anywhere; }
-.staff-auth-message[data-error="true"] { background: #fff0f1; color: #a51e30; }
-.staff-account-state { display: grid; grid-template-columns: minmax(5.5rem, auto) minmax(0, 1fr); gap: 0.75rem 1rem; font-size: 0.87rem; margin: 1.2rem 0; }
-.staff-account-state dt { color: #526579; }
-.staff-account-state dd { margin: 0; overflow-wrap: anywhere; white-space: pre-wrap; }
-.staff-auth-portal button:disabled { cursor: wait; opacity: 0.65; }
+.staff-auth-brand {
+  display: grid;
+  grid-template-columns: 56px max-content;
+  align-items: center;
+  justify-content: center;
+  gap: 0 14px;
+  text-align: left;
+  margin-bottom: 36px;
+}
+.staff-auth-brand img { display: block; width: 56px; height: 56px; object-fit: contain; grid-row: 1 / span 2; border-radius: 50%; }
+.staff-auth-brand .eyebrow { margin: 0; color: #f3f5fa; font-size: 17px; font-weight: 700; line-height: 1.5; letter-spacing: 0.16em; }
+.staff-auth-brand h1 { margin: 2px 0 0; color: var(--staff-auth-muted); font-size: 12px; font-weight: 400; line-height: 1.5; }
+.staff-auth-portal h2 { margin: 0 0 14px; color: #f2f4f7; font-size: 18px; line-height: 1.5; }
+.staff-auth-portal form { display: grid; gap: 12px; }
+/* 보이는 입력 안내는 placeholder로 간결하게 표현하고 연결된 label은 보조기기에 유지합니다. */
+.staff-auth-sr-only, .staff-auth-portal form > label:not(.staff-auth-consent) {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+.staff-auth-portal input:not([type="checkbox"]) {
+  min-width: 0;
+  width: 100%;
+  min-height: 58px;
+  padding: 14px 3px;
+  border: 0;
+  border-bottom: 1px solid #6b6b6b;
+  border-radius: 0;
+  background: transparent;
+  color: #f3f5f8;
+  font: inherit;
+  font-size: 16px;
+  line-height: 1.5;
+  box-shadow: none;
+}
+.staff-auth-portal input::placeholder { color: #d9dde4; opacity: 1; }
+.staff-auth-portal input:not([type="checkbox"]):focus { border-bottom-color: #84b9ff; }
+.staff-auth-portal input:not([type="checkbox"]):disabled { background: transparent; color: var(--staff-auth-muted); }
+.staff-auth-portal input:-webkit-autofill { -webkit-text-fill-color: #f3f5f8; caret-color: #f3f5f8; -webkit-box-shadow: 0 0 0 1000px #202020 inset; }
+.staff-auth-portal input[aria-invalid="true"] { border-bottom-color: #ff9ba6; }
+.staff-auth-portal :is(input, button, a):focus-visible { outline: 2px solid #84b9ff; outline-offset: 4px; }
+.staff-auth-portal .admin-help { margin: 0 0 8px; color: var(--staff-auth-muted); font-size: 12px; line-height: 1.7; }
+.staff-auth-portal .admin-primary {
+  display: flex;
+  width: 100%;
+  min-height: 52px;
+  padding: 13px 18px;
+  border: 1px solid var(--staff-auth-accent);
+  border-radius: 8px;
+  background: var(--staff-auth-accent);
+  color: #fff;
+  font-size: 16px !important;
+  font-weight: 700;
+}
+.staff-auth-portal form > .admin-primary { margin-top: 22px; }
+.staff-auth-portal .admin-primary:hover { background: #1767d6; border-color: #1767d6; }
+.staff-auth-portal .admin-secondary { min-height: 44px; margin-top: 12px; border-color: #727272; background: #2b2b2b; color: #e8ebf1; }
+.staff-auth-portal .admin-secondary:hover { background: #353535; border-color: #727272; }
+.staff-password-field { display: flex; align-items: center; gap: 10px; min-width: 0; border-bottom: 1px solid #6b6b6b; }
+.staff-password-field:focus-within { border-bottom-color: #84b9ff; }
+.staff-password-field:has([aria-invalid="true"]) { border-bottom-color: #ff9ba6; }
+.staff-auth-portal .staff-password-field > input { flex: 1; border-bottom: 0; }
+.staff-password-field > button { flex: 0 0 auto; min-width: 44px; min-height: 44px; padding: 8px 3px; border: 0; border-radius: 4px; background: transparent; color: #c1c8d3; font-size: 12px; cursor: pointer; }
+.staff-password-field > button:hover { color: #fff; }
+.staff-auth-portal .staff-auth-consent { display: flex; flex-direction: row; align-items: flex-start; gap: 10px; margin: 12px 0 6px; color: #c9cdd5; font-size: 12px; font-weight: 400; line-height: 1.8; }
+.staff-auth-consent input { flex: 0 0 auto; width: 18px; height: 18px; margin-top: 3px; accent-color: var(--staff-auth-accent); }
+.staff-auth-alternate { display: grid; gap: 8px; border-top: 1px solid #3b3b3b; margin-top: 24px; padding-top: 20px; }
+.staff-auth-text-button { display: block; min-height: 44px; padding: 10px 0; border: 0; background: transparent; color: #b1d1ff; font: inherit; font-size: 13px; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+.staff-auth-footer { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 6px 0; padding-top: 18px; color: #c3c8d0; }
+.staff-auth-footer > :is(button, a) { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; padding: 8px 15px; border: 0; background: transparent; color: inherit; font-size: 13px; line-height: 1.5; text-decoration: none; cursor: pointer; }
+.staff-auth-footer > :is(button, a):hover { color: #fff; text-decoration: underline; text-underline-offset: 3px; }
+.staff-auth-footer [data-staff-show] { display: none; }
+.staff-auth-portal:has([data-staff-panel="login"]:not([hidden])) .staff-auth-signup-link,
+.staff-auth-portal:has([data-staff-panel="signup"]:not([hidden])) .staff-auth-back-link { display: inline-flex; }
+.staff-auth-portal:has([data-staff-panel="login"]:not([hidden])) .staff-auth-signup-link { color: #82b5ff; }
+.staff-auth-message:not(:empty) { margin-bottom: 20px; padding: 12px 14px; border: 1px solid #3a5679; border-radius: 8px; background: #213247; color: #d5e6fc; font-size: 13px; line-height: 1.7; overflow-wrap: anywhere; }
+.staff-auth-message[data-error="true"] { border-color: #79464c; background: #3e272a; color: #ffd7dc; }
+.staff-account-state { display: grid; grid-template-columns: minmax(90px, auto) minmax(0, 1fr); gap: 12px 16px; font-size: 13px; margin: 20px 0; }
+.staff-account-state dt { color: var(--staff-auth-muted); }
+.staff-account-state dd { margin: 0; color: #f2f4f7; overflow-wrap: anywhere; white-space: pre-wrap; }
+.staff-auth-portal button:disabled { cursor: wait; opacity: 0.55; }
 .staff-auth-help-layout .admin-header { flex-wrap: wrap; }
-@media (max-width: 480px) { .staff-auth-portal { width: calc(100% - 1.25rem); padding: 1.25rem; } .staff-auth-brand h1 { font-size: 1.25rem; } .staff-account-state { grid-template-columns: 1fr; gap: 0.25rem; } .staff-account-state dd { margin-bottom: 0.65rem; } }
+.staff-auth-help-layout .staff-auth-card > .admin-help:last-child { margin-top: 20px; }
+@media (max-width: 540px) {
+  .staff-identity-auth:not([data-authenticated="true"]) > .admin-header { min-height: 60px; padding: 8px 16px; gap: 14px; }
+  .staff-identity-auth:not([data-authenticated="true"]) > main { min-height: calc(100svh - 60px); padding: 14px 16px 32px; }
+  .staff-auth-card { padding: 30px 26px 34px; border-radius: 20px; }
+  .staff-auth-brand { grid-template-columns: 48px max-content; gap: 0 12px; margin-bottom: 28px; }
+  .staff-auth-brand img { width: 48px; height: 48px; }
+  .staff-auth-brand .eyebrow { font-size: 15px; }
+  .staff-auth-brand h1 { font-size: 11px; }
+  .staff-auth-footer > :is(button, a) { padding-inline: 11px; font-size: 12px; }
+  .staff-account-state { grid-template-columns: 1fr; gap: 4px; }
+  .staff-account-state dd { margin-bottom: 10px; }
+}
