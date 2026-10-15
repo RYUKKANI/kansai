@@ -244,6 +244,8 @@ export function mountStaffAuth({ client, notice, refresh }: StaffAuthOptions) {
       show("migration");
       const element = form("enroll");
       field(element, "username").value = state.username ?? "";
+      // 기존 계정에 연결된 아이디는 다시 배정하지 않습니다. 미등록 실명·업무·안내 확인만 받습니다.
+      field(element, "username").readOnly = Boolean(state.username);
       field(element, "real_name").value = state.real_name ?? "";
       field(element, "department").value = state.department ?? "";
       field(element, "notice_accepted").checked = false;
