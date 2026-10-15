@@ -1,0 +1,281 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
+import { build } from "esbuild";
+import { JSDOM } from "jsdom";
+
+// [편집 안내] 실제 양식 마크업과 실제 브라우저 컨트롤러를 함께 검사합니다.
+// 네트워크 경계만 대체하므로 메일 발송이나 운영 계정 변경은 발생하지 않습니다.
+const portalSource = await readFile("src/components/admin/StaffAuthPortal.astro", "utf8");
+const helpSource = await readFile("src/pages/admin/help.astro", "utf8");
+function markup(source) {
+  return source.replace(/^---[\s\S]*?---/, "")
+    .replace(/src=\{asset\(club.logo\)\}/g, 'src="/assets/club-profile.jpg"')
+    .replace(/href=\{help\}/g, 'href="/admin/help/"')
+    .replace(/<script[\s\S]*?<\/script>/g, "");
+}
+const defines = {
+  "import.meta.env.BASE_URL": '"/"',
+  "import.meta.env.PUBLIC_SUPABASE_URL": '""',
+  "import.meta.env.PUBLIC_SUPABASE_PUBLISHABLE_KEY": '""',
+};
+const [portalBundle, helpBundle, languageBundle] = await Promise.all([
+  build({ entryPoints: ["src/scripts/staff-auth.ts"], bundle: true, write: false, format: "iife", globalName: "StaffAuth", define: defines }),
+  build({ entryPoints: ["src/scripts/staff-auth-help.ts"], bundle: true, write: false, format: "iife", globalName: "StaffHelp", define: defines }),
+  build({ entryPoints: ["src/scripts/languages.ts"], bundle: true, write: false, format: "iife", globalName: "StaffLanguages", define: defines }),
+]);
+async function eventually(condition) {
+  for (let n = 0; n < 100; n++) {
+    if (condition()) return;
+    await new Promise((resolve) => setTimeout(resolve, 5));
+  }
+  assert.ok(condition(), "Authentication UI did not reach expected state");
+}
+function application({ help = false, invoke, getUser, language = "ja", query = "" } = {}) {
+  const html = help
+    ? markup(helpSource).replace(/data-enabled=\{String\(enabled\)\}/g, 'data-enabled="false"')
+    : markup(portalSource);
+  const dom = new JSDOM(html, { url: `https://kansaiunited.com/admin/${help ? "help/" : ""}?lang=${language}${query}`, runScripts: "outside-only", pretendToBeVisual: true });
+  const { window } = dom;
+  Object.assign(window, { Response, Request, Headers });
+  const requests = [];
+  const sessions = [];
+  let refreshCount = 0;
+  let getUserCount = 0;
+  let signOutCount = 0;
+  let authListener;
+  const client = {
+    functions: { async invoke(name, options) {
+      requests.push({ name, body: structuredClone(options.body), headers: options.headers });
+      return invoke ? invoke(options.body) : { data: { success: true }, error: null };
+    } },
+    auth: {
+      async resetPasswordForEmail(email) {
+        requests.push({ name: "auth.recovery", body: { action: "recovery", email } });
+        return { data: {}, error: null };
+      },
+      async setSession(session) { sessions.push(session); return { data: {}, error: null }; },
+      async getSession() { return { data: { session: { access_token: "verified-staff-token" } }, error: null }; },
+      async getUser() { getUserCount++; return getUser ? getUser() : { data: { user: { id: "unchanged-user-id" } }, error: null }; },
+      async signOut() { signOutCount++; authListener?.("SIGNED_OUT"); return { error: null }; },
+      onAuthStateChange(listener) { authListener = listener; return { data: { subscription: { unsubscribe() {} } } }; },
+    },
+  };
+  window.eval(languageBundle.outputFiles[0].text + "\nStaffLanguages.initLanguageSwitcher(true);");
+  window.eval((help ? helpBundle : portalBundle).outputFiles[0].text + `\nwindow.__staffModule = ${help ? "StaffHelp" : "StaffAuth"};`);
+  const controller = help
+    ? window.__staffModule.mountStaffAuthHelp({ root: window.document.querySelector("#staff-auth-help"), client })
+    : window.__staffModule.mountStaffAuth({ client, notice() {}, async refresh() { refreshCount++; } });
+  if (!help) controller.showLogin();
+  const document = window.document;
+  const set = (form, entries) => {
+    const element = document.querySelector(form);
+    for (const [key, value] of Object.entries(entries)) {
+      const input = element.elements.namedItem(key);
+      if (input.type === "checkbox") input.checked = value;
+      else input.value = value;
+    }
+  };
+  const submit = (selector) => document.querySelector(selector).dispatchEvent(new window.Event("submit", { bubbles: true, cancelable: true }));
+  return { dom, window, document, controller, requests, sessions, set, submit,
+    counts: () => ({ refresh: refreshCount, getUser: getUserCount, signOut: signOutCount }),
+    emit: (event) => authListener?.(event, { access_token: "verified-recovery-token" }),
+  };
+}
+const signup = { username: "Staff.Name", password: "correct-password-123", password_confirmation: "correct-password-123", real_name: "金 さくら Ana-María", department: "コーチ / Staff", email: "staff@example.invalid", notice_accepted: true };
+const account = { user_id: "unchanged-user-id", username: "staff.name", real_name: "金 さくら Ana-María", department: "コーチ", approval_status: "pending", email_confirmed: true, role: null, active: true, identity_enrolled: true, name_verified_at: null, name_verified_by: null, legacy_account: false, name_request: null };
+
+test("ID login normalizes case, clears passwords and prevents duplicate submissions", async () => {
+  let resolve;
+  const app = application({ invoke: () => new Promise((done) => { resolve = done; }) });
+  try {
+    app.set("#staff-login-form", { username: "STAFF.Name", password: "secret-password" });
+    const toggle = app.document.querySelector('[data-password-toggle="staff-login-password"]');
+    toggle.click();
+    assert.equal(app.document.querySelector("#staff-login-password").type, "text");
+    assert.equal(toggle.getAttribute("aria-pressed"), "true");
+    app.submit("#staff-login-form");
+    app.submit("#staff-login-form");
+    assert.equal(app.requests.length, 1);
+    assert.deepEqual(app.requests[0].body, { action: "login", username: "staff.name", password: "secret-password" });
+    assert.equal(app.document.querySelector("#staff-login-password").value, "");
+    assert.equal(app.document.querySelector("#staff-login-password").type, "password");
+    assert.equal(app.document.querySelector('#staff-login-form button[type="submit"]').disabled, true);
+    resolve({ data: { session: { access_token: "verified-access", refresh_token: "verified-refresh" } }, error: null });
+    await eventually(() => app.counts().refresh === 1);
+    assert.equal(app.sessions.length, 1);
+    assert.equal(app.sessions[0].access_token, "verified-access");
+    assert.equal(app.document.querySelector("#staff-login-form").hasAttribute("aria-busy"), false);
+  } finally { app.dom.window.close(); }
+});
+
+test("authentication errors remain generic and focus an accessible error; retry unlocks", async () => {
+  const app = application({ invoke: async () => ({ error: { context: Response.json({ error: "rate_limited", email: "secret@example.invalid", message: "secret key" }, { status: 429 }) } }) });
+  try {
+    app.set("#staff-login-form", { username: "staff.name", password: "secret-password" });
+    app.submit("#staff-login-form");
+    await eventually(() => app.document.querySelector("#staff-auth-message").dataset.error === "true");
+    const message = app.document.querySelector("#staff-auth-message");
+    assert.match(message.textContent, /試行回数/);
+    assert.doesNotMatch(message.textContent, /secret/);
+    assert.equal(message.getAttribute("role"), "alert");
+    assert.equal(app.document.activeElement, message);
+    assert.equal(app.document.querySelector('#staff-login-form button[type="submit"]').disabled, false);
+    assert.equal(app.sessions.length, 0);
+  } finally { app.dom.window.close(); }
+});
+
+test("a login response received after the controller resets cannot restore the old session", async () => {
+  let resolve;
+  const app = application({ invoke: () => new Promise((done) => { resolve = done; }) });
+  try {
+    app.set("#staff-login-form", { username: "staff.name", password: "secret-password" });
+    app.submit("#staff-login-form");
+    app.controller.showLogin();
+    resolve({ data: { session: { access_token: "old-access", refresh_token: "old-refresh" } }, error: null });
+    await eventually(() => !app.document.querySelector('#staff-login-form button[type="submit"]').disabled);
+    assert.equal(app.sessions.length, 0);
+    assert.equal(app.counts().refresh, 0);
+  } finally { app.dom.window.close(); }
+});
+
+test("registration checks confirmation and sends Unicode real names without granting a role", async () => {
+  const app = application();
+  try {
+    app.document.querySelector('[data-staff-show="signup"]').click();
+    app.set("#staff-signup-form", { ...signup, password_confirmation: "different-password" });
+    app.submit("#staff-signup-form");
+    await eventually(() => app.document.querySelector("#staff-signup-confirm").getAttribute("aria-invalid") === "true");
+    assert.equal(app.requests.length, 0);
+    assert.equal(app.document.activeElement.id, "staff-signup-confirm");
+    app.set("#staff-signup-form", signup);
+    app.submit("#staff-signup-form");
+    await eventually(() => app.requests.length === 1 && app.document.querySelector('[data-staff-panel="signup"]').hidden);
+    const body = app.requests[0].body;
+    assert.equal(body.username, "staff.name");
+    assert.equal(body.real_name, signup.real_name);
+    assert.equal(body.department, signup.department);
+    assert.equal(body.notice_accepted, true);
+    assert.equal(body.password_confirmation, signup.password_confirmation);
+    for (const key of ["role", "actor_id", "user_id", "approval_status", "desired_role"]) assert.equal(key in body, false);
+    assert.equal(app.sessions.length, 0);
+    assert.equal(app.document.querySelector("#staff-signup-password").value, "");
+  } finally { app.dom.window.close(); }
+});
+
+test("pending accounts display only their own state and never interpret a real name as markup", () => {
+  const app = application();
+  try {
+    app.controller.showAccount({ ...account, real_name: '<img src="x" onerror="alert(1)">', email_confirmed: false });
+    const list = app.document.querySelector("#staff-account-state");
+    assert.ok(list.textContent.includes('<img src="x"'));
+    assert.equal(list.querySelector("img"), null);
+    assert.match(list.textContent, /承認待ち/);
+    assert.match(list.textContent, /未確認/);
+    assert.equal(app.requests.length, 0);
+    assert.equal(app.document.querySelector('[data-staff-panel="login"]').hidden, true);
+    assert.equal(app.document.querySelector("#staff-account-enroll").hidden, true);
+  } finally { app.dom.window.close(); }
+});
+
+for (const [language, heading, status] of [["ja", "関係者アカウント", "承認待ち"], ["ko", "관계자 계정", "승인 대기"], ["en", "Club member account", "Awaiting approval"]]) {
+  test(`the ${language} UI translates labels and status while preserving the original real name`, () => {
+    const app = application({ language });
+    try {
+      assert.equal(app.document.documentElement.lang, language);
+      assert.equal(app.document.querySelector("#staff-auth-heading").textContent, heading);
+      app.controller.showAccount(account);
+      assert.ok(app.document.querySelector("#staff-account-state").textContent.includes(account.real_name));
+      assert.ok(app.document.querySelector("#staff-account-state").textContent.includes(status));
+    } finally { app.dom.window.close(); }
+  });
+}
+
+test("legacy enrollment verifies the existing user and sends identity fields without a replacement UUID", async () => {
+  const app = application({ invoke: async () => ({ data: { success: true, account }, error: null }) });
+  try {
+    app.controller.showMigration({ ...account, username: null, real_name: null, department: null, role: "owner", legacy_account: true, identity_enrolled: false });
+    assert.equal(app.document.querySelector("#staff-enroll-real-name").value, "");
+    app.set("#staff-enroll-form", { username: "OWNER-Name", real_name: "山田 太郎", department: "Owner", notice_accepted: true });
+    app.submit("#staff-enroll-form");
+    await eventually(() => app.counts().refresh === 1);
+    assert.equal(app.counts().getUser, 1);
+    assert.deepEqual(app.requests[0].body, { action: "enroll", username: "owner-name", real_name: "山田 太郎", department: "Owner", notice_accepted: true });
+    assert.equal(app.requests[0].headers.Authorization, "Bearer verified-staff-token");
+    assert.equal(app.sessions.length, 0);
+  } finally { app.dom.window.close(); }
+});
+
+test("a recovery query alone cannot enable password updates even with an existing browser session", async () => {
+  const app = application({ help: true, query: "&type=recovery&access_token=untrusted" });
+  try {
+    assert.equal(app.document.querySelector("#staff-new-password-panel").hidden, true);
+    app.set("#staff-new-password-form", { password: "new-password-123", password_confirmation: "new-password-123" });
+    app.submit("#staff-new-password-form");
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    assert.equal(app.requests.length, 0);
+    assert.equal(app.counts().getUser, 0);
+    app.emit("SIGNED_IN");
+    assert.equal(app.document.querySelector("#staff-new-password-panel").hidden, true);
+  } finally { app.dom.window.close(); }
+});
+
+test("verified Auth recovery enables password update, clears credentials and closes recovery session", async () => {
+  const app = application({ help: true, query: "&type=recovery#access_token=transient-token" });
+  try {
+    app.emit("PASSWORD_RECOVERY");
+    await eventually(() => !app.document.querySelector("#staff-new-password-panel").hidden);
+    assert.equal(app.counts().getUser, 1);
+    assert.equal(app.window.location.hash, "");
+    assert.equal(new URL(app.window.location.href).searchParams.has("type"), false);
+    app.set("#staff-new-password-form", { password: "new-password-123", password_confirmation: "new-password-123" });
+    app.submit("#staff-new-password-form");
+    await eventually(() => app.counts().signOut === 1);
+    assert.deepEqual(app.requests[0].body, { action: "set_password", password: "new-password-123", password_confirmation: "new-password-123" });
+    assert.equal(app.counts().getUser, 2);
+    assert.equal(app.requests[0].headers.Authorization, "Bearer verified-recovery-token");
+    assert.equal(app.document.querySelector("#staff-new-password").value, "");
+    assert.equal(app.document.querySelector("#staff-new-password-panel").hidden, true);
+  } finally { app.dom.window.close(); }
+});
+
+test("invalidated recovery session cannot expose the password form after a delayed user check", async () => {
+  let resolve;
+  const app = application({ help: true, getUser: () => new Promise((done) => { resolve = done; }) });
+  try {
+    app.emit("PASSWORD_RECOVERY");
+    await eventually(() => Boolean(resolve));
+    app.emit("SIGNED_OUT");
+    resolve({ data: { user: { id: "old-session" } }, error: null });
+    await new Promise((done) => setTimeout(done, 10));
+    assert.equal(app.document.querySelector("#staff-new-password-panel").hidden, true);
+    assert.equal(app.requests.length, 0);
+  } finally { app.dom.window.close(); }
+});
+
+test("signing in to another account clears an already verified recovery form", async () => {
+  const app = application({ help: true });
+  try {
+    app.emit("PASSWORD_RECOVERY");
+    await eventually(() => !app.document.querySelector("#staff-new-password-panel").hidden);
+    app.set("#staff-new-password-form", { password: "new-password-123", password_confirmation: "new-password-123" });
+    app.emit("SIGNED_IN");
+    assert.equal(app.document.querySelector("#staff-new-password-panel").hidden, true);
+    assert.equal(app.document.querySelector("#staff-new-password").value, "");
+    app.set("#staff-new-password-form", { password: "new-password-123", password_confirmation: "new-password-123" });
+    app.submit("#staff-new-password-form");
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    assert.equal(app.requests.length, 0);
+  } finally { app.dom.window.close(); }
+});
+
+test("recovery requests use only the email and show an enumeration-safe receipt", async () => {
+  const app = application({ help: true });
+  try {
+    app.set("#staff-recovery-form", { email: "private@example.invalid" });
+    app.submit("#staff-recovery-form");
+    await eventually(() => app.requests.length === 1 && app.document.querySelector("#staff-help-message").textContent.includes("送信を受け付けました"));
+    assert.deepEqual(app.requests[0].body, { action: "recovery", email: "private@example.invalid" });
+    assert.doesNotMatch(app.document.querySelector("#staff-help-message").textContent, /private@example/);
+  } finally { app.dom.window.close(); }
+});
