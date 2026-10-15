@@ -82,7 +82,7 @@ function chooseFile(ctx) {
 test("new player form includes full profile, file upload and consent together", async () => {
   const ctx = await app(
     "owner",
-    "https://ryukkani.github.io/kansai/admin/?lang=ko",
+    "https://kansaiunited.com/admin/?lang=ko",
   );
   try {
     const d = await open(ctx);
@@ -217,7 +217,7 @@ test("file upload waits for save and is reused when an atomic save fails", async
   let uploads = 0;
   const ctx = await app(
     "owner",
-    "https://ryukkani.github.io/kansai/admin/?lang=ko",
+    "https://kansaiunited.com/admin/?lang=ko",
     {
       rpc: (name, values) => {
         if (name !== "save_player_office") return {};
