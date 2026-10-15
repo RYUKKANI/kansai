@@ -211,6 +211,71 @@
   color: #334b69;
   font-weight: 600;
 }
+/* Owner 계정 창은 native dialog의 포커스 제한을 사용합니다. 좁은 화면에서는 창 안에서 스크롤합니다. */
+.owner-account-dialog {
+  box-sizing: border-box;
+  width: min(680px, calc(100vw - 2rem));
+  max-height: calc(100dvh - 2rem);
+  overflow-y: auto;
+  overflow-wrap: anywhere;
+  padding: clamp(1rem, 3vw, 1.5rem);
+  border: 1px solid #bac8db;
+  border-radius: 12px;
+  color: #172b49;
+  background: #fff;
+}
+.owner-account-dialog::backdrop {
+  background: rgb(10 24 46 / 65%);
+}
+.owner-account-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+.owner-account-header h2 {
+  margin: 0;
+  font-size: 1.1rem;
+}
+.owner-account-close {
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid #bac8db;
+  border-radius: 7px;
+  color: #132b51;
+  background: #f6f8fc;
+  cursor: pointer;
+}
+.owner-account-body {
+  display: grid;
+  gap: 0.75rem;
+  min-width: 0;
+}
+.owner-account-dialog :focus-visible {
+  outline: 3px solid #57a6ff;
+  outline-offset: 3px;
+}
+.owner-account-dialog .staff-form > p,
+.owner-account-dialog .staff-form > .staff-checkbox,
+.owner-account-form > h3 {
+  grid-column: 1 / -1;
+}
+.owner-account-form > h3 { margin: 0; font-size: 1rem; }
+.owner-account-help,
+.owner-account-notice { color: #52637b; line-height: 1.65; font-size: 0.88rem; }
+.owner-account-notice[data-error="true"] { color: #a13131; }
+.owner-account-reveal {
+  min-height: 44px;
+  justify-self: start;
+  border: 1px solid #bac8db;
+  border-radius: 7px;
+  padding: 0.5rem 0.85rem;
+  background: #f6f8fc;
+  color: #132b51;
+  cursor: pointer;
+}
 @media (max-width: 640px) {
   .staff-details,
   .staff-form {
