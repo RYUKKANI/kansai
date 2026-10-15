@@ -10,6 +10,8 @@ const { recoverAuthEmail } = await typescriptModule("supabase/functions/staff-au
 const { createRegistrationCaptchaVerifier } = await typescriptModule("supabase/functions/staff-auth/registration-captcha.ts");
 const { createLegacyInviteHandler } = await typescriptModule("supabase/functions/invite-staff/handler.ts");
 const USER = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+const TARGET = "dddddddd-dddd-4ddd-8ddd-dddddddddddd";
+const OPERATION = "cccccccc-cccc-4ccc-8ccc-cccccccccccc";
 const EMAIL = "current-address@example.invalid";
 const NOW = 1_792_000_000_000;
 const CHALLENGE = "A".repeat(43);
@@ -29,6 +31,7 @@ function fixture(overrides = {}) {
   const calls = [];
   const counters = new Map();
   const reservationNames = new Set();
+  const operations = new Map();
   const rpc = async (name, args) => {
     calls.push({ type: "rpc", name, args });
     if (overrides.rpc) {
@@ -49,6 +52,28 @@ function fixture(overrides = {}) {
     }
     if (name === "staff_auth_finalize") return ok(null);
     if (name === "office_enroll_identity") return ok({ user_id: USER, username: args.p_username, approval_status: "approved" });
+    if (name === "office_owner_begin_password_reset") {
+      if (overrides.ownerRole && overrides.ownerRole !== "owner" || overrides.sessionRevoked || ![USER, TARGET].includes(args.p_user_id)) return bad("42501");
+      let operation = operations.get(args.p_operation_id);
+      if (operation && (operation.target_user_id !== args.p_user_id || operation.reason !== args.p_reason)) return bad("23505");
+      if (!operation) {
+        operation = { operation_id: args.p_operation_id, target_user_id: args.p_user_id, actor_id: USER, state: "requested", reason: args.p_reason, expires_at: new Date(NOW + 300000).toISOString() };
+        operations.set(args.p_operation_id, operation);
+      }
+      return ok({ ...operation });
+    }
+    if (name === "staff_auth_owner_password_claim") {
+      const operation = operations.get(args.p_operation_id);
+      if (!operation || operation.actor_id !== args.p_actor_id || operation.state !== "requested") return bad("P0001");
+      operation.state = "executing";
+      return ok({ ...operation });
+    }
+    if (name === "staff_auth_owner_password_finish") {
+      const operation = operations.get(args.p_operation_id);
+      if (!operation || operation.actor_id !== args.p_actor_id) return bad("42501");
+      operation.state = args.p_state;
+      return ok(null);
+    }
     throw new Error(`Unexpected test RPC ${name}`);
   };
   const auth = Object.fromEntries(["getUser", "getClaims", "signInWithPassword", "signUp", "resetPasswordForEmail", "signInWithOtp", "signOut", "updateUser"].map(method => [method, async (...args) => {
@@ -62,17 +87,24 @@ function fixture(overrides = {}) {
   auth.admin = { createUser: async input => {
     calls.push({ type: "auth", method: "admin.createUser", args: [input] });
     return overrides.createUser ? overrides.createUser(input) : ok({ user: { id: USER, email: input.email, email_confirmed_at: new Date(NOW).toISOString(), app_metadata: input.app_metadata } });
+  }, updateUserById: async (userId, input) => {
+    calls.push({ type: "auth", method: "admin.updateUserById", args: [userId, input] });
+    return overrides.updateUserById ? overrides.updateUserById(userId, input) : ok({ user: { id: userId, email: EMAIL } });
   } };
   const client = { rpc, auth };
   const handler = createGateway({ service: client, config: configuration(overrides.config), authClient: ip => { calls.push({ type: "client", ip }); return client; }, userClient: (token, ip) => { calls.push({ type: "userClient", token, ip }); return client; }, verifyRegistrationCaptcha: async input => { calls.push({ type: "captcha" }); return overrides.verifyRegistrationCaptcha ? overrides.verifyRegistrationCaptcha(input) : "passed"; }, now: () => NOW });
   const send = (body, headers = {}, init = {}) => handler(new Request("https://auth.example.invalid/functions/v1/staff-auth", {
     method: "POST", headers: { "content-type": "application/json", origin: "https://club.example.invalid", ...headers }, body: JSON.stringify(body), ...init,
   }));
-  return { calls, counters, handler, send, client };
+  return { calls, counters, handler, send, client, operations };
 }
 const registration = overrides => ({ action: "register", username: "Kansai.Owner", password: "safe-test-password-only", password_confirmation: "safe-test-password-only", real_name: "田中  류컁이 José-Anne", department: "コーチ / 운영", email: "new-account@example.invalid", notice_accepted: true, ...overrides });
 const authCalls = fixture => fixture.calls.filter(call => call.type === "auth");
 const rpcCalls = (fixture, name) => fixture.calls.filter(call => call.type === "rpc" && (!name || call.name === name));
+const ownerClaims = (claims = {}) => ok({ claims: { sub: USER, aal: "aal1", amr: [{ method: "password", timestamp: NOW / 1000 }], ...claims } });
+const ownerFixture = (overrides = {}) => fixture({ getClaims: () => ownerClaims(), ...overrides });
+const ownerReset = (overrides = {}) => ({ action: "owner_reset_password", user_id: TARGET, operation_id: OPERATION, password: "new-password-for-member", password_confirmation: "new-password-for-member", reason: "本人確認後の依頼による初期化", ...overrides });
+const ownerHeaders = { authorization: "Bearer actual-owner-session-token" };
 
 test("existing UUID and current Auth email are preserved; public response contains only Auth session", async () => {
   const f = fixture();
@@ -404,6 +436,158 @@ test("failed password save is not reported as success", async () => {
   assert.deepEqual(await response.json(), { error: "password_update_failed" });
 });
 
+test("Owner reset binds an authenticated audited operation and sends only the new password to Auth Admin", async () => {
+  const f = ownerFixture();
+  const response = await f.send(ownerReset(), ownerHeaders);
+  assert.equal(response.status, 200);
+  assert.deepEqual(await response.json(), { success: true, code: "owner_password_reset_succeeded", operation_id: OPERATION });
+  const mutation = authCalls(f).find(call => call.method === "admin.updateUserById");
+  assert.deepEqual(mutation.args, [TARGET, { password: "new-password-for-member" }]);
+  assert.deepEqual(rpcCalls(f, "office_owner_begin_password_reset")[0].args, { p_user_id: TARGET, p_operation_id: OPERATION, p_reason: "本人確認後の依頼による初期化" });
+  assert.deepEqual(rpcCalls(f, "staff_auth_owner_password_claim")[0].args, { p_operation_id: OPERATION, p_actor_id: USER });
+  assert.deepEqual(rpcCalls(f, "staff_auth_owner_password_finish")[0].args, { p_operation_id: OPERATION, p_actor_id: USER, p_state: "succeeded" });
+  for (const call of rpcCalls(f)) assert.equal(JSON.stringify(call.args).includes("new-password-for-member"), false);
+  assert.equal(f.operations.get(OPERATION).target_user_id, TARGET);
+  assert.equal(authCalls(f).some(call => ["updateUser", "resetPasswordForEmail", "signInWithOtp", "admin.createUser"].includes(call.method)), false);
+});
+
+test("non-Owner, pending role and revoked current sessions cannot reach Owner Auth mutation", async () => {
+  for (const overrides of [{ ownerRole: "administrator" }, { ownerRole: "editor" }, { ownerRole: "pending" }, { sessionRevoked: true }]) {
+    const f = ownerFixture(overrides);
+    const response = await f.send(ownerReset(), ownerHeaders);
+    assert.equal(response.status, 403);
+    assert.deepEqual(await response.json(), { error: "owner_password_reset_denied", operation_id: OPERATION });
+    assert.equal(authCalls(f).some(call => call.method === "admin.updateUserById"), false);
+  }
+  const missing = ownerFixture();
+  assert.equal((await missing.send(ownerReset())).status, 401);
+  assert.equal(rpcCalls(missing, "office_owner_begin_password_reset").length, 0);
+  const revokedBetween = ownerFixture({ rpc: name => name === "staff_auth_owner_password_claim" ? bad("42501") : undefined });
+  assert.equal((await revokedBetween.send(ownerReset(), ownerHeaders)).status, 403);
+  assert.equal(authCalls(revokedBetween).some(call => call.method === "admin.updateUserById"), false);
+});
+
+test("privileged password reset requires recent signed authentication, not refreshed JWT time or a recovery claim", async () => {
+  for (const claims of [
+    { sub: "other-user" },
+    { amr: [{ method: "password", timestamp: NOW / 1000 - 901 }], iat: NOW / 1000 },
+    { amr: [{ method: "token_refresh", timestamp: NOW / 1000 }] },
+    { amr: [{ method: "recovery", timestamp: NOW / 1000 }] },
+    { amr: [{ method: "invite", timestamp: NOW / 1000 }] },
+    { amr: [{ method: "email/signup", timestamp: NOW / 1000 }] },
+    { amr: [{ method: "password", timestamp: NOW / 1000 + 61 }] },
+    { amr: [{ method: "password", timestamp: Infinity }] },
+    { amr: ["password", null] },
+  ]) {
+    const f = ownerFixture({ getClaims: () => ownerClaims(claims) });
+    const response = await f.send(ownerReset(), ownerHeaders);
+    assert.equal(response.status, 409);
+    assert.deepEqual(await response.json(), { error: "reauthentication_required", operation_id: OPERATION });
+    assert.equal(rpcCalls(f, "office_owner_begin_password_reset").length, 0);
+    assert.equal(authCalls(f).some(call => call.method === "admin.updateUserById"), false);
+  }
+  for (const method of ["password", "otp", "magiclink", "totp", "webauthn"]) {
+    const f = ownerFixture({ getClaims: () => ownerClaims({ amr: [{ method, timestamp: NOW / 1000 - 30 }] }) });
+    assert.equal((await f.send(ownerReset(), ownerHeaders)).status, 200);
+  }
+});
+
+test("Owner verified MFA requires signed AAL2 and malformed factor data fails closed", async () => {
+  for (const factors of [[{ status: "verified", factor_type: "totp" }], null, {}, [null], [{ status: "unknown" }], ["verified"]]) {
+    const f = ownerFixture({ getUser: () => ok({ user: { id: USER, factors } }) });
+    assert.equal((await f.send(ownerReset(), ownerHeaders)).status, 409);
+    assert.equal(authCalls(f).some(call => call.method === "admin.updateUserById"), false);
+  }
+  const strong = ownerFixture({ getUser: () => ok({ user: { id: USER, factors: [{ status: "verified", factor_type: "totp" }] } }), getClaims: () => ownerClaims({ aal: "aal2", amr: [{ method: "totp", timestamp: NOW / 1000 }] }) });
+  assert.equal((await strong.send(ownerReset(), ownerHeaders)).status, 200);
+});
+
+test("Owner reset rejects forged actor, role, target substitutions and secrets placed in audit reason", async () => {
+  for (const extra of [{ actor_id: TARGET }, { role: "owner" }, { user_metadata: { role: "owner" } }, { old_password: "must-not-request-old-password" }, { reason: "new-password-for-member" }, { operation_id: "not-a-uuid" }]) {
+    const f = ownerFixture();
+    assert.equal((await f.send(ownerReset(extra), ownerHeaders)).status, 400);
+    assert.equal(authCalls(f).some(call => call.method === "admin.updateUserById"), false);
+    assert.equal(rpcCalls(f, "office_owner_begin_password_reset").length, 0);
+  }
+  for (const name of ["office_owner_begin_password_reset", "staff_auth_owner_password_claim"]) {
+    const f = ownerFixture({ rpc: current => current === name ? ok({ operation_id: OPERATION, actor_id: USER, target_user_id: USER, state: current === "staff_auth_owner_password_claim" ? "executing" : "requested" }) : undefined });
+    assert.equal((await f.send(ownerReset(), ownerHeaders)).status, 409);
+    assert.equal(authCalls(f).some(call => call.method === "admin.updateUserById"), false);
+  }
+});
+
+test("the sole legacy Owner may reset their own password without changing UUID, email, metadata or role", async () => {
+  const f = ownerFixture();
+  const response = await f.send(ownerReset({ user_id: USER }), ownerHeaders);
+  assert.equal(response.status, 200);
+  assert.deepEqual(authCalls(f).find(call => call.method === "admin.updateUserById").args, [USER, { password: "new-password-for-member" }]);
+  assert.equal(f.operations.get(OPERATION).actor_id, USER);
+  assert.equal(f.operations.get(OPERATION).target_user_id, USER);
+  assert.equal(rpcCalls(f).some(call => /role|approve|delete/.test(call.name)), false);
+});
+
+test("one operation never calls Auth twice, including concurrency and terminal success replay with different input", async () => {
+  let started;
+  let finish;
+  const running = new Promise(resolve => { started = resolve; });
+  const f = ownerFixture({ updateUserById: userId => {
+    started();
+    return new Promise(resolve => { finish = () => resolve(ok({ user: { id: userId } })); });
+  } });
+  const first = f.send(ownerReset(), ownerHeaders);
+  await running;
+  const second = await f.send(ownerReset(), ownerHeaders);
+  assert.equal(second.status, 409);
+  finish();
+  assert.equal((await first).status, 200);
+  const replay = await f.send(ownerReset({ password: "different-new-password", password_confirmation: "different-new-password" }), ownerHeaders);
+  assert.deepEqual(await replay.json(), { success: true, code: "owner_password_reset_already_succeeded", operation_id: OPERATION });
+  assert.equal(authCalls(f).filter(call => call.method === "admin.updateUserById").length, 1);
+  const substitution = await f.send(ownerReset({ user_id: USER }), ownerHeaders);
+  assert.equal(substitution.status, 409);
+  assert.equal(f.operations.get(OPERATION).target_user_id, TARGET);
+});
+
+test("definite native rejection is audited as failed without returning provider details or retrying Auth", async () => {
+  for (const status of [400, 401, 403, 404, 409, 422, 429]) {
+    const f = ownerFixture({ updateUserById: () => ({ data: null, error: { status, message: `private ${EMAIL}` } }) });
+    const response = await f.send(ownerReset(), ownerHeaders);
+    assert.equal(response.status, 400);
+    assert.deepEqual(await response.json(), { error: "owner_password_reset_failed", operation_id: OPERATION });
+    assert.equal(f.operations.get(OPERATION).state, "failed");
+    assert.equal((await f.send(ownerReset(), ownerHeaders)).status, 400);
+    assert.equal(authCalls(f).filter(call => call.method === "admin.updateUserById").length, 1);
+  }
+});
+
+test("network, timeout, native 5xx and mismatched results are uncertain and never automatically retried", async () => {
+  for (const updateUserById of [
+    () => { throw new Error("network failed after Auth might commit"); },
+    () => ({ data: null, error: { status: 0 } }),
+    () => ({ data: null, error: { status: 408 } }),
+    () => ({ data: null, error: { status: 500 } }),
+    () => ok({ user: { id: USER } }),
+  ]) {
+    const f = ownerFixture({ updateUserById });
+    const response = await f.send(ownerReset(), ownerHeaders);
+    assert.equal(response.status, 409);
+    assert.deepEqual(await response.json(), { error: "owner_password_reset_uncertain", operation_id: OPERATION });
+    assert.equal(f.operations.get(OPERATION).state, "uncertain");
+    assert.equal((await f.send(ownerReset(), ownerHeaders)).status, 409);
+    assert.equal(authCalls(f).filter(call => call.method === "admin.updateUserById").length, 1);
+  }
+});
+
+test("successful Auth change with missing audit confirmation stays uncertain and cannot repeat the mutation", async () => {
+  const f = ownerFixture({ rpc: name => name === "staff_auth_owner_password_finish" ? bad("XX000") : undefined });
+  const response = await f.send(ownerReset(), ownerHeaders);
+  assert.equal(response.status, 409);
+  assert.deepEqual(await response.json(), { error: "owner_password_reset_uncertain", operation_id: OPERATION });
+  assert.equal(f.operations.get(OPERATION).state, "executing");
+  assert.equal((await f.send(ownerReset(), ownerHeaders)).status, 409);
+  assert.equal(authCalls(f).filter(call => call.method === "admin.updateUserById").length, 1);
+});
+
 test("CORS, body bounds, JSON types, unknown fields and disabled rollout reject before Auth", async () => {
   const f = fixture();
   assert.equal((await f.send({ action: "login" }, { origin: "https://attacker.example.invalid" })).status, 403);
@@ -476,6 +660,35 @@ test("installed Supabase SDK provisions only through service Admin API with no e
   assert.equal(requests[0].url.includes("safe-test-password-only"), false);
   assert.equal((await sdk.auth.getSession()).data.session, null);
   assert.equal(rpcCalls(f, "staff_auth_finalize").length, 1);
+});
+
+test("installed Supabase SDK performs exactly one password-only Admin PUT and never returns the Auth user", async () => {
+  for (const outcome of ["success", "server_error", "network_unknown"]) {
+    const requests = [];
+    const sdk = createClient("https://sdk-test.example.invalid", "sb_secret_test_server_only", {
+      auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
+      global: { fetch: async (input, init) => {
+        requests.push({ url: String(input), method: init?.method, body: init?.body ? JSON.parse(init.body) : null });
+        if (outcome === "network_unknown") throw new TypeError("fake dropped response");
+        if (outcome === "server_error") return Response.json({ code: "unexpected_failure", msg: "private provider detail" }, { status: 503 });
+        return Response.json({ id: TARGET, email: EMAIL, app_metadata: { private: "must-not-return" } });
+      } },
+    });
+    const f = ownerFixture();
+    const handler = createGateway({ config: configuration(), service: { rpc: f.client.rpc, auth: sdk.auth }, authClient: () => f.client, userClient: () => f.client, verifyRegistrationCaptcha: async () => "unavailable", now: () => NOW });
+    const response = await handler(new Request("https://edge-test.invalid", { method: "POST", headers: { "content-type": "application/json", ...ownerHeaders }, body: JSON.stringify(ownerReset()) }));
+    assert.equal(response.status, outcome === "success" ? 200 : 409);
+    const body = await response.json();
+    assert.equal(body.code ?? body.error, outcome === "success" ? "owner_password_reset_succeeded" : "owner_password_reset_uncertain");
+    assert.equal(body.operation_id, OPERATION);
+    assert.equal(requests.length, 1);
+    assert.equal(new URL(requests[0].url).pathname, `/auth/v1/admin/users/${TARGET}`);
+    assert.equal(requests[0].method, "PUT");
+    assert.deepEqual(requests[0].body, { password: "new-password-for-member" });
+    for (const secret of [EMAIL, TARGET, "new-password-for-member", "must-not-return", "private provider detail", "sb_secret_test_server_only"]) assert.equal(JSON.stringify(body).includes(secret), false);
+    assert.equal((await sdk.auth.getSession()).data.session, null);
+    assert.equal(f.operations.get(OPERATION).state, outcome === "success" ? "succeeded" : "uncertain");
+  }
 });
 
 test("installed Supabase SDK sends actual password login/recovery wire contract without secret in URL or metadata", async () => {

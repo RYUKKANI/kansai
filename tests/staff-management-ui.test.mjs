@@ -44,6 +44,11 @@ async function app(page, response = {}, options = {}) {
   const notices = [];
   let active = true;
   const client = {
+    auth: {
+      onAuthStateChange() {
+        return { data: { subscription: { unsubscribe() {} } } };
+      },
+    },
     async rpc(name, args) {
       calls.push({ name, args });
       const value =
@@ -162,17 +167,16 @@ test("a delayed failed contact lookup blocks review and still allows a retry aft
   } finally { context.controller.dispose(); context.dom.window.close(); }
 });
 
-test("Administrator can reject a manual-policy application without receiving the contact or approval option", async () => {
+test("Administrator cannot open member management even with an Owner caller hint", async () => {
   const context = await app("staff_applications", {
     office_account_state: { ...owner, role: "administrator" },
     office_staff_applications: [manualApplicant], office_staff_name_requests: [],
   });
   try {
-    const form = context.container.querySelector("form");
-    assert.deepEqual([...form.querySelector('[name="decision"]').options].map(option => option.value), ["rejected"]);
-    assert.equal(form.querySelector('[data-staff-action="contact"]'), null);
-    assert.equal(form.querySelector('[name="identity_confirmed"]').required, false);
-    assert.equal(context.calls.some(call => call.name === "office_staff_application_contact"), false);
+    assert.deepEqual(context.calls.map(call => call.name), ["office_account_state"]);
+    assert.equal(context.container.querySelector("form"), null);
+    assert.equal(context.container.querySelector("[data-owner-account]"), null);
+    assert.ok(context.container.querySelector('[role="alert"]'));
   } finally { context.controller.dispose(); context.dom.window.close(); }
 });
 
@@ -201,6 +205,22 @@ test("support reset audit has an unknown support operator and masks credential v
     assert.match(context.container.textContent, /管理者支援 \/ 実行者確認不可/);
     assert.match(context.container.textContent, /パスワード支援の完了/);
     assert.equal(context.container.textContent.includes("must-not-render"), false);
+  } finally { context.controller.dispose(); context.dom.window.close(); }
+});
+
+test("Owner reset audit distinguishes the authenticated requester from the server executor", async () => {
+  const context = await app("staff_audit", { office_staff_audit: [{ source: "owner_password_reset",
+    actor_id: ownerId, actor_name: null, actor_name_status: "unverified", actor_role: "owner",
+    requested_by: ownerId, executor: "staff_auth_edge_function", entity: "staff_accounts", record_id: peerId,
+    action: "owner_password_reset_succeeded", occurred_at: now, changed_fields: ["password"],
+    before_values: { password: "must-not-render" }, after_values: { password: "must-not-render" } }] });
+  try {
+    assert.match(context.container.textContent, /実名確認前のアカウント/);
+    assert.match(context.container.textContent, /Ownerによるアカウント管理/);
+    assert.match(context.container.textContent, /staff_auth_edge_function/);
+    assert.ok(context.container.textContent.includes(ownerId));
+    assert.equal(context.container.textContent.includes("must-not-render"), false);
+    assert.equal(context.container.textContent.includes("以前の記録"), false);
   } finally { context.controller.dispose(); context.dom.window.close(); }
 });
 
@@ -316,9 +336,21 @@ test("server state controls management access even if caller-provided role claim
   }
 });
 
-test("management suppresses self approval, separates desired duty from authority, and cannot grant administrator as administrator", async () => {
+test("Owner member cards expose account windows without fetching account details before opening", async () => {
   const context = await app("staff_applications", {
-    office_account_state: { ...owner, role: "administrator" },
+    office_staff_applications: [owner, { ...owner, user_id: peerId }],
+    office_staff_name_requests: [],
+  });
+  try {
+    assert.equal(context.container.querySelectorAll('[data-owner-account]').length, 2);
+    assert.equal(context.container.querySelectorAll('dialog').length, 2);
+    assert.equal(context.calls.some(call => call.name === "office_owner_account"), false);
+    assert.equal(context.container.querySelectorAll('input[autocomplete="new-password"]').length, 0);
+  } finally { context.controller.dispose(); context.dom.window.close(); }
+});
+
+test("Owner management suppresses self approval and separates requested duty from granted authority", async () => {
+  const context = await app("staff_applications", {
     office_staff_applications: [
       owner,
       {
@@ -346,7 +378,7 @@ test("management suppresses self approval, separates desired duty from authority
       [...form.querySelectorAll('[name="role"] option')].map(
         (item) => item.value,
       ),
-      ["editor", "coach"],
+      ["owner", "administrator", "editor", "coach"],
     );
     assert.equal(
       form.querySelector('[name="role"]').value,
