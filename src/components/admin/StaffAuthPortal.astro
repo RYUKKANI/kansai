@@ -1,0 +1,93 @@
+---
+import { club } from "../../data/club";
+import { asset } from "../../lib/urls";
+import { localeFromUrl, localizedPage } from "../../lib/i18n";
+import "../../styles/staff-auth.css";
+const locale = localeFromUrl(Astro.url);
+const help = localizedPage("admin/help/", locale);
+// 기존 초대 계정의 전환 검증이 끝나기 전에는 상위 페이지의 기능 플래그로 숨깁니다.
+---
+
+<section id="staff-auth-portal" class="staff-auth-portal" aria-labelledby="staff-auth-heading">
+  <div class="staff-auth-brand">
+    <img src={asset(club.logo)} width="72" height="72" alt="KANSAI UNITED FC" />
+    <p class="eyebrow">CLUB OFFICE</p>
+    <h1 id="staff-auth-heading" tabindex="-1"><span data-i18n="関係者アカウント">関係者アカウント</span></h1>
+  </div>
+  <div id="staff-auth-message" class="staff-auth-message" role="status" aria-live="polite" tabindex="-1"></div>
+  <p id="config-warning" class="admin-help" hidden><span data-i18n="管理システムの接続は準備中です。">管理システムの接続は準備中です。</span></p>
+
+  <div data-staff-panel="login">
+    <form id="staff-login-form">
+      <label for="staff-login-username"><span data-i18n="ログインID">ログインID</span></label>
+      <input id="staff-login-username" name="username" type="text" autocomplete="username" autocapitalize="none" spellcheck="false" required minlength="3" maxlength="32" pattern="[a-zA-Z0-9][a-zA-Z0-9._\-]{2,31}" aria-describedby="staff-username-help" />
+      <p id="staff-username-help" class="admin-help"><span data-i18n="半角英数字・ピリオド・ハイフン・アンダースコアで3〜32文字。大文字と小文字は区別しません。">半角英数字・ピリオド・ハイフン・アンダースコアで3〜32文字。大文字と小文字は区別しません。</span></p>
+      <label for="staff-login-password"><span data-i18n="パスワード">パスワード</span></label>
+      <div class="staff-password-field">
+        <input id="staff-login-password" name="password" type="password" autocomplete="current-password" required maxlength="128" />
+        <button type="button" data-password-toggle="staff-login-password" aria-controls="staff-login-password" aria-pressed="false"><span data-i18n="表示">表示</span></button>
+      </div>
+      <button type="submit" class="admin-primary"><span data-i18n="ログイン">ログイン</span></button>
+    </form>
+    <div class="staff-auth-alternate"><span data-i18n="はじめての方">はじめての方</span><button type="button" class="admin-secondary" data-staff-show="signup"><span data-i18n="会員登録">会員登録</span></button></div>
+  </div>
+
+  <div data-staff-panel="signup" hidden>
+    <h2 tabindex="-1"><span data-i18n="会員登録">会員登録</span></h2>
+    <p class="admin-help"><span data-i18n="メール確認と運営責任者の承認後に、担当業務をご利用いただけます。">メール確認と運営責任者の承認後に、担当業務をご利用いただけます。</span></p>
+    <form id="staff-signup-form">
+      <label for="staff-signup-username"><span data-i18n="ログインID">ログインID</span></label>
+      <input id="staff-signup-username" name="username" type="text" autocomplete="username" autocapitalize="none" spellcheck="false" required minlength="3" maxlength="32" pattern="[a-zA-Z0-9][a-zA-Z0-9._\-]{2,31}" aria-describedby="staff-signup-username-help" />
+      <p id="staff-signup-username-help" class="admin-help"><span data-i18n="半角英数字・ピリオド・ハイフン・アンダースコアで3〜32文字。大文字と小文字は区別しません。">半角英数字・ピリオド・ハイフン・アンダースコアで3〜32文字。大文字と小文字は区別しません。</span></p>
+      <label for="staff-signup-password"><span data-i18n="パスワード">パスワード</span></label>
+      <div class="staff-password-field">
+        <input id="staff-signup-password" name="password" type="password" autocomplete="new-password" required minlength="12" maxlength="128" aria-describedby="staff-password-help" />
+        <button type="button" data-password-toggle="staff-signup-password" aria-controls="staff-signup-password" aria-pressed="false"><span data-i18n="表示">表示</span></button>
+      </div>
+      <p id="staff-password-help" class="admin-help"><span data-i18n="パスワードは12〜128文字で設定してください。">パスワードは12〜128文字で設定してください。</span></p>
+      <label for="staff-signup-confirm"><span data-i18n="パスワードの確認">パスワードの確認</span></label>
+      <div class="staff-password-field">
+        <input id="staff-signup-confirm" name="password_confirmation" type="password" autocomplete="new-password" required minlength="12" maxlength="128" />
+        <button type="button" data-password-toggle="staff-signup-confirm" aria-controls="staff-signup-confirm" aria-pressed="false"><span data-i18n="表示">表示</span></button>
+      </div>
+      <label for="staff-signup-real-name"><span data-i18n="実名">実名</span></label>
+      <input id="staff-signup-real-name" name="real_name" type="text" autocomplete="name" required maxlength="150" />
+      <label for="staff-signup-department"><span data-i18n="所属・担当業務">所属・担当業務</span></label>
+      <input id="staff-signup-department" name="department" type="text" autocomplete="organization-title" required maxlength="200" />
+      <label for="staff-signup-email"><span data-i18n="確認・復旧用メールアドレス">確認・復旧用メールアドレス</span></label>
+      <input id="staff-signup-email" name="email" type="email" autocomplete="email" autocapitalize="none" spellcheck="false" required maxlength="254" />
+      <label class="staff-auth-consent"><input name="notice_accepted" type="checkbox" required /><span data-i18n="実名と担当業務を承認済み関係者に表示し、操作履歴に記録することを確認しました。公開サイトへの名前・写真掲載の同意とは別です。">実名と担当業務を承認済み関係者に表示し、操作履歴に記録することを確認しました。公開サイトへの名前・写真掲載の同意とは別です。</span></label>
+      <p class="admin-help"><span data-i18n="権限は運営責任者が承認時に設定します。登録だけで管理権限は付与されません。">権限は運営責任者が承認時に設定します。登録だけで管理権限は付与されません。</span></p>
+      <button type="submit" class="admin-primary"><span data-i18n="登録を申請">登録を申請</span></button>
+    </form>
+    <button type="button" class="staff-auth-text-button" data-staff-show="login"><span data-i18n="ログインに戻る">ログインに戻る</span></button>
+  </div>
+
+  <div data-staff-panel="account" hidden>
+    <h2 tabindex="-1"><span data-i18n="申請・アカウントの状態">申請・アカウントの状態</span></h2>
+    <dl id="staff-account-state" class="staff-account-state"></dl>
+    <p class="admin-help"><span data-i18n="承認待ちの間は、ご本人の申請状態のみ確認できます。">承認待ちの間は、ご本人の申請状態のみ確認できます。</span></p>
+    <button type="button" class="admin-primary" id="staff-account-refresh"><span data-i18n="状態を再確認">状態を再確認</span></button>
+    <button type="button" class="admin-secondary" id="staff-account-enroll" hidden><span data-i18n="ログインIDと実名を登録">ログインIDと実名を登録</span></button>
+    <button type="button" class="staff-auth-text-button" id="staff-account-signout"><span data-i18n="ログアウト">ログアウト</span></button>
+  </div>
+
+  <div data-staff-panel="migration" hidden>
+    <h2 tabindex="-1"><span data-i18n="ログインIDと実名を登録">ログインIDと実名を登録</span></h2>
+    <p class="admin-help"><span data-i18n="現在のアカウントをそのまま使用します。既存の権限・データ・操作履歴は引き継がれます。実名は運営責任者が確認します。">現在のアカウントをそのまま使用します。既存の権限・データ・操作履歴は引き継がれます。実名は運営責任者が確認します。</span></p>
+    <form id="staff-enroll-form">
+      <label for="staff-enroll-username"><span data-i18n="ログインID">ログインID</span></label>
+      <input id="staff-enroll-username" name="username" type="text" autocomplete="username" autocapitalize="none" spellcheck="false" required minlength="3" maxlength="32" pattern="[a-zA-Z0-9][a-zA-Z0-9._\-]{2,31}" aria-describedby="staff-enroll-username-help" />
+      <p id="staff-enroll-username-help" class="admin-help"><span data-i18n="半角英数字・ピリオド・ハイフン・アンダースコアで3〜32文字。大文字と小文字は区別しません。">半角英数字・ピリオド・ハイフン・アンダースコアで3〜32文字。大文字と小文字は区別しません。</span></p>
+      <label for="staff-enroll-real-name"><span data-i18n="実名">実名</span></label>
+      <input id="staff-enroll-real-name" name="real_name" type="text" autocomplete="name" required maxlength="150" />
+      <label for="staff-enroll-department"><span data-i18n="所属・担当業務">所属・担当業務</span></label>
+      <input id="staff-enroll-department" name="department" type="text" autocomplete="organization-title" required maxlength="200" />
+      <label class="staff-auth-consent"><input name="notice_accepted" type="checkbox" required /><span data-i18n="実名と担当業務を承認済み関係者に表示し、操作履歴に記録することを確認しました。公開サイトへの名前・写真掲載の同意とは別です。">実名と担当業務を承認済み関係者に表示し、操作履歴に記録することを確認しました。公開サイトへの名前・写真掲載の同意とは別です。</span></label>
+      <p class="admin-help"><span data-i18n="招待で作成され、パスワードが未設定の場合は「ログインのヘルプ」から確認メールを受け取り、設定してください。">招待で作成され、パスワードが未設定の場合は「ログインのヘルプ」から確認メールを受け取り、設定してください。</span></p>
+      <button type="submit" class="admin-primary"><span data-i18n="登録する">登録する</span></button>
+    </form>
+    <button type="button" class="staff-auth-text-button" id="staff-enroll-back"><span data-i18n="現在の画面に戻る">現在の画面に戻る</span></button>
+  </div>
+  <a href={help} class="staff-auth-help"><span data-i18n="ログインのヘルプ">ログインのヘルプ</span></a>
+</section>
