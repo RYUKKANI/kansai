@@ -288,3 +288,34 @@ test(
     }
   },
 );
+
+test(
+  "flag-on username-only legacy Owner keeps the same account and completes only missing profile fields",
+  { skip: !enabled },
+  async () => {
+    const context = await helper.app("owner", undefined, {
+      staffIdentity: true,
+      accountState: {
+        ...approved, username: "bootstrap.owner", real_name: null, department: null,
+        identity_enrolled: false, approved_real_name: null,
+        name_verified_at: null, name_verified_by: null, legacy: true,
+      },
+    });
+    try {
+      await idLogin(context);
+      await ready(context);
+      const document = context.window.document;
+      assert.equal(document.querySelector("#account-email").textContent.includes("test@"), false);
+      document.querySelector('[data-resource="staff_account"]').click();
+      await helper.eventually(() => [...document.querySelectorAll("#admin-content button")].some(button => /ログインIDを登録/.test(button.textContent)));
+      [...document.querySelectorAll("#admin-content button")].find(button => /ログインIDを登録/.test(button.textContent)).click();
+      await helper.eventually(() => !document.querySelector('[data-staff-panel="migration"]').hidden);
+      assert.equal(document.querySelector("#staff-enroll-username").value, "bootstrap.owner");
+      assert.equal(document.querySelector("#staff-enroll-username").readOnly, true);
+      assert.equal(document.querySelector("#staff-enroll-real-name").value, "");
+      assert.equal(document.querySelector("#staff-enroll-department").value, "");
+      assert.equal(document.querySelector('#staff-enroll-form input[name="notice_accepted"]').checked, false);
+      assert.equal(context.requests.some(request => ["signup", "staff_auth_bootstrap_owner", "staff_auth_finalize"].includes(name(request))), false);
+    } finally { await dispose(context); }
+  },
+);

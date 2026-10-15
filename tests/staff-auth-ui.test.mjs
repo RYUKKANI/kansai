@@ -178,12 +178,15 @@ test("pending accounts display only their own state and never interpret a real n
   } finally { app.dom.window.close(); }
 });
 
-for (const [language, heading, status] of [["ja", "関係者アカウント", "承認待ち"], ["ko", "관계자 계정", "승인 대기"], ["en", "Club member account", "Awaiting approval"]]) {
+for (const [language, heading, status, placeholder] of [["ja", "関係者アカウント", "承認待ち", "ログインID"], ["ko", "관계자 계정", "승인 대기", "로그인 아이디"], ["en", "Club member account", "Awaiting approval", "Login ID"]]) {
   test(`the ${language} UI translates labels and status while preserving the original real name`, () => {
     const app = application({ language });
     try {
       assert.equal(app.document.documentElement.lang, language);
       assert.equal(app.document.querySelector("#staff-auth-heading").textContent, heading);
+      assert.equal(app.document.querySelector("#staff-login-username").placeholder, placeholder);
+      assert.equal(app.document.querySelector("#staff-signup-username").placeholder, placeholder);
+      assert.equal(app.document.querySelector('label[for="staff-login-username"]').textContent, placeholder);
       app.controller.showAccount(account);
       assert.ok(app.document.querySelector("#staff-account-state").textContent.includes(account.real_name));
       assert.ok(app.document.querySelector("#staff-account-state").textContent.includes(status));
@@ -203,6 +206,20 @@ test("legacy enrollment verifies the existing user and sends identity fields wit
     assert.deepEqual(app.requests[0].body, { action: "enroll", username: "owner-name", real_name: "山田 太郎", department: "Owner", notice_accepted: true });
     assert.equal(app.requests[0].headers.Authorization, "Bearer verified-staff-token");
     assert.equal(app.sessions.length, 0);
+  } finally { app.dom.window.close(); }
+});
+
+test("an existing linked ID stays read-only while the owner supplies their own real name and consent", () => {
+  const app = application();
+  try {
+    app.controller.showMigration({ ...account, username: "linked.owner", real_name: null, department: null, identity_enrolled: false, legacy_account: true });
+    assert.equal(app.document.querySelector("#staff-enroll-username").value, "linked.owner");
+    assert.equal(app.document.querySelector("#staff-enroll-username").readOnly, true);
+    assert.equal(app.document.querySelector("#staff-enroll-real-name").value, "");
+    assert.equal(app.document.querySelector("#staff-enroll-department").value, "");
+    assert.equal(app.document.querySelector('#staff-enroll-form input[name="notice_accepted"]').checked, false);
+    app.controller.showMigration({ ...account, username: null, real_name: null, department: null, identity_enrolled: false });
+    assert.equal(app.document.querySelector("#staff-enroll-username").readOnly, false);
   } finally { app.dom.window.close(); }
 });
 
