@@ -1,5 +1,6 @@
 // [편집 안내] HTTP 입력 검증과 인증 흐름은 런타임과 분리해 같은 코드를 적대적 요청 검사에 사용합니다.
 // 비밀번호는 이 요청에서 Supabase Auth로만 전달하며 DB RPC, 오류 응답, 로그에는 넣지 않습니다.
+import { resetOwnerManagedPassword } from "./owner-password-reset.ts";
 export type Result = { data: any; error: any };
 export type Client = {
   rpc(name: string, args?: Record<string, unknown>): PromiseLike<Result>;
@@ -7,7 +8,10 @@ export type Client = {
     getUser(token: string): Promise<Result>;
     getClaims(token: string): Promise<Result>;
     signInWithPassword(input: Record<string, unknown>): Promise<Result>;
-    admin: { createUser(input: Record<string, unknown>): Promise<Result> };
+    admin: {
+      createUser(input: Record<string, unknown>): Promise<Result>;
+      updateUserById(userId: string, input: Record<string, unknown>): Promise<Result>;
+    };
     resetPasswordForEmail(email: string, options: Record<string, unknown>): Promise<Result>;
     signInWithOtp(input: Record<string, unknown>): Promise<Result>;
     signOut(input: Record<string, unknown>): Promise<Result>;
@@ -41,7 +45,7 @@ export type GatewayDependencies = {
 
 const encoder = new TextEncoder();
 const MAX_BODY = 8192;
-const ACTIONS = ["login", "register", "recovery", "enroll", "set_password", "legacy_login"] as const;
+const ACTIONS = ["login", "register", "recovery", "enroll", "set_password", "legacy_login", "owner_reset_password"] as const;
 type Action = typeof ACTIONS[number];
 const fields: Record<Action, string[]> = {
   login: ["action", "username", "password", "captcha_token"],
@@ -50,6 +54,7 @@ const fields: Record<Action, string[]> = {
   enroll: ["action", "username", "real_name", "department", "notice_accepted"],
   set_password: ["action", "password", "password_confirmation", "current_password"],
   legacy_login: ["action", "email", "captcha_token"],
+  owner_reset_password: ["action", "user_id", "password", "password_confirmation", "reason", "operation_id"],
 };
 class GatewayError extends Error {
   constructor(public code: string, public status: number) { super(code); }
@@ -281,6 +286,31 @@ export function createGateway(deps: GatewayDependencies): (request: Request) => 
       const verified = await client.auth.getUser(token);
       if (verified.error || !verified.data?.user?.id) return fail("authentication_required", 401);
       await rateLimit(deps, action, ip, [verified.data.user.id]);
+      if (action === "owner_reset_password") {
+        const target = uuid(body.user_id);
+        const operation = uuid(body.operation_id);
+        const secret = newPassword(body);
+        const reason = displayText(body.reason, 1000);
+        // 사유는 감사 기록에 남습니다. 이번 요청의 새 비밀번호가 사유로 복사된 경우에는 저장 전에 거절합니다.
+        if (reason.includes(secret) || reason.includes(secret.normalize("NFC"))) return fail("invalid_request");
+        const claimsResult = await client.auth.getClaims(token);
+        const claims = claimsResult.data?.claims;
+        const now = (deps.now ?? Date.now)() / 1000;
+        const methods = claims?.amr;
+        const fresh = Array.isArray(methods) && methods.some((method: any) => method !== null && typeof method === "object" &&
+          ["password", "otp", "magiclink", "totp", "webauthn"].includes(method.method) && typeof method.timestamp === "number" &&
+          Number.isFinite(method.timestamp) && method.timestamp <= now + 60 && now - method.timestamp <= 900);
+        const factors = verified.data.user.factors;
+        const invalidFactors = factors !== undefined && (!Array.isArray(factors) || factors.some((factor: any) =>
+          factor === null || typeof factor !== "object" || !["verified", "unverified"].includes(factor.status)));
+        const requiresMfa = Array.isArray(factors) && factors.some((factor: any) => factor !== null && typeof factor === "object" && factor.status === "verified");
+        // Admin API는 본인 비밀번호 변경의 재인증/MFA를 대신 검사하지 않으므로 실행한 Owner에게 적용합니다.
+        // refresh 시각이나 브라우저가 보낸 AAL/확인 표시를 새 인증으로 인정하지 않습니다.
+        if (claimsResult.error || claims?.sub !== verified.data.user.id || !fresh || invalidFactors || requiresMfa && claims?.aal !== "aal2")
+          return reply({ error: "reauthentication_required", operation_id: operation }, 409);
+        const result = await resetOwnerManagedPassword({ client, service: deps.service, actorId: verified.data.user.id, targetId: target, operationId: operation, password: secret, reason });
+        return reply(result.body, result.status);
+      }
       if (action === "enroll") {
         const username = normalizeUsername(body.username);
         const realName = displayText(body.real_name, 150);
@@ -321,4 +351,9 @@ export function createGateway(deps: GatewayDependencies): (request: Request) => 
       return reply({ error: "service_unavailable" }, 503);
     }
   };
+}
+
+function uuid(value: unknown): string {
+  return typeof value === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value)
+    ? value.toLowerCase() : fail("invalid_request");
 }
