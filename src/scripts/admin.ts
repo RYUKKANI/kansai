@@ -435,7 +435,7 @@ function navigation() {
       const info = officePages[name];
       const staffPage = isStaffOfficePage(name);
       const permitted = staffPage
-        ? Boolean(role) && (name !== "staff_applications" || ["owner", "administrator"].includes(role!))
+        ? Boolean(role) && (name !== "staff_applications" || role === "owner")
         : name === "dashboard"
           ? Boolean(role)
           : name === "schedule"
@@ -700,7 +700,7 @@ async function show(
 }
 async function showStaffPage(page: StaffOfficePage) {
   if (!client || !role || !userId || !staffIdentityAvailable ||
-      (page === "staff_applications" && !["owner", "administrator"].includes(role))) return;
+      (page === "staff_applications" && role !== "owner")) return;
   currentList?.dispose();
   currentList = null;
   currentStaff?.dispose();
