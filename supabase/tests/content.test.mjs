@@ -204,7 +204,7 @@ try {
   );
   await as(1);
   await db.query(
-    "update public.admin_roles set active=false where user_id=$1",
+    "select public.office_set_staff_access($1,'editor',false,'TEST ONLY permission revocation')",
     [user(3)],
   );
   await service();
