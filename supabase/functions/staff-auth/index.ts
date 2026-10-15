@@ -3,9 +3,10 @@ import { createGateway, type Client } from "./gateway.ts";
 import { readGatewayConfig, serverKey } from "./configuration.ts";
 import { updateAuthUser } from "./auth-update.ts";
 import { recoverAuthEmail } from "./auth-recovery.ts";
+import { createRegistrationCaptchaVerifier } from "./registration-captcha.ts";
 
 // [편집 안내] JWT 검증을 꺼서 공개 로그인·가입을 받는 대신 각 작업에서 인증 경계를 직접 검사합니다.
-// 서비스 키 클라이언트는 RPC 전용으로 분리합니다. signInWithPassword가 서비스 클라이언트 세션을 덮어쓰면 안 됩니다.
+// 서비스 키는 비공개 RPC와 새 Auth 계정 생성에만 사용합니다. 로그인 클라이언트와 분리해 서비스 세션이 바뀌지 않게 합니다.
 const env = (name: string) => Deno.env.get(name);
 const options = { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false };
 let serve: (request: Request) => Promise<Response>;
@@ -31,7 +32,13 @@ try {
     }
     return client as unknown as Client;
   };
-  serve = createGateway({ service, config, authClient: ip => userClient(null, ip), userClient });
+  const verifyRegistrationCaptcha = createRegistrationCaptchaVerifier({
+    mode: config.registrationCaptchaMode,
+    secret: env("STAFF_AUTH_REGISTRATION_CAPTCHA_SECRET") ?? "",
+    sitekey: env("STAFF_AUTH_REGISTRATION_CAPTCHA_SITEKEY") ?? "",
+    allowedOrigins: config.allowedOrigins,
+  });
+  serve = createGateway({ service, config, authClient: ip => userClient(null, ip), userClient, verifyRegistrationCaptcha });
 } catch {
   // 초기화 실패에도 환경값/비밀키를 출력하지 않습니다.
   serve = async () => new Response(JSON.stringify({ error: "service_unavailable" }), {

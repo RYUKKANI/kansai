@@ -9,7 +9,7 @@ async function main() {
     [
       "create role anon; create role authenticated; create role service_role bypassrls;",
       "create schema auth; create schema storage;",
-      "create table auth.users(id uuid primary key,email text,email_confirmed_at timestamptz default now(),created_at timestamptz default clock_timestamp(),raw_user_meta_data jsonb default '{}');",
+      "create table auth.users(id uuid primary key,email text,email_confirmed_at timestamptz default now(),created_at timestamptz default clock_timestamp(),raw_user_meta_data jsonb default '{}',raw_app_meta_data jsonb default '{}');",
       "create function auth.uid() returns uuid language sql stable as $$ select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid; $$;",
       "grant usage on schema auth,storage,public to anon,authenticated;",
       "grant execute on function auth.uid() to anon,authenticated;",

@@ -30,6 +30,8 @@ export function readGatewayConfig(env: Environment, secretKey: string): GatewayC
   return {
     enabled: env("STAFF_AUTH_ENABLED") === "true",
     registrationEnabled: env("STAFF_AUTH_REGISTRATION_ENABLED") === "true",
+    registrationCaptchaMode: ["disabled", "hcaptcha", "turnstile"].includes(env("STAFF_AUTH_REGISTRATION_CAPTCHA_MODE") ?? "")
+      ? env("STAFF_AUTH_REGISTRATION_CAPTCHA_MODE") as GatewayConfig["registrationCaptchaMode"] : "unconfigured",
     legacyEmailEnabled: env("STAFF_AUTH_LEGACY_EMAIL_ENABLED") === "true",
     allowedOrigins,
     emailRedirectTo: env("STAFF_AUTH_LOGIN_REDIRECT_URL") ?? "",

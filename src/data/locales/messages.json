@@ -3418,5 +3418,105 @@
   "既存のアカウントにログインIDを登録": {
     "ko": "기존 계정에 로그인 아이디 등록",
     "en": "Register a username for your existing account"
+  },
+  "新規登録では確認メールを送信しません。連絡・復旧用メールアドレスは保管し、Ownerによる本人・関係者・連絡先の確認と承認後にご利用いただけます。": {
+    "ko": "신규 가입 시 확인 메일을 보내지 않습니다. 연락·복구용 이메일은 보관하며, Owner가 본인·구단 관계자 여부·연락처를 확인하고 승인한 후 이용할 수 있습니다.",
+    "en": "New registration does not send a confirmation email. Your contact and recovery email is retained, and access begins after an Owner verifies your identity, club affiliation and contact details and approves your application."
+  },
+  "連絡・復旧用メールアドレス": {
+    "ko": "연락·복구용 이메일",
+    "en": "Contact / recovery email"
+  },
+  "権限はOwnerが承認時に設定します。登録だけで管理権限は付与されません。": {
+    "ko": "권한은 Owner가 승인 시 부여합니다. 가입만으로 관리 권한이 부여되지 않습니다.",
+    "en": "An Owner assigns access during approval. Registration alone does not grant management access."
+  },
+  "パスワードが未設定・不明の場合は「ログインのヘルプ」から運営責任者にご相談ください。": {
+    "ko": "비밀번호가 설정되지 않았거나 기억나지 않으면 ‘로그인 도움말’을 확인하고 운영 책임자에게 문의해주세요.",
+    "en": "If your password is unset or unknown, see Login help and contact club management."
+  },
+  "ログインできない場合": {
+    "ko": "로그인할 수 없는 경우",
+    "en": "If you cannot sign in"
+  },
+  "パスワードが未設定・不明な場合やメールを利用できない場合は、運営責任者（Owner）にご相談ください。本人と既存アカウントを確認したうえで対応します。": {
+    "ko": "비밀번호가 설정되지 않았거나 기억나지 않는 경우, 또는 이메일을 이용할 수 없는 경우 운영 책임자(Owner)에게 문의해주세요. 본인과 기존 계정을 확인한 후 지원합니다.",
+    "en": "If your password is unset or unknown, or you cannot use email, contact club management (Owner). Support requires verification of your identity and existing account."
+  },
+  "メールを使わない再設定は、確認済みのプロジェクト管理者が信頼できる管理用端末で支援します。新しいパスワードはご本人が直接入力し、チャットやメールで共有しないでください。": {
+    "ko": "이메일을 사용하지 않는 재설정은 확인된 프로젝트 관리자가 신뢰할 수 있는 관리용 기기에서 지원합니다. 새 비밀번호는 본인이 직접 입력하고 채팅이나 이메일로 공유하지 마세요.",
+    "en": "Password resets without email require support from a verified project administrator on a trusted management device. Enter your new password yourself; do not share it in chat or email."
+  },
+  "移行期間中のメール復旧": {
+    "ko": "전환 기간의 이메일 복구",
+    "en": "Transitional email recovery"
+  },
+  "既存アカウント向けの移行用手続きです。メールが届かない場合はOwnerにご相談ください。": {
+    "ko": "기존 계정을 위한 전환용 절차입니다. 이메일이 도착하지 않으면 Owner에게 문의해주세요.",
+    "en": "This transitional option is for existing accounts. If the email does not arrive, contact an Owner."
+  },
+  "移行期間中のメールリンクでログイン": {
+    "ko": "전환 기간의 이메일 링크로 로그인",
+    "en": "Transitional email-link sign-in"
+  },
+  "パスワードは12文字以上、UTF-8で72バイト以内にしてください。": {
+    "ko": "비밀번호는 12자 이상, UTF-8 기준 72바이트 이내로 입력해주세요.",
+    "en": "Use at least 12 characters and no more than 72 UTF-8 bytes for your password."
+  },
+  "ログインを確認できません。もう一度ログインしてください。": {
+    "ko": "로그인을 확인할 수 없습니다. 다시 로그인해주세요.",
+    "en": "Your sign-in could not be verified. Please sign in again."
+  },
+  "パスワードを設定できませんでした。ログイン状態を確認するか、運営責任者にご相談ください。": {
+    "ko": "비밀번호를 설정하지 못했습니다. 로그인 상태를 확인하거나 운영 책임자에게 문의해주세요.",
+    "en": "The password could not be set. Check your sign-in status or contact the club administrator."
+  },
+  "登録申請を受け付けました。メールの確認は不要です。登録できた場合は、入力したIDとパスワードでログインして承認状態をご確認ください。ログインできない場合は運営責任者にご相談ください。": {
+    "ko": "가입 요청을 접수했습니다. 이메일 확인은 필요하지 않습니다. 등록이 완료됐다면 입력한 아이디와 비밀번호로 로그인해 승인 상태를 확인해주세요. 로그인할 수 없으면 운영 책임자에게 문의해주세요.",
+    "en": "Your registration request was received. No email verification is required. If registration succeeded, sign in with your chosen ID and password to check your approval status. Contact the club administrator if you cannot sign in."
+  },
+  "確認不要（メール所有未確認）": {
+    "ko": "확인 불필요(이메일 소유 미확인)",
+    "en": "Not required (email ownership unverified)"
+  },
+  "申請者の連絡先を確認": {
+    "ko": "신청자 연락처 확인",
+    "en": "Review applicant contact"
+  },
+  "本人・ログインID・メールアドレスを別の連絡手段で確認しました。": {
+    "ko": "다른 연락 수단으로 본인·로그인 아이디·이메일 주소를 확인했습니다.",
+    "en": "I verified the applicant’s identity, login ID and email address through another contact method."
+  },
+  "確認メールは送信していません。承認前に本人と連絡先をご確認ください。": {
+    "ko": "확인 메일을 보내지 않았습니다. 승인 전에 본인과 연락처를 확인해주세요.",
+    "en": "No verification email was sent. Verify the applicant’s identity and contact details before approval."
+  },
+  "申請者の連絡先を確認し、本人との照合を完了してください。": {
+    "ko": "신청자 연락처를 확인하고 본인과 대조해주세요.",
+    "en": "Review the applicant’s contact details and verify them with the applicant."
+  },
+  "連絡用メール: {0}": {
+    "ko": "연락용 이메일: {0}",
+    "en": "Contact email: {0}"
+  },
+  "管理者支援 / 実行者確認不可": {
+    "ko": "관리자 지원 / 수행자 확인 불가",
+    "en": "Administrator support / operator unknown"
+  },
+  "パスワード支援の受付": {
+    "ko": "비밀번호 지원 요청",
+    "en": "Password support requested"
+  },
+  "パスワード支援の完了": {
+    "ko": "비밀번호 지원 완료",
+    "en": "Password support completed"
+  },
+  "パスワード支援の失敗": {
+    "ko": "비밀번호 지원 실패",
+    "en": "Password support failed"
+  },
+  "パスワード支援の結果未確認": {
+    "ko": "비밀번호 지원 결과 미확인",
+    "en": "Password support outcome unknown"
   }
 }

@@ -7,7 +7,7 @@ export type Client = {
     getUser(token: string): Promise<Result>;
     getClaims(token: string): Promise<Result>;
     signInWithPassword(input: Record<string, unknown>): Promise<Result>;
-    signUp(input: Record<string, unknown>): Promise<Result>;
+    admin: { createUser(input: Record<string, unknown>): Promise<Result> };
     resetPasswordForEmail(email: string, options: Record<string, unknown>): Promise<Result>;
     signInWithOtp(input: Record<string, unknown>): Promise<Result>;
     signOut(input: Record<string, unknown>): Promise<Result>;
@@ -17,6 +17,7 @@ export type Client = {
 export type GatewayConfig = {
   enabled: boolean;
   registrationEnabled: boolean;
+  registrationCaptchaMode: "unconfigured" | "disabled" | "hcaptcha" | "turnstile";
   legacyEmailEnabled: boolean;
   allowedOrigins: string[];
   emailRedirectTo: string;
@@ -33,6 +34,7 @@ export type GatewayDependencies = {
   service: Client;
   authClient(ip: string | null): Client;
   userClient(token: string, ip: string | null): Client;
+  verifyRegistrationCaptcha(input: { token: string; ip: string | null }): Promise<"passed" | "failed" | "unavailable">;
   config: GatewayConfig;
   now?: () => number;
 };
@@ -83,6 +85,8 @@ function captcha(value: unknown): string | undefined {
 function newPassword(body: Record<string, unknown>): string {
   const result = password(body.password, true);
   if (result !== body.password_confirmation) return fail("invalid_request");
+  // 새 비밀번호만 Auth의 UTF-8 72바이트 제한에 맞춥니다. 기존 로그인 비밀번호를 임의로 정규화·변경하지 않습니다.
+  if (encoder.encode(result).byteLength > 72) return fail("invalid_request");
   return result;
 }
 export async function hmacHex(secret: string, value: string): Promise<string> {
@@ -163,6 +167,14 @@ async function globalLimit(deps: GatewayDependencies): Promise<void> {
   if (result.error || typeof result.data !== "boolean") return fail("service_unavailable", 503);
   if (!result.data) return fail("rate_limited", 429);
 }
+async function registrationCreationLimit(deps: GatewayDependencies): Promise<void> {
+  // 서비스 Auth 생성은 원래 signup/IP 제한을 거치지 않습니다. CAPTCHA를 통과한 생성 시도를 별도로 제한합니다.
+  // 잘못된 CAPTCHA만으로 구단 전체의 생성 한도를 소진하지 않도록 검증 이후에 호출합니다.
+  const digest = await hmacHex(deps.config.hmacSecret, "register:shared\0shared-registration");
+  const result = await deps.service.rpc("staff_auth_rate_limit", { p_key_hash: digest, p_bucket: "register:shared", p_limit: 10, p_window_seconds: 3600 });
+  if (result.error || typeof result.data !== "boolean") return fail("service_unavailable", 503);
+  if (!result.data) return fail("rate_limited", 429);
+}
 function bearer(request: Request): string {
   const header = request.headers.get("Authorization") ?? "";
   return /^Bearer [A-Za-z0-9._-]+$/.test(header) && header.length <= 8192 ? header.slice(7) : fail("authentication_required", 401);
@@ -225,12 +237,27 @@ export function createGateway(deps: GatewayDependencies): (request: Request) => 
         const captchaToken = captcha(body.captcha_token);
         if (body.notice_accepted !== true) return fail("invalid_request");
         await rateLimit(deps, action, ip, [`username:${username}`, `email:${recoveryEmail}`]);
+        if (deps.config.registrationCaptchaMode === "unconfigured") return fail("service_unavailable", 503);
+        if (deps.config.registrationCaptchaMode !== "disabled") {
+          if (!captchaToken) return fail("invalid_request");
+          const verification = await deps.verifyRegistrationCaptcha({ token: captchaToken, ip });
+          if (verification === "unavailable") return fail("service_unavailable", 503);
+          if (verification !== "passed") return fail("invalid_request");
+        }
+        await registrationCreationLimit(deps);
         const received = () => reply({ success: true, code: "registration_received" });
-        const reservation = await deps.service.rpc("staff_auth_reserve", { p_username: username, p_email: recoveryEmail, p_real_name: realName, p_department: department, p_notice_accepted: true });
+        // 이메일 소유 확인 생략은 서버가 정한 가입 정책입니다. 브라우저가 역할·확인 여부를 지정할 수 없습니다.
+        const reservation = await deps.service.rpc("staff_auth_reserve", { p_username: username, p_email: recoveryEmail, p_real_name: realName, p_department: department, p_notice_accepted: true, p_email_confirmation_required: false });
         if (reservation.error) { if (unavailableReservation(reservation.error)) return received(); return fail("service_unavailable", 503); }
         if (typeof reservation.data !== "string") return fail("service_unavailable", 503);
-        const result = await auth.auth.signUp({ email: recoveryEmail, password: secret, options: { emailRedirectTo: deps.config.emailRedirectTo, captchaToken } });
-        // 확인 메일이 꺼진 배포는 세션을 반환할 수 있습니다. 가입 완료로 취급하지 않고 즉시 롤아웃 검증을 요구합니다.
+        // 공식 Admin API는 확인 메일과 로그인 세션을 발급하지 않습니다. 비밀번호 해싱은 계속 Auth가 담당합니다.
+        // Auth의 기술적 email_confirm은 이메일 소유 확인이나 구단 승인이 아닙니다. DB는 별도 정책과 pending을 저장합니다.
+        const result = await deps.service.auth.admin.createUser({
+          email: recoveryEmail, password: secret, email_confirm: true,
+          // DB 확정 전 세션을 얻더라도 이전 운영진 enrollment로 정책을 우회할 수 없도록 Auth 생성과 함께 기록합니다.
+          // 사용자 수정이 가능한 user_metadata나 클라이언트 인자로 이 표식을 받지 않습니다.
+          app_metadata: { staff_signup_policy: "manual_approval_no_email_v1" },
+        });
         if (result.error) return received();
         if (result.data?.session || !result.data?.user?.id) return fail("service_unavailable", 503);
         const finalized = await deps.service.rpc("staff_auth_finalize", { p_reservation: reservation.data, p_user_id: result.data.user.id });

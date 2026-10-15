@@ -7,13 +7,14 @@ const { createGateway, normalizeUsername, normalizeIp, trustedClientIp } = await
 const { readGatewayConfig, serverKey } = await typescriptModule("supabase/functions/staff-auth/configuration.ts");
 const { updateAuthUser } = await typescriptModule("supabase/functions/staff-auth/auth-update.ts");
 const { recoverAuthEmail } = await typescriptModule("supabase/functions/staff-auth/auth-recovery.ts");
+const { createRegistrationCaptchaVerifier } = await typescriptModule("supabase/functions/staff-auth/registration-captcha.ts");
 const { createLegacyInviteHandler } = await typescriptModule("supabase/functions/invite-staff/handler.ts");
 const USER = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
 const EMAIL = "current-address@example.invalid";
 const NOW = 1_792_000_000_000;
 const CHALLENGE = "A".repeat(43);
 const configuration = (overrides = {}) => ({
-  enabled: true, registrationEnabled: true, legacyEmailEnabled: true,
+  enabled: true, registrationEnabled: true, registrationCaptchaMode: "disabled", legacyEmailEnabled: true,
   allowedOrigins: ["https://club.example.invalid"],
   emailRedirectTo: "https://club.example.invalid/admin/",
   recoveryRedirectTo: "https://club.example.invalid/admin/help/",
@@ -56,11 +57,14 @@ function fixture(overrides = {}) {
     if (method === "getClaims") return ok({ claims: { sub: USER, amr: [{ method: "recovery", timestamp: NOW / 1000 }] } });
     if (method === "getUser" || method === "updateUser") return ok({ user: { id: USER, email: EMAIL } });
     if (method === "signInWithPassword") return ok({ user: { id: USER, email: EMAIL }, session: { access_token: "actual-auth-access-token", refresh_token: "actual-auth-refresh-token", expires_in: 3600, token_type: "bearer", user: { id: USER, email: EMAIL } } });
-    if (method === "signUp") return ok({ user: { id: USER }, session: null });
     return ok({});
   }]));
+  auth.admin = { createUser: async input => {
+    calls.push({ type: "auth", method: "admin.createUser", args: [input] });
+    return overrides.createUser ? overrides.createUser(input) : ok({ user: { id: USER, email: input.email, email_confirmed_at: new Date(NOW).toISOString(), app_metadata: input.app_metadata } });
+  } };
   const client = { rpc, auth };
-  const handler = createGateway({ service: client, config: configuration(overrides.config), authClient: ip => { calls.push({ type: "client", ip }); return client; }, userClient: (token, ip) => { calls.push({ type: "userClient", token, ip }); return client; }, now: () => NOW });
+  const handler = createGateway({ service: client, config: configuration(overrides.config), authClient: ip => { calls.push({ type: "client", ip }); return client; }, userClient: (token, ip) => { calls.push({ type: "userClient", token, ip }); return client; }, verifyRegistrationCaptcha: async input => { calls.push({ type: "captcha" }); return overrides.verifyRegistrationCaptcha ? overrides.verifyRegistrationCaptcha(input) : "passed"; }, now: () => NOW });
   const send = (body, headers = {}, init = {}) => handler(new Request("https://auth.example.invalid/functions/v1/staff-auth", {
     method: "POST", headers: { "content-type": "application/json", origin: "https://club.example.invalid", ...headers }, body: JSON.stringify(body), ...init,
   }));
@@ -142,22 +146,25 @@ test("limiter/database failures fail closed before Auth or identity lookup", asy
   }
 });
 
-test("registration atomically reserves before Auth and finalizes only Auth UUID without credentials or role in DB", async () => {
+test("registration atomically reserves then creates an Auth account without sending email before finalizing pending identity", async () => {
   const f = fixture();
   assert.deepEqual(await (await f.send(registration())).json(), { success: true, code: "registration_received" });
   const names = f.calls.filter(call => call.type === "rpc" || call.type === "auth").map(call => call.name ?? call.method);
-  assert.ok(names.indexOf("staff_auth_reserve") < names.indexOf("signUp"));
-  assert.ok(names.indexOf("signUp") < names.indexOf("staff_auth_finalize"));
+  assert.ok(names.indexOf("staff_auth_reserve") < names.indexOf("admin.createUser"));
+  assert.ok(names.indexOf("admin.createUser") < names.indexOf("staff_auth_finalize"));
+  assert.equal(rpcCalls(f, "staff_auth_reserve")[0].args.p_email_confirmation_required, false);
   assert.deepEqual(rpcCalls(f, "staff_auth_finalize")[0].args, { p_reservation: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb", p_user_id: USER });
   for (const call of rpcCalls(f)) assert.equal(JSON.stringify(call).includes("safe-test-password-only"), false);
-  assert.equal(authCalls(f)[0].args[0].options.emailRedirectTo, "https://club.example.invalid/admin/");
+  assert.deepEqual(authCalls(f)[0].args[0], { email: "new-account@example.invalid", password: "safe-test-password-only", email_confirm: true, app_metadata: { staff_signup_policy: "manual_approval_no_email_v1" } });
+  assert.equal(authCalls(f).some(call => ["signUp", "signInWithOtp", "resetPasswordForEmail", "signInWithPassword"].includes(call.method)), false);
+  assert.deepEqual(await (await f.send(registration({ username: "member2", email: "new2@example.invalid" }))).json(), { success: true, code: "registration_received" });
 });
 
-test("concurrent duplicate registration produces one Auth signup and no existing-email mapping takeover", async () => {
+test("concurrent duplicate registration produces one Auth creation and no existing-email mapping takeover", async () => {
   const f = fixture();
   const responses = await Promise.all([f.send(registration()), f.send(registration({ username: "KANSAI.OWNER" }))]);
   assert.equal(responses.every(response => response.status === 200), true);
-  assert.equal(authCalls(f).filter(call => call.method === "signUp").length, 1);
+  assert.equal(authCalls(f).filter(call => call.method === "admin.createUser").length, 1);
   const existing = fixture({ rpc: name => name === "staff_auth_reserve" ? bad("23505") : undefined });
   const duplicate = await existing.send(registration());
   assert.deepEqual(await duplicate.json(), { success: true, code: "registration_received" });
@@ -165,19 +172,122 @@ test("concurrent duplicate registration produces one Auth signup and no existing
   assert.equal(rpcCalls(existing, "staff_auth_finalize").length, 0);
 });
 
-test("obfuscated preexisting-signup response cannot grant approval and failed finalization remains generic", async () => {
+test("failed finalization does not grant approval or expose service-created UUID or contact", async () => {
   const f = fixture({ rpc: name => name === "staff_auth_finalize" ? bad("P0001") : undefined });
   const response = await f.send(registration());
   assert.deepEqual(await response.json(), { success: true, code: "registration_received" });
   assert.equal(rpcCalls(f).some(call => /role|approve|owner/.test(call.name)), false);
 });
 
-test("signup requires email confirmation and never hands anonymous signup an immediate Auth session", async () => {
-  const f = fixture({ signUp: () => ok({ user: { id: USER }, session: { access_token: "must-not-return", refresh_token: "must-not-return" } }) });
+test("service account creation never hands an anonymous registration an Auth session", async () => {
+  const f = fixture({ createUser: () => ok({ user: { id: USER }, session: { access_token: "must-not-return", refresh_token: "must-not-return" } }) });
   const response = await f.send(registration());
   assert.equal(response.status, 503);
   assert.equal((await response.text()).includes("must-not-return"), false);
   assert.equal(rpcCalls(f, "staff_auth_finalize").length, 0);
+});
+
+test("failed Auth creation stays generic and never finalizes or alters an existing account", async () => {
+  for (const error of [bad("email_exists"), bad("unexpected_failure")]) {
+    const f = fixture({ createUser: () => error });
+    const response = await f.send(registration());
+    assert.deepEqual(await response.json(), { success: true, code: "registration_received" });
+    assert.equal(rpcCalls(f, "staff_auth_finalize").length, 0);
+    assert.equal(authCalls(f).some(call => /updateUser|deleteUser|signUp|invite/.test(call.method)), false);
+  }
+});
+
+test("new passwords use UTF-8 byte bounds while existing login passwords keep their previous validation", async () => {
+  for (const secret of ["a".repeat(72), "한".repeat(24), "🔑".repeat(18)]) {
+    const f = fixture();
+    assert.equal((await f.send(registration({ password: secret, password_confirmation: secret }))).status, 200);
+    assert.equal(authCalls(f).find(call => call.method === "admin.createUser").args[0].password, secret);
+  }
+  for (const secret of ["a".repeat(73), "한".repeat(25), "🔑".repeat(19)]) {
+    const f = fixture();
+    assert.equal((await f.send(registration({ password: secret, password_confirmation: secret }))).status, 400);
+    assert.equal(authCalls(f).some(call => call.method === "admin.createUser"), false);
+    const reset = await f.send({ action: "set_password", password: secret, password_confirmation: secret }, { authorization: "Bearer recovery-session" });
+    assert.equal(reset.status, 400);
+    assert.equal(authCalls(f).some(call => call.method === "updateUser"), false);
+  }
+  const legacy = fixture();
+  const previous = "a".repeat(80);
+  assert.equal((await legacy.send({ action: "login", username: "legacy-owner", password: previous })).status, 200);
+  assert.equal(authCalls(legacy).find(call => call.method === "signInWithPassword").args[0].password, previous);
+});
+
+test("the manual approval Auth marker is server-owned and cannot be replaced through request metadata", async () => {
+  for (const metadata of [{ app_metadata: { staff_signup_policy: "another-policy", role: "owner" } }, { user_metadata: { staff_signup_policy: "manual_approval_no_email_v1" } }, { staff_signup_policy: "manual_approval_no_email_v1" }, { password_hash: "must-not-import-a-hash" }]) {
+    const f = fixture();
+    assert.equal((await f.send(registration(metadata))).status, 400);
+    assert.equal(authCalls(f).some(call => call.method === "admin.createUser"), false);
+  }
+});
+
+test("shared registration creation cap applies even when attackers rotate usernames, emails and spoofed IP headers", async () => {
+  const f = fixture();
+  const responses = await Promise.all(Array.from({ length: 11 }, (_, index) => f.send(registration({ username: `member${index}`, email: `new${index}@example.invalid` }), { "x-forwarded-for": `192.0.2.${index}`, "cf-connecting-ip": `203.0.113.${index}` })));
+  assert.equal(responses.filter(response => response.status === 429).length, 1);
+  assert.equal(authCalls(f).filter(call => call.method === "admin.createUser").length, 10);
+  assert.equal(rpcCalls(f, "staff_auth_rate_limit").find(call => call.args.p_bucket === "register:shared").args.p_limit, 10);
+});
+
+test("registration CAPTCHA policy is server-owned and fail-closed before reservation or privileged Auth creation", async () => {
+  const unconfigured = fixture({ config: { registrationCaptchaMode: "unconfigured" } });
+  assert.equal((await unconfigured.send(registration({ captcha_token: "cannot-bypass-missing-config" }))).status, 503);
+  assert.equal(authCalls(unconfigured).length, 0);
+  assert.equal(rpcCalls(unconfigured, "staff_auth_reserve").length, 0);
+  const missing = fixture({ config: { registrationCaptchaMode: "turnstile" } });
+  assert.equal((await missing.send(registration())).status, 400);
+  assert.equal(authCalls(missing).length, 0);
+  for (const [result, status] of [["failed", 400], ["unavailable", 503], ["passed", 200]]) {
+    const f = fixture({ config: { registrationCaptchaMode: "hcaptcha" }, verifyRegistrationCaptcha: () => result });
+    assert.equal((await f.send(registration({ captcha_token: "test-captcha-token" }))).status, status);
+    assert.equal(authCalls(f).filter(call => call.method === "admin.createUser").length, result === "passed" ? 1 : 0);
+    for (const call of rpcCalls(f)) assert.equal(JSON.stringify(call.args).includes("test-captcha-token"), false);
+  }
+  const spoofed = fixture();
+  assert.equal((await spoofed.send(registration({ email_confirmation_required: true, email_confirm: true, registrationCaptchaMode: "disabled" }))).status, 400);
+  assert.equal(authCalls(spoofed).length, 0);
+});
+
+test("invalid CAPTCHA cannot exhaust the club-wide account-creation quota", async () => {
+  let passed = false;
+  const f = fixture({ config: { registrationCaptchaMode: "turnstile" }, verifyRegistrationCaptcha: () => passed ? "passed" : "failed" });
+  for (let index = 0; index < 10; index++) {
+    const response = await f.send(registration({ username: `badcaptcha${index}`, email: `badcaptcha${index}@example.invalid`, captcha_token: "invalid-token" }));
+    assert.equal(response.status, 400);
+  }
+  assert.equal(rpcCalls(f, "staff_auth_rate_limit").some(call => call.args.p_bucket === "register:shared"), false);
+  passed = true;
+  const response = await f.send(registration({ captcha_token: "valid-token" }));
+  assert.equal(response.status, 200);
+  assert.equal(authCalls(f).filter(call => call.method === "admin.createUser").length, 1);
+});
+
+test("CAPTCHA provider adapters use official POST endpoints and require approved hostname and action", async () => {
+  for (const mode of ["hcaptcha", "turnstile"]) {
+    const requests = [];
+    const check = createRegistrationCaptchaVerifier({ mode, secret: "test-server-only-secret", sitekey: "test-site-key", allowedOrigins: ["https://club.example.invalid"], request: async (url, init) => {
+      requests.push({ url, init });
+      return Response.json({ success: true, hostname: "club.example.invalid", action: "staff-register" });
+    } });
+    assert.equal(await check({ token: "test-response-token", ip: null }), "passed");
+    assert.equal(requests[0].url, mode === "hcaptcha" ? "https://api.hcaptcha.com/siteverify" : "https://challenges.cloudflare.com/turnstile/v0/siteverify");
+    assert.equal(requests[0].init.method, "POST");
+    const body = new URLSearchParams(requests[0].init.body);
+    assert.equal(body.get("response"), "test-response-token");
+    assert.equal(body.get("secret"), "test-server-only-secret");
+    assert.equal(body.has("remoteip"), false);
+    assert.equal(requests[0].url.includes("test-server-only-secret"), false);
+  }
+  for (const result of [{ success: false }, { success: true, hostname: "untrusted.invalid", action: "staff-register" }, { success: true, hostname: "club.example.invalid", action: "another-flow" }]) {
+    const check = createRegistrationCaptchaVerifier({ mode: "turnstile", secret: "test-secret", sitekey: "test-sitekey", allowedOrigins: ["https://club.example.invalid"], request: async () => Response.json(result) });
+    assert.equal(await check({ token: "test-token", ip: null }), "failed");
+  }
+  const unavailable = createRegistrationCaptchaVerifier({ mode: "hcaptcha", secret: "", sitekey: "", allowedOrigins: [], request: async () => { throw new Error("must not call provider"); } });
+  assert.equal(await unavailable({ token: "test-token", ip: null }), "unavailable");
 });
 
 test("recovery generic result never resolves usernames or exposes existing email and uses configured help URL", async () => {
@@ -334,12 +444,38 @@ test("configuration has no implicit project/domain, wildcard origin or arbitrary
   const defaults = readGatewayConfig(env({}), "legacy-key");
   assert.equal(defaults.enabled, false);
   assert.equal(defaults.registrationEnabled, false);
+  assert.equal(defaults.registrationCaptchaMode, "unconfigured");
+  assert.equal(readGatewayConfig(env({ STAFF_AUTH_REGISTRATION_CAPTCHA_MODE: "false" }), "secret").registrationCaptchaMode, "unconfigured");
+  assert.equal(readGatewayConfig(env({ STAFF_AUTH_REGISTRATION_CAPTCHA_MODE: "disabled" }), "secret").registrationCaptchaMode, "disabled");
   assert.deepEqual(defaults.allowedOrigins, []);
   assert.equal(defaults.emailRedirectTo, "");
   assert.equal(defaults.ipMode, "disabled");
   for (const origin of ["*", "https://example.invalid/path", "http://public.example.invalid"]) assert.deepEqual(readGatewayConfig(env({ STAFF_AUTH_ALLOWED_ORIGINS: JSON.stringify([origin]) }), "secret").allowedOrigins, []);
   assert.equal(serverKey(env({ SUPABASE_SECRET_KEYS: JSON.stringify({ default: "sb_secret_test" }) }), "SUPABASE_SECRET_KEYS", "OLD"), "sb_secret_test");
   assert.throws(() => serverKey(env({ SUPABASE_SECRET_KEYS: JSON.stringify({ one: "first", two: "second" }), OLD: "old" }), "SUPABASE_SECRET_KEYS", "OLD"));
+});
+
+test("installed Supabase SDK provisions only through service Admin API with no email request or new session", async () => {
+  const requests = [];
+  const sdk = createClient("https://sdk-test.example.invalid", "sb_secret_test_server_only", {
+    auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
+    global: { fetch: async (input, init) => {
+      requests.push({ url: String(input), method: init?.method, body: init?.body ? JSON.parse(init.body) : null });
+      return Response.json({ id: USER, email: "new-account@example.invalid", email_confirmed_at: new Date(NOW).toISOString(), created_at: new Date(NOW).toISOString() });
+    } },
+  });
+  const f = fixture();
+  const handler = createGateway({ config: configuration(), service: { rpc: f.client.rpc, auth: sdk.auth }, authClient: () => f.client, userClient: () => f.client, verifyRegistrationCaptcha: async () => "unavailable" });
+  const response = await handler(new Request("https://edge-test.invalid", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(registration()) }));
+  assert.equal(response.status, 200);
+  assert.deepEqual(await response.json(), { success: true, code: "registration_received" });
+  assert.equal(requests.length, 1);
+  assert.equal(new URL(requests[0].url).pathname, "/auth/v1/admin/users");
+  assert.equal(requests[0].method, "POST");
+  assert.deepEqual(requests[0].body, { email: "new-account@example.invalid", password: "safe-test-password-only", email_confirm: true, app_metadata: { staff_signup_policy: "manual_approval_no_email_v1" } });
+  assert.equal(requests[0].url.includes("safe-test-password-only"), false);
+  assert.equal((await sdk.auth.getSession()).data.session, null);
+  assert.equal(rpcCalls(f, "staff_auth_finalize").length, 1);
 });
 
 test("installed Supabase SDK sends actual password login/recovery wire contract without secret in URL or metadata", async () => {

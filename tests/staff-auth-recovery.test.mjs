@@ -218,3 +218,114 @@ test("actual browser initialization error from an expired exchange is shown with
     assert.equal(app.window.document.querySelector("#staff-new-password-panel").hidden, true);
   } finally { await app.close(); }
 });
+
+test("actual recovery controller rejects more than 72 UTF-8 bytes and accepts the Unicode boundary without changing its AMR gate", async () => {
+  const requests = [];
+  const result = signedBrowserSession();
+  const app = browser(
+    "https://club.example.invalid/admin/help/?lang=ja",
+    async (input, init) => {
+      const request = new Request(input, init);
+      const path = new URL(request.url).pathname;
+      const body =
+        request.method === "POST"
+          ? await request.json().catch(() => null)
+          : null;
+      requests.push({ path, body });
+      if (path === "/auth/v1/user") return Response.json(result.user);
+      if (path === "/auth/v1/.well-known/jwks.json")
+        return Response.json({ keys: [browserJwk] });
+      if (path === "/functions/v1/staff-auth")
+        return Response.json({ success: true });
+      if (path === "/auth/v1/logout")
+        return new Response(null, { status: 204 });
+      throw new Error("Unexpected fake Auth operation");
+    },
+    [["browser-recovery-test", JSON.stringify(result)]],
+  );
+  try {
+    const document = app.window.document;
+    await until(
+      () => !document.querySelector("#staff-new-password-panel").hidden,
+    );
+    const form = document.querySelector("#staff-new-password-form");
+    const password = form.elements.namedItem("password");
+    const confirmation = form.elements.namedItem("password_confirmation");
+    assert.equal(password.maxLength, 72);
+    assert.equal(confirmation.maxLength, 72);
+    const boundary = "가".repeat(24);
+    assert.equal(new TextEncoder().encode(boundary).length, 72);
+    password.value = boundary + "a";
+    confirmation.value = password.value;
+    form.dispatchEvent(
+      new app.window.Event("submit", { bubbles: true, cancelable: true }),
+    );
+    await until(() => password.getAttribute("aria-invalid") === "true");
+    assert.equal(document.activeElement, password);
+    assert.match(
+      document.querySelector("#staff-help-message").textContent,
+      /UTF-8で72バイト/,
+    );
+    assert.equal(
+      requests.some((request) => request.body?.action === "set_password"),
+      false,
+    );
+    password.value = boundary;
+    confirmation.value = boundary;
+    password.dispatchEvent(new app.window.Event("input", { bubbles: true }));
+    form.dispatchEvent(
+      new app.window.Event("submit", { bubbles: true, cancelable: true }),
+    );
+    await until(
+      () => document.querySelector("#staff-new-password-panel").hidden,
+    );
+    assert.equal(
+      requests.filter((request) => request.body?.action === "set_password")
+        .length,
+      1,
+    );
+    assert.equal(
+      requests.find((request) => request.body?.action === "set_password").body
+        .password,
+      boundary,
+    );
+    assert.equal(password.value, "");
+    assert.equal(confirmation.value, "");
+  } finally {
+    await app.close();
+  }
+});
+
+test("signup and help describe Owner approval, retained contact email and transitional recovery without a fake support action", async () => {
+  const portalSource = await readFile(
+    "src/components/admin/StaffAuthPortal.astro",
+    "utf8",
+  );
+  const portal = new JSDOM(portalSource.replace(/^---[\s\S]*?---/, "")).window
+    .document;
+  const help = new JSDOM(helpHtml).window.document;
+  const signup = portal.querySelector('[data-staff-panel="signup"]');
+  assert.match(signup.textContent, /新規登録では確認メールを送信しません/);
+  assert.match(
+    signup.textContent,
+    /Ownerによる本人・関係者・連絡先の確認と承認/,
+  );
+  assert.equal(signup.querySelector('[name="email"]').required, true);
+  assert.match(
+    signup.querySelector('label[for="staff-signup-email"]').textContent,
+    /連絡・復旧用/,
+  );
+  for (const field of signup.querySelectorAll('[autocomplete="new-password"]'))
+    assert.equal(field.maxLength, 72);
+  const options = help.querySelector("#staff-help-options");
+  assert.match(options.textContent, /信頼できる管理用端末/);
+  assert.match(options.textContent, /移行期間中のメール復旧/);
+  assert.ok(options.querySelector("#staff-recovery-form"));
+  assert.equal(options.textContent.includes("reset-staff-password.mjs"), false);
+  assert.equal(
+    [...options.querySelectorAll("button")].some((button) =>
+      /支援|メールを使わない再設定/.test(button.textContent),
+    ),
+    false,
+  );
+});

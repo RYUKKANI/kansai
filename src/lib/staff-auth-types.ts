@@ -7,6 +7,8 @@ export type StaffAccountState = {
   department: string | null;
   approval_status: "legacy" | "pending" | "approved" | "rejected" | "suspended";
   email_confirmed: boolean;
+  email_confirmation_required?: boolean;
+  email_verification_status?: "verified" | "pending" | "not_required";
   role: "owner" | "administrator" | "editor" | "coach" | null;
   active: boolean;
   identity_enrolled: boolean;

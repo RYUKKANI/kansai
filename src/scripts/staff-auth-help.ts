@@ -1,7 +1,7 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { text as t } from "../lib/i18n";
 import { initLanguageSwitcher } from "./languages";
-import { attachPasswordToggles, clearStaffPasswords, staffAuthError, staffAuthRequest } from "./staff-auth";
+import { attachPasswordToggles, clearStaffPasswords, staffAuthError, staffAuthRequest, validNewStaffPassword } from "./staff-auth";
 import { createStaffRecoveryFetch } from "../lib/staff-auth-recovery";
 
 type RecoveryCallback = { hasCode: boolean; hasError: boolean };
@@ -84,6 +84,13 @@ export function mountStaffAuthHelp({ root, client, callback = recoveryCallbackSt
       input(passwordForm, "password_confirmation").setAttribute("aria-invalid", "true");
       message(t("パスワードが一致しません。"), true);
       input(passwordForm, "password_confirmation").focus();
+      return;
+    }
+    // 기존 복구 AMR 검사를 유지하면서 새 비밀번호의 native Auth 바이트 상한을 확인합니다.
+    if (!validNewStaffPassword(password)) {
+      input(passwordForm, "password").setAttribute("aria-invalid", "true");
+      message(t("パスワードは12文字以上、UTF-8で72バイト以内にしてください。"), true);
+      input(passwordForm, "password").focus();
       return;
     }
     clearStaffPasswords(root);
