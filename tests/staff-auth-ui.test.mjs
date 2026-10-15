@@ -31,7 +31,8 @@ async function eventually(condition) {
   }
   assert.ok(condition(), "Authentication UI did not reach expected state");
 }
-function application({ help = false, invoke, getUser, language = "ja", query = "" } = {}) {
+const recoveryClaims = (overrides = {}) => ({ data: { claims: { sub: "unchanged-user-id", amr: [{ method: "recovery", timestamp: Date.now() / 1000 }], ...overrides } }, error: null });
+function application({ help = false, invoke, getUser, getClaims, initialize, language = "ja", query = "" } = {}) {
   const html = help
     ? markup(helpSource).replace(/data-enabled=\{String\(enabled\)\}/g, 'data-enabled="false"')
     : markup(portalSource);
@@ -50,13 +51,15 @@ function application({ help = false, invoke, getUser, language = "ja", query = "
       return invoke ? invoke(options.body) : { data: { success: true }, error: null };
     } },
     auth: {
+      async initialize() { return initialize ? initialize() : { error: null }; },
       async resetPasswordForEmail(email) {
         requests.push({ name: "auth.recovery", body: { action: "recovery", email } });
         return { data: {}, error: null };
       },
       async setSession(session) { sessions.push(session); return { data: {}, error: null }; },
       async getSession() { return { data: { session: { access_token: "verified-staff-token" } }, error: null }; },
-      async getUser() { getUserCount++; return getUser ? getUser() : { data: { user: { id: "unchanged-user-id" } }, error: null }; },
+      async getUser(token) { getUserCount++; return getUser ? getUser(token) : { data: { user: { id: "unchanged-user-id" } }, error: null }; },
+      async getClaims(token) { return getClaims ? getClaims(token) : recoveryClaims({ amr: [{ method: "password", timestamp: Date.now() / 1000 }] }); },
       async signOut() { signOutCount++; authListener?.("SIGNED_OUT"); return { error: null }; },
       onAuthStateChange(listener) { authListener = listener; return { data: { subscription: { unsubscribe() {} } } }; },
     },
@@ -79,7 +82,7 @@ function application({ help = false, invoke, getUser, language = "ja", query = "
   const submit = (selector) => document.querySelector(selector).dispatchEvent(new window.Event("submit", { bubbles: true, cancelable: true }));
   return { dom, window, document, controller, requests, sessions, set, submit,
     counts: () => ({ refresh: refreshCount, getUser: getUserCount, signOut: signOutCount }),
-    emit: (event) => authListener?.(event, { access_token: "verified-recovery-token" }),
+    emit: (event, session = { access_token: "verified-recovery-token", user: { id: "unchanged-user-id" } }) => authListener?.(event, session),
   };
 }
 const signup = { username: "Staff.Name", password: "correct-password-123", password_confirmation: "correct-password-123", real_name: "金 さくら Ana-María", department: "コーチ / Staff", email: "staff@example.invalid", notice_accepted: true };
@@ -238,7 +241,7 @@ test("a recovery query alone cannot enable password updates even with an existin
 });
 
 test("verified Auth recovery enables password update, clears credentials and closes recovery session", async () => {
-  const app = application({ help: true, query: "&type=recovery#access_token=transient-token" });
+  const app = application({ help: true, getClaims: () => recoveryClaims(), query: "&type=recovery#access_token=transient-token" });
   try {
     app.emit("PASSWORD_RECOVERY");
     await eventually(() => !app.document.querySelector("#staff-new-password-panel").hidden);
@@ -258,7 +261,7 @@ test("verified Auth recovery enables password update, clears credentials and clo
 
 test("invalidated recovery session cannot expose the password form after a delayed user check", async () => {
   let resolve;
-  const app = application({ help: true, getUser: () => new Promise((done) => { resolve = done; }) });
+  const app = application({ help: true, getClaims: () => recoveryClaims(), getUser: () => new Promise((done) => { resolve = done; }) });
   try {
     app.emit("PASSWORD_RECOVERY");
     await eventually(() => Boolean(resolve));
@@ -271,12 +274,14 @@ test("invalidated recovery session cannot expose the password form after a delay
 });
 
 test("signing in to another account clears an already verified recovery form", async () => {
-  const app = application({ help: true });
+  let changed = false;
+  const app = application({ help: true, getClaims: () => changed ? recoveryClaims({ sub: "different-user-id", amr: [{ method: "password", timestamp: Date.now() / 1000 }] }) : recoveryClaims(), getUser: () => ({ data: { user: { id: changed ? "different-user-id" : "unchanged-user-id" } }, error: null }) });
   try {
     app.emit("PASSWORD_RECOVERY");
     await eventually(() => !app.document.querySelector("#staff-new-password-panel").hidden);
     app.set("#staff-new-password-form", { password: "new-password-123", password_confirmation: "new-password-123" });
-    app.emit("SIGNED_IN");
+    changed = true;
+    app.emit("SIGNED_IN", { access_token: "different-session", user: { id: "different-user-id" } });
     assert.equal(app.document.querySelector("#staff-new-password-panel").hidden, true);
     assert.equal(app.document.querySelector("#staff-new-password").value, "");
     app.set("#staff-new-password-form", { password: "new-password-123", password_confirmation: "new-password-123" });
@@ -294,5 +299,89 @@ test("recovery requests use only the email and show an enumeration-safe receipt"
     await eventually(() => app.requests.length === 1 && app.document.querySelector("#staff-help-message").textContent.includes("送信を受け付けました"));
     assert.deepEqual(app.requests[0].body, { action: "recovery", email: "private@example.invalid" });
     assert.doesNotMatch(app.document.querySelector("#staff-help-message").textContent, /private@example/);
+    assert.match(app.document.querySelector("#staff-help-message").textContent, /パスワードはまだ変更されていません/);
   } finally { app.dom.window.close(); }
+});
+
+test("PASSWORD_RECOVERY event and URL type cannot replace verified recent recovery claims", async () => {
+  const app = application({ help: true, query: "&type=recovery" });
+  try {
+    app.emit("PASSWORD_RECOVERY");
+    await eventually(() => app.counts().getUser === 1);
+    await new Promise(resolve => setTimeout(resolve, 10));
+    assert.equal(app.document.querySelector("#staff-new-password-panel").hidden, true);
+    assert.equal(app.requests.length, 0);
+  } finally { app.dom.window.close(); }
+});
+
+test("initial recovery session resumes after reload; same-account broadcast and refresh preserve typed inputs", async () => {
+  const app = application({ help: true, getClaims: () => recoveryClaims() });
+  try {
+    app.emit("INITIAL_SESSION");
+    await eventually(() => !app.document.querySelector("#staff-new-password-panel").hidden);
+    app.set("#staff-new-password-form", { password: "in-progress-password", password_confirmation: "in-progress-password" });
+    for (const event of ["SIGNED_IN", "TOKEN_REFRESHED"]) {
+      const before = app.counts().getUser;
+      app.emit(event);
+      await eventually(() => app.counts().getUser > before);
+      await new Promise(resolve => setTimeout(resolve, 5));
+      assert.equal(app.document.querySelector("#staff-new-password-panel").hidden, false);
+      assert.equal(app.document.querySelector("#staff-new-password").value, "in-progress-password");
+    }
+    app.emit("SIGNED_OUT", null);
+    assert.equal(app.document.querySelector("#staff-new-password-panel").hidden, true);
+    assert.equal(app.document.querySelector("#staff-new-password").value, "");
+  } finally { app.dom.window.close(); }
+});
+
+test("stale, mismatched, forged and future recovery claims never resume a password form", async () => {
+  const now = Date.now() / 1000;
+  for (const result of [
+    recoveryClaims({ sub: "someone-else" }),
+    recoveryClaims({ amr: [{ method: "recovery", timestamp: now - 901 }] }),
+    recoveryClaims({ amr: [{ method: "recovery", timestamp: now + 61 }] }),
+    recoveryClaims({ amr: [{ method: "recovery", timestamp: Infinity }] }),
+    recoveryClaims({ amr: [{ method: "otp", timestamp: now }] }),
+    recoveryClaims({ amr: ["recovery", null, false, { method: "recovery", timestamp: "not-a-number" }] }),
+    { data: null, error: { message: "untrusted detail" } },
+  ]) {
+    const app = application({ help: true, getClaims: () => result });
+    try {
+      app.emit("INITIAL_SESSION");
+      await eventually(() => app.counts().getUser === 1);
+      await new Promise(resolve => setTimeout(resolve, 5));
+      assert.equal(app.document.querySelector("#staff-new-password-panel").hidden, true);
+      assert.equal(app.requests.length, 0);
+    } finally { app.dom.window.close(); }
+  }
+});
+
+test("an active recovery form clears when refreshed authentication becomes stale", async () => {
+  let stale = false;
+  const app = application({ help: true, getClaims: () => recoveryClaims({ amr: [{ method: "recovery", timestamp: Date.now() / 1000 - (stale ? 901 : 10) }] }) });
+  try {
+    app.emit("PASSWORD_RECOVERY");
+    await eventually(() => !app.document.querySelector("#staff-new-password-panel").hidden);
+    app.set("#staff-new-password-form", { password: "in-progress-password", password_confirmation: "in-progress-password" });
+    stale = true;
+    app.emit("TOKEN_REFRESHED");
+    await eventually(() => app.document.querySelector("#staff-new-password-panel").hidden);
+    assert.equal(app.document.querySelector("#staff-new-password").value, "");
+    assert.match(app.document.querySelector("#staff-help-message").textContent, /同じブラウザー/);
+  } finally { app.dom.window.close(); }
+});
+
+test("callback with missing verifier or failed initialization explains recovery instead of silently showing resend form", async () => {
+  for (const initialize of [() => ({ error: null }), () => ({ error: { message: "must not echo callback detail" } })]) {
+    const app = application({ help: true, query: "&code=unit-test-only-sensitive-code", initialize });
+    try {
+      await eventually(() => app.document.querySelector("#staff-help-message").dataset.error === "true");
+      const notice = app.document.querySelector("#staff-help-message");
+      assert.match(notice.textContent, /最新のリンク.*同じブラウザー/);
+      assert.doesNotMatch(notice.textContent, /sensitive-code|callback detail/);
+      assert.equal(app.window.location.search.includes("code="), false);
+      assert.equal(app.document.querySelector("#staff-new-password-panel").hidden, true);
+      assert.equal(app.requests.length, 0);
+    } finally { app.dom.window.close(); }
+  }
 });

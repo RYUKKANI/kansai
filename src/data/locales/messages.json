@@ -2915,6 +2915,14 @@
     "ko": "확인 링크 발송을 접수했습니다. 등록된 계정이라면 가장 최근 이메일에서 진행해주세요.",
     "en": "Your verification-link request was received. If registered, continue from the latest email."
   },
+  "確認リンクの送信を受け付けました。パスワードはまだ変更されていません。登録済みの場合は、最新のメールのリンクをこのブラウザーで開き、新しいパスワードを保存してください。": {
+    "ko": "확인 링크 발송을 접수했습니다. 비밀번호는 아직 변경되지 않았습니다. 등록된 계정이라면 가장 최근 이메일의 링크를 이 브라우저에서 열고 새 비밀번호를 저장해주세요.",
+    "en": "Your verification-link request was received. Your password has not changed yet. If registered, open the latest email link in this browser and save your new password."
+  },
+  "確認リンクを読み取れませんでした。最新のリンクを、メールを申請した同じブラウザーで開いてください。別のブラウザーを使う場合は、ここで新しい確認メールを申請してください。": {
+    "ko": "확인 링크를 읽지 못했습니다. 가장 최근 링크를 이메일 발송을 신청한 같은 브라우저에서 열어주세요. 다른 브라우저를 쓰려면 여기서 새 확인 이메일을 신청해주세요.",
+    "en": "The verification link could not be read. Open the latest link in the same browser that requested the email. To use another browser, request a new verification email here."
+  },
   "確認リンクを送信": {
     "ko": "확인 링크 보내기",
     "en": "Send verification link"
