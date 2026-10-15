@@ -143,6 +143,11 @@ function submit(
   form.append(button);
   return button;
 }
+function emailVerification(row: Row): string {
+  if (row.email_confirmation_required === false || row.email_verification_status === "not_required")
+    return t("確認不要（メール所有未確認）");
+  return row.email_confirmed === true || row.email_confirmed_at ? t("確認済み") : t("未確認");
+}
 function safeError(error: unknown): string {
   const value = error && typeof error === "object" ? (error as Row) : {};
   const raw = string(value.message);
@@ -150,6 +155,8 @@ function safeError(error: unknown): string {
     return t("最後の有効なOwnerは停止・降格できません。");
   if (/self|own.*(approv|role|identity)/i.test(raw))
     return t("自分自身の承認・本人確認・権限変更はできません。");
+  if (raw === "manual_contact_check_required")
+    return t("申請者の連絡先を確認し、本人との照合を完了してください。");
   if (/email.*confirm/i.test(raw))
     return t("メールアドレスの確認後に承認してください。");
   if (/verif|real.name/i.test(raw))
@@ -239,6 +246,7 @@ function auditValue(value: unknown): string {
 export function staffAuditActor(row: Row): string {
   const source = string(row.source);
   if (source === "scheduled") return t("予約処理");
+  if (source === "system_support") return t("管理者支援 / 実行者確認不可");
   if (source === "database_unattributed")
     return t("DB直接操作 / 実行者確認不可");
   if (source === "legacy_unknown") return t("以前の記録 / 作業者確認不可");
@@ -257,6 +265,10 @@ function auditAction(row: Row): string {
     delete: t("削除"),
     publish: t("公開"),
     unpublish: t("公開取消"),
+    support_password_reset_requested: t("パスワード支援の受付"),
+    support_password_reset_succeeded: t("パスワード支援の完了"),
+    support_password_reset_failed: t("パスワード支援の失敗"),
+    support_password_reset_indeterminate: t("パスワード支援の結果未確認"),
     application_approved: t("加入申請の承認"),
     application_rejected: t("加入申請の却下"),
     access_changed: t("権限・アクセスの変更"),
@@ -306,6 +318,8 @@ export function renderStaffAuditEntry(row: Row): HTMLElement {
         t("処理区分"),
         source === "human"
           ? t("認証済みアカウントの操作")
+          : source === "system_support"
+            ? t("管理者支援 / 実行者確認不可")
           : source === "scheduled"
             ? t("予約処理")
             : source === "database_unattributed"
@@ -444,9 +458,7 @@ export async function renderStaffOffice(
         [t("申請状態"), state(account.approval_status)],
         [
           t("メール確認"),
-          account.email_confirmed === true || account.email_confirmed_at
-            ? t("確認済み")
-            : t("未確認"),
+          emailVerification(account),
         ],
         [t("活動状態"), account.active === true ? t("活動中") : t("利用停止")],
         [t("現在の権限"), roleText(account.role)],
@@ -582,14 +594,13 @@ export async function renderStaffOffice(
       card.append(
         header,
         details([
+          [t("ログインID"), valueOrDash(member.login_id ?? member.username)],
           [t("所属・担当業務"), valueOrDash(member.department)],
           [t("希望する役割"), valueOrDash(member.requested_role)],
           [t("現在の権限"), roleText(member.role)],
           [
             t("メール確認"),
-            member.email_confirmed === true || member.email_confirmed_at
-              ? t("確認済み")
-              : t("未確認"),
+            emailVerification(member),
           ],
           [t("活動状態"), member.active === true ? t("活動中") : t("利用停止")],
           [t("アカウントUUID"), id || "—"],
@@ -652,6 +663,8 @@ export async function renderStaffOffice(
           card.append(verify);
         }
         if (member.approval_status === "pending") {
+          const manual = member.email_confirmation_required === false || member.email_verification_status === "not_required";
+          let contactLoaded = !manual;
           const approval = element("form", "", "staff-form");
           approval.append(element("h4", t("加入申請を審査")));
           const role = selectRole(approval, "role", "coach", owner);
@@ -662,40 +675,88 @@ export async function renderStaffOffice(
             ["approved", t("承認")],
             ["rejected", t("反映しない・却下")],
           ] as const) {
+            if (manual && !owner && value === "approved") continue;
             const option = element("option", label);
             option.value = value;
             choice.append(option);
           }
           choiceLabel.append(choice);
           approval.append(choiceLabel);
+          if (manual) approval.append(note(t("確認メールは送信していません。承認前に本人と連絡先をご確認ください。")));
+          const contactView = element("details", "", "staff-contact");
+          const contactButton = element("button", t("申請者の連絡先を確認"), "staff-button");
+          contactButton.type = "button";
+          contactButton.dataset.staffAction = "contact";
+          const contactText = element("p");
+          if (manual && owner) {
+            contactView.append(element("summary", t("承認担当者向けの連絡先")), contactButton, contactText);
+            approval.append(contactView);
+          }
           const confirmationLabel = element(
             "label",
-            t("実名と関係者であることを確認しました。"),
+            t(manual ? "本人・ログインID・メールアドレスを別の連絡手段で確認しました。" : "実名と関係者であることを確認しました。"),
             "staff-checkbox",
           );
           const confirmed = element("input");
           confirmed.type = "checkbox";
           confirmed.name = "identity_confirmed";
-          confirmed.required = true;
+          confirmed.required = choice.value === "approved";
           confirmationLabel.prepend(confirmed);
           approval.append(confirmationLabel);
-          choice.addEventListener("change", () => {
-            confirmed.required = choice.value === "approved";
-          });
           const reason = field(approval, t("審査理由"), "reason", {
             multiline: true,
             maxLength: 500,
           });
-          submit(approval, t("審査結果を保存"), "review");
+          const save = submit(approval, t("審査結果を保存"), "review");
+          const updateDecision = () => {
+            confirmed.required = choice.value === "approved";
+            confirmationLabel.hidden = !confirmed.required;
+            save.disabled = busy || (confirmed.required && !contactLoaded);
+          };
+          updateDecision();
+          choice.addEventListener("change", updateDecision);
+          // 연락 이메일은 Owner가 요청한 단일 대기 신청에만 표시하고, 로그아웃 뒤 늦은 응답은 버립니다.
+          contactButton.addEventListener("click", () => {
+            if (busy || !current()) return;
+            const requestSequence = sequence;
+            // 연락처 조회와 심사 저장이 같은 controls의 disabled 스냅샷을 덮어쓰지 않게 직렬화합니다.
+            busy = true;
+            contactButton.disabled = true;
+            contactView.setAttribute("aria-busy", "true");
+            updateDecision();
+            void (async () => {
+              try {
+                const contact = record(await rpc("office_staff_application_contact", { p_user_id: id }));
+                if (!current() || requestSequence !== sequence) return;
+                if (contact.user_id !== id || !string(contact.email)) throw new Error("invalid_response");
+                contactText.textContent = format("連絡用メール: {0}", string(contact.email));
+                contactLoaded = true;
+                confirmed.checked = false;
+                updateDecision();
+              } catch (error) {
+                if (current() && requestSequence === sequence) notice(safeError(error), true);
+              } finally {
+                busy = false;
+                if (current() && requestSequence === sequence) {
+                  contactButton.disabled = false;
+                  contactView.removeAttribute("aria-busy");
+                  updateDecision();
+                }
+              }
+            })();
+          });
           formAction(
             approval,
-            () =>
-              rpc("office_review_staff", {
+            () => {
+              if (manual && choice.value === "approved" && (!contactLoaded || !confirmed.checked))
+                throw new Error("manual_contact_check_required");
+              return rpc("office_review_staff", {
                 p_user_id: id,
                 p_decision: choice.value,
                 p_role: role.value,
                 p_reason: reason.value.trim(),
-              }),
+              });
+            },
             t("加入申請の審査結果を保存しました。"),
           );
           card.append(approval);

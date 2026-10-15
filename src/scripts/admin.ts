@@ -353,8 +353,10 @@ async function authenticate() {
       return;
     }
     identity = value as unknown as StaffAccountState;
+    // 메일 확인 생략도 서버가 정한 정책입니다. 이 경우에도 현재 승인·활성 역할이 모두 필요합니다.
     const allowed = identity.active === true && Boolean(identity.role) &&
-      (identity.legacy_account === true || (identity.approval_status === "approved" && identity.email_confirmed === true));
+      (identity.legacy_account === true || (identity.approval_status === "approved" &&
+        (identity.email_confirmation_required === false || identity.email_confirmed === true)));
     if (!allowed) {
       resetLogin();
       ownIdentity = identity;

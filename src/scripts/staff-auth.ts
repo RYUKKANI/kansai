@@ -49,11 +49,11 @@ export function staffAuthError(error: unknown): string {
   if (code === "invalid_request")
     return t("入力内容をご確認ください。登録済みの場合はログインまたは復旧をご利用ください。");
   if (code === "authentication_required")
-    return t("確認済みのログインが必要です。確認メールのリンクを開き直してください。");
+    return t("ログインを確認できません。もう一度ログインしてください。");
   if (code === "enrollment_unavailable")
     return t("登録を完了できませんでした。IDを確認し、必要な場合は運営責任者にご相談ください。");
   if (code === "password_update_failed")
-    return t("パスワードを設定できませんでした。新しい確認メールのリンクからお試しください。");
+    return t("パスワードを設定できませんでした。ログイン状態を確認するか、運営責任者にご相談ください。");
   if (code === "feature_unavailable")
     return t("新しいログイン方式は移行準備中です。現在のログイン画面をご利用ください。");
   return t("操作を完了できませんでした。時間をおいて再度お試しください。");
@@ -82,6 +82,11 @@ export function clearStaffPasswords(root: HTMLElement) {
     button.setAttribute("aria-pressed", "false");
     button.textContent = t("表示");
   }
+}
+
+// 새 비밀번호는 native Auth의 바이트 상한과 맞춥니다. 기존 로그인 비밀번호에는 적용하지 않습니다.
+export function validNewStaffPassword(value: string): boolean {
+  return value.length >= 12 && new Blob([value]).size <= 72;
 }
 
 export function mountStaffAuth({ client, notice, refresh }: StaffAuthOptions) {
@@ -173,6 +178,10 @@ export function mountStaffAuth({ client, notice, refresh }: StaffAuthOptions) {
     const generation = viewGeneration;
     const password = read(element, "password");
     const confirmation = read(element, "password_confirmation");
+    if (!validNewStaffPassword(password)) {
+      invalid(field(element, "password"), "パスワードは12文字以上、UTF-8で72バイト以内にしてください。");
+      return;
+    }
     if (password !== confirmation) {
       invalid(field(element, "password_confirmation"), "パスワードが一致しません。");
       return;
@@ -183,7 +192,7 @@ export function mountStaffAuth({ client, notice, refresh }: StaffAuthOptions) {
     if (generation !== viewGeneration) return;
     element.reset();
     show("login", false);
-    message(t("登録申請を受け付けました。確認メールをご確認ください。すでに登録済みの場合はログインまたは復旧をご利用ください。"));
+    message(t("登録申請を受け付けました。メールの確認は不要です。登録できた場合は、入力したIDとパスワードでログインして承認状態をご確認ください。ログインできない場合は運営責任者にご相談ください。"));
   });
   bind("enroll", async (element) => {
     const generation = viewGeneration;
@@ -226,7 +235,7 @@ export function mountStaffAuth({ client, notice, refresh }: StaffAuthOptions) {
         [t("ログインID"), state.username ?? t("未登録")],
         [t("実名"), state.real_name ?? t("未登録")],
         [t("所属・担当業務"), state.department ?? t("未登録")],
-        [t("メール確認"), t(state.email_confirmed ? "確認済み" : "未確認")],
+        [t("メール確認"), t(state.email_confirmation_required === false || state.email_verification_status === "not_required" ? "確認不要（メール所有未確認）" : state.email_confirmed ? "確認済み" : "未確認")],
         [t("承認状態"), t(status[state.approval_status] ?? "承認待ち")],
         [t("実名確認"), t(state.name_verified_at ? "確認済み" : "未確認")],
       ];
@@ -237,7 +246,7 @@ export function mountStaffAuth({ client, notice, refresh }: StaffAuthOptions) {
         detail.textContent = value!;
         list.append(term, detail);
       }
-      portal.querySelector<HTMLButtonElement>("#staff-account-enroll")!.hidden = state.identity_enrolled || state.approval_status === "suspended";
+      portal.querySelector<HTMLButtonElement>("#staff-account-enroll")!.hidden = state.identity_enrolled || !state.legacy_account || state.approval_status === "suspended";
     },
     showMigration(state: StaffAccountState) {
       ownState = state;
