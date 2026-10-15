@@ -5,6 +5,7 @@ const locale = localeFromUrl(Astro.url);
 import { clubForLocale } from "../data/locales/content";
 const club = clubForLocale(locale);
 const page = (path = "") => localizedPage(path, locale);
+const staffIdentityEnabled = import.meta.env.PUBLIC_STAFF_IDENTITY_ENABLED === "true";
 
 import { asset } from "../lib/urls";
 import "../styles/global.css";
@@ -24,7 +25,8 @@ import LanguageSwitcher from "../components/LanguageSwitcher.astro";
     <meta name="theme-color" content="#0B2447" />
     <title>KANSAI UNITED FC — CLUB OFFICE</title>
   </head>
-  <body class="admin-body">
+  <!-- 어두운 인증 화면의 스타일은 기능 플래그가 켜진 미로그인 상태에만 적용합니다. -->
+  <body class:list={["admin-body", { "staff-identity-auth": staffIdentityEnabled }]}>
     <a class="skip-link" href="#admin-main">
       <span data-i18n="管理画面へ移動">管理画面へ移動</span>
     </a>
