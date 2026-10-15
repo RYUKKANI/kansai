@@ -1,8 +1,10 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { createHash } from "node:crypto";
+import { createHash, generateKeyPairSync, sign, webcrypto } from "node:crypto";
+import { readFile } from "node:fs/promises";
 import { build } from "esbuild";
 import { createClient } from "@supabase/supabase-js";
+import { JSDOM } from "jsdom";
 
 const compiled = await build({ entryPoints: ["src/lib/staff-auth-recovery.ts"], bundle: true, write: false, platform: "node", format: "esm" });
 const { createStaffRecoveryFetch } = await import("data:text/javascript;base64," + Buffer.from(compiled.outputFiles[0].text).toString("base64"));
@@ -87,4 +89,132 @@ test("gateway recovery throttling remains an SDK error with no raw server detail
     assert.equal(result.error.code, "rate_limited");
     assert.doesNotMatch(result.error.message, /private server detail/);
   } finally { await client.auth.stopAutoRefresh(); }
+});
+
+// 실제 브라우저 분기와 자동 URL 처리를 검사합니다. Auth 네트워크·서명 키는 이 테스트 전용입니다.
+const browserBundle = await build({ stdin: {
+  contents: `import { createClient } from '@supabase/supabase-js';
+    import { mountStaffAuthHelp, recoveryCallbackState } from './src/scripts/staff-auth-help';
+    import { createStaffRecoveryFetch } from './src/lib/staff-auth-recovery';
+    export function boot(root, network) {
+      const callback = recoveryCallbackState(window.location.href);
+      const client = createClient('${url}', '${key}', {
+        auth: { storageKey: 'browser-recovery-test', persistSession: true, autoRefreshToken: false, detectSessionInUrl: true, flowType: 'pkce' },
+        global: { fetch: createStaffRecoveryFetch('${url}', '${key}', network) }
+      });
+      const controller = mountStaffAuthHelp({ root, client, callback });
+      return { client, controller };
+    }`,
+  resolveDir: process.cwd(), sourcefile: "browser-recovery-test.ts", loader: "ts",
+}, bundle: true, write: false, format: "iife", globalName: "RecoveryBrowser", define: {
+  "import.meta.env.BASE_URL": '"/"', "import.meta.env.PUBLIC_SUPABASE_URL": '""', "import.meta.env.PUBLIC_SUPABASE_PUBLISHABLE_KEY": '""',
+} });
+const helpHtml = (await readFile("src/pages/admin/help.astro", "utf8"))
+  .replace(/^---[\s\S]*?---/, "")
+  .replace(/<script[\s\S]*?<\/script>/g, "")
+  .replace(/data-enabled=\{String\(enabled\)\}/g, 'data-enabled="false"');
+const browserKeys = generateKeyPairSync("ec", { namedCurve: "prime256v1" });
+const browserJwk = { ...browserKeys.publicKey.export({ format: "jwk" }), kid: "recovery-browser-test", alg: "ES256", use: "sig" };
+function signedBrowserSession() {
+  const result = session();
+  const claims = { sub: result.user.id, aud: "authenticated", role: "authenticated", iss: url + "/auth/v1", exp: Math.floor(Date.now() / 1000) + 3600, iat: Math.floor(Date.now() / 1000), amr: [{ method: "recovery", timestamp: Math.floor(Date.now() / 1000) }] };
+  const input = Buffer.from(JSON.stringify({ alg: "ES256", typ: "JWT", kid: browserJwk.kid })).toString("base64url") + "." + Buffer.from(JSON.stringify(claims)).toString("base64url");
+  result.access_token = input + "." + sign("sha256", Buffer.from(input), { key: browserKeys.privateKey, dsaEncoding: "ieee-p1363" }).toString("base64url");
+  return result;
+}
+async function until(condition) {
+  for (let count = 0; count < 150; count++) {
+    if (condition()) return;
+    await new Promise(resolve => setTimeout(resolve, 5));
+  }
+  assert.ok(condition(), "Browser recovery did not reach its expected state");
+}
+function browser(address, network, saved = []) {
+  const dom = new JSDOM(helpHtml, { url: address, runScripts: "outside-only", pretendToBeVisual: true });
+  const { window } = dom;
+  Object.assign(window, { TextEncoder, TextDecoder, Request, Response, Headers, AbortController, AbortSignal });
+  Object.defineProperty(window, "crypto", { value: webcrypto });
+  for (const [name, value] of saved) window.localStorage.setItem(name, value);
+  window.eval(browserBundle.outputFiles[0].text);
+  const runtime = window.RecoveryBrowser.boot(window.document.querySelector("#staff-auth-help"), network);
+  return { dom, window, runtime,
+    snapshot: () => Array.from({ length: window.localStorage.length }, (_, index) => {
+      const name = window.localStorage.key(index);
+      return [name, window.localStorage.getItem(name)];
+    }),
+    async close() { runtime.controller.destroy(); await runtime.client.auth.stopAutoRefresh(); dom.window.close(); },
+  };
+}
+
+test("actual browser SDK auto-initializes callback and resumes a signed recovery after a full page reload", async () => {
+  const requests = [];
+  const result = signedBrowserSession();
+  const network = async (input, init) => {
+    const request = new Request(input, init);
+    const target = new URL(request.url);
+    requests.push({ path: target.pathname, method: request.method });
+    if (target.pathname === "/functions/v1/staff-auth") return Response.json({ success: true, code: "recovery_received" });
+    if (target.pathname === "/auth/v1/token" && target.searchParams.get("grant_type") === "pkce") return Response.json(result);
+    if (target.pathname === "/auth/v1/user") return Response.json(result.user);
+    if (target.pathname === "/auth/v1/.well-known/jwks.json") return Response.json({ keys: [browserJwk] });
+    throw new Error("Unexpected fake Auth operation");
+  };
+  const first = browser("https://club.example.invalid/admin/help/?lang=ja", network);
+  let saved;
+  try {
+    assert.equal((await first.runtime.client.auth.resetPasswordForEmail("test@example.invalid")).error, null);
+    saved = first.snapshot();
+    assert.ok(saved.some(([name]) => name.endsWith("-code-verifier")));
+  } finally { await first.close(); }
+  const callback = browser("https://club.example.invalid/admin/help/?lang=ja&code=fake-one-time-code", network, saved);
+  let resumed;
+  try {
+    await until(() => !callback.window.document.querySelector("#staff-new-password-panel").hidden);
+    assert.equal(requests.filter(request => request.path === "/auth/v1/token").length, 1);
+    assert.equal(callback.window.location.search, "?lang=ja");
+    assert.equal(callback.window.document.querySelector("#staff-help-options").hidden, true);
+    resumed = callback.snapshot();
+  } finally { await callback.close(); }
+  const reloaded = browser("https://club.example.invalid/admin/help/?lang=ja", network, resumed);
+  try {
+    await until(() => !reloaded.window.document.querySelector("#staff-new-password-panel").hidden);
+    assert.equal(requests.filter(request => request.path === "/auth/v1/token").length, 1);
+    assert.equal(reloaded.window.document.querySelector("#staff-help-message").dataset.error, "false");
+  } finally { await reloaded.close(); }
+});
+
+test("actual browser callback without a PKCE verifier surfaces a safe explanation and performs no token exchange", async () => {
+  const requests = [];
+  const app = browser("https://club.example.invalid/admin/help/?lang=ja&code=fake-other-browser-code", async (input, init) => {
+    requests.push(new URL(new Request(input, init).url).pathname);
+    throw new Error("Unexpected fake Auth operation");
+  });
+  try {
+    await until(() => app.window.document.querySelector("#staff-help-message").dataset.error === "true");
+    const notice = app.window.document.querySelector("#staff-help-message");
+    assert.match(notice.textContent, /最新のリンク.*同じブラウザー/);
+    assert.doesNotMatch(notice.textContent, /fake-other-browser-code/);
+    assert.equal(app.window.document.querySelector("#staff-new-password-panel").hidden, true);
+    assert.equal(app.window.location.search, "?lang=ja");
+    assert.equal(requests.includes("/auth/v1/token"), false);
+  } finally { await app.close(); }
+});
+
+test("actual browser initialization error from an expired exchange is shown without provider error detail", async () => {
+  const requests = [];
+  const memory = [["browser-recovery-test-code-verifier", JSON.stringify("fake-verifier-for-expired-flow/recovery")]];
+  const app = browser("https://club.example.invalid/admin/help/?lang=ja&code=fake-expired-code", async (input, init) => {
+    const path = new URL(new Request(input, init).url).pathname;
+    requests.push(path);
+    if (path === "/auth/v1/token") return Response.json({ code: "flow_state_expired", msg: "do not expose this provider detail" }, { status: 400, headers: { "x-supabase-api-version": "2024-01-01" } });
+    throw new Error("Unexpected fake Auth operation");
+  }, memory);
+  try {
+    await until(() => app.window.document.querySelector("#staff-help-message").dataset.error === "true");
+    const notice = app.window.document.querySelector("#staff-help-message");
+    assert.match(notice.textContent, /同じブラウザー/);
+    assert.doesNotMatch(notice.textContent, /provider detail|fake-expired-code/);
+    assert.equal(requests.filter(path => path === "/auth/v1/token").length, 1);
+    assert.equal(app.window.document.querySelector("#staff-new-password-panel").hidden, true);
+  } finally { await app.close(); }
 });
