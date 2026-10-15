@@ -3,7 +3,8 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { resources, type Resource } from "../lib/admin-config";
 import type { StaffRole } from "../lib/content-types";
 import { resourceAvailable, scheduleEnabled } from "../lib/office-features";
-import { contentEnabled } from "../lib/office-features";
+import { contentEnabled, staffIdentityDatabaseEnabled } from "../lib/office-features";
+import { staffAuditActor } from "./admin-staff";
 import {
   action,
   badge,
@@ -13,7 +14,6 @@ import {
   japanInput,
   node,
   panel,
-  roleLabels,
   selectFields,
   type ListFilter,
   type Row,
@@ -55,8 +55,6 @@ interface Options {
 export async function buildDashboard({
   client,
   role,
-  userId,
-  email,
   go,
   create,
   open,
@@ -168,7 +166,8 @@ export async function buildDashboard({
     read(
       client
         .from("audit_logs")
-        .select("id,actor_id,actor_role,entity,record_id,operation,occurred_at")
+        .select("id,actor_id,actor_role,entity,record_id,operation,occurred_at" +
+          (staffIdentityDatabaseEnabled ? ",actor_name,actor_name_status,source,executor,requested_by" : ""))
         .order("occurred_at", { ascending: false })
         .limit(6),
     ),
@@ -422,25 +421,6 @@ export async function buildDashboard({
 
   const recent = panel("RECENT ACTIVITY", t("最近の管理作業"), "clock");
   recent.section.classList.add("office-activity-panel");
-  const actorIds = [
-    ...new Set(
-      (history.data ?? [])
-        .map((row) => String(row.actor_id ?? ""))
-        .filter(Boolean),
-    ),
-  ];
-  const names = new Map<string, string>([[userId, email]]);
-  // 다른 운영진 정보는 기존 SELECT RLS가 허용하는 범위만 읽습니다.
-  if (actorIds.length) {
-    const actors = await read(
-      client
-        .from("admin_roles")
-        .select("user_id,email")
-        .in("user_id", actorIds),
-    );
-    for (const actor of actors.data ?? [])
-      names.set(String(actor.user_id), String(actor.email));
-  }
   const targets = new Map<string, string>();
   const historyResources = visible.filter((resource) =>
     (history.data ?? []).some((row) => row.entity === resource),
@@ -497,11 +477,7 @@ export async function buildDashboard({
     copy.append(
       node(
         "p",
-        row.actor_id
-          ? (names.get(String(row.actor_id)) ??
-              roleLabels[String(row.actor_role)] ??
-              t("運営メンバー"))
-          : t("システム"),
+        staffAuditActor(row),
       ),
     );
     const time = node("time", dateLabel(row.occurred_at, true));
