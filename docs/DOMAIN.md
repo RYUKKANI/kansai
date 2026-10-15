@@ -1,6 +1,6 @@
 # kansaiunited.com 연결
 
-공개 홈페이지는 https://kansaiunited.com/, 관리자는 https://kansaiunited.com/admin/을 사용합니다.
+공개 홈페이지는 <https://kansaiunited.com/>, 관리자는 <https://kansaiunited.com/admin/>을 사용합니다.
 Astro의 `site`와 `base`, `public/CNAME`, 정기 발행 확인 주소, 관리자 인증·초대 주소를 함께 관리합니다.
 
 ## 전환 순서
