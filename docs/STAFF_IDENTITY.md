@@ -65,7 +65,7 @@ npm test
 
 ## 테스트 배포와 기존 계정 전환
 
-운영 적용 전에는 배포 대상 프로젝트 ID, 별도 테스트 URL, 허용 Origin, 이메일 확인·복구 redirect 주소를 담당자가 대조해야 합니다. 운영 프로젝트에 `supabase db reset`을 실행하지 않습니다. 아래의 `TEST_HOST`와 테스트 프로젝트는 실제 확보·승인한 값으로 바꿉니다. 이 작업 환경에는 Supabase CLI와 로컬 Auth 서버가 없어 실제 함수 배포를 실행·검증하지 않았습니다. 설치한 CLI의 `supabase --help`, `supabase db push --help`, `supabase functions deploy --help`, `supabase secrets set --help`로 지원 명령·대상 지정 방식을 먼저 확인합니다.
+운영 적용 전에는 배포 대상 프로젝트 ID, 별도 테스트 URL, 허용 Origin, 이메일 확인·복구 redirect 주소를 담당자가 대조해야 합니다. 운영 프로젝트에 `supabase db reset`을 실행하지 않습니다. 아래의 `TEST_HOST`와 테스트 프로젝트는 실제 확보·승인한 값으로 바꿉니다. 고정 버전 Supabase CLI 2.121.0으로 마이그레이션 파일을 생성했지만, 로컬 Auth 서버와 별도 원격 테스트 프로젝트가 없어 실제 함수 배포를 실행·검증하지 않았습니다. 설치한 CLI의 `supabase --help`, `supabase db push --help`, `supabase functions deploy --help`, `supabase secrets set --help`로 지원 명령·대상 지정 방식을 먼저 확인합니다.
 
 ### 공개 빌드와 함수 환경
 
@@ -100,7 +100,7 @@ Origin은 최대 10개이며 공개 HTTP는 허용하지 않습니다. 로컬 �
 
 ### 마이그레이션과 RPC 계약
 
-새 SQL 파일은 `supabase/migrations/20261015043050_staff_identity_accounts.sql`입니다. 기존 마이그레이션 뒤에 적용하며 과거 파일을 수정해 원격 이력을 덮어쓰지 않습니다. 새 테이블은 `private.staff_accounts`, `private.staff_name_requests`, `private.staff_auth_reservations`, `private.staff_auth_rate_buckets`이고 클라이언트 직접 접근을 금지합니다. `public.audit_logs`에는 기존 행을 보존하는 열만 추가합니다. 기존 행의 이름·출처를 새 인물로 소급해 채우지 않습니다.
+새 SQL 파일은 `supabase/migrations/20261015043050_staff_identity_accounts.sql`과 후속 `supabase/migrations/20261015052545_legacy_owner_username_bootstrap.sql`입니다. 기존 마이그레이션 뒤에 적용하며 과거 파일을 수정해 원격 이력을 덮어쓰지 않습니다. 새 테이블은 `private.staff_accounts`, `private.staff_name_requests`, `private.staff_auth_reservations`, `private.staff_auth_rate_buckets`이고 클라이언트 직접 접근을 금지합니다. `public.audit_logs`에는 기존 행을 보존하는 열만 추가합니다. 기존 행의 이름·출처를 새 인물로 소급해 채우지 않습니다.
 
 배포 순서에도 주의합니다. 업데이트한 `invite-staff`는 `office_capabilities.staff_identity=true`를 확인하면 **메일을 보내기 전에** 기존 초대를 중지하며, 비어 있는 권한 응답도 거절합니다. 이 보호 버전을 DB migration보다 먼저 배포·검증해야 합니다. 예전 함수와 새 DB를 섞으면 초대 메일만 전송된 뒤 금지된 역할 INSERT가 실패할 수 있습니다. migration 이후 신규 운영진은 새 가입·실명 확인·승인 RPC를 사용하며, 이전 화면 플래그를 끄는 것만으로 기존 직접 역할 편집·초대를 재허용하지 않습니다.
 
@@ -117,6 +117,7 @@ Origin은 최대 10개이며 공개 HTTP는 허용하지 않습니다. 로컬 �
 | `office_staff_name_requests()` | Owner/Administrator | 이름 정정 검토 목록 |
 | `office_review_name_change(...)` | 권한 있는 다른 담당자 | `p_request_id`, `p_approve`, `p_reason`; 과거 감사 snapshot은 변경하지 않음 |
 | `office_staff_audit(...)` | 현재 활성 운영진 | `p_limit` (1~100), `p_before_id`; 실제 RLS의 업무별 조회 범위 적용 |
+| `staff_auth_bootstrap_owner(p_user_id, p_username)` | 함수의 service role만 | 현재 활성 기존 Owner의 UUID에 아이디만 연결; 역할·실명·소속·동의·비밀번호를 만들거나 바꾸지 않음 |
 | `staff_auth_identity`, `staff_auth_reserve`, `staff_auth_finalize`, `staff_auth_rate_limit` | 함수의 service role만 | 비공개 매핑·가입 예약/확정·중앙 제한; 익명/일반 인증 EXECUTE 금지 |
 
 Administrator는 Owner/Administrator를 승인·확인·변경하거나 그 역할을 부여하지 못합니다. Owner 검증에는 다른 Owner가 필요합니다. 계정 사유에는 비밀번호·이메일·전화·민감한 개인 정보를 쓰지 않습니다.
@@ -140,6 +141,16 @@ select public.office_set_staff_access($1, $2, $3, $4);
 5. 기존 비밀번호가 없는 초대 계정은 확인된 기존 이메일로 실제 비밀번호 설정·복구를 검증합니다. 기존 UUID와 역할이 유지되는지 전후 비교합니다. 계정을 지우고 다시 만드는 방식은 사용하지 않습니다.
 6. 승인·이름 확인·비활성화·이름 변경·역할 변경과 감사 기록을 각 역할로 점검합니다. 기존 기사·선수·일정·미디어 작업과 일본어·한국어·영어 및 모바일 화면을 검증표에 기록합니다.
 7. Owner와 담당자가 실제 시험 증거·보관 정책·복구 수단을 검토한 뒤 운영 전환 시점을 정합니다. 그 전에는 운영 플래그·계정·메일 설정을 바꾸지 않습니다.
+
+### 실명 입력 전 기존 Owner의 아이디만 연결하기
+
+후속 `legacy_owner_username_bootstrap` migration은 실제 실명·소속·안내 확인이 아직 제공되지 않은 경우에만 사용할 제한된 전환 경로입니다. 신뢰한 서버의 `staff_auth_bootstrap_owner(p_user_id, p_username)`는 현재 DB에서 활성 Owner인지 확인하고 기존 UUID에 정규화한 아이디만 연결합니다. 이 RPC를 공개 `staff-auth` action이나 일반 인증 사용자에게 노출하지 않습니다. 실명, 소속, 안내 확인 시각은 모두 `null`이며 실명 확인자·시각도 비워 둡니다. 비밀번호와 기존 Auth 이메일, 역할은 변경하지 않습니다.
+
+빈 프로필 상태는 `legacy_account=true`, `profile_enrollment_pending=true`인 행에서만 허용합니다. 새 신청자는 여전히 실명·소속·실제 안내 확인이 모두 필요합니다. `office_account_state()`는 아이디가 있어도 `identity_enrolled=false`, 현재 Owner 권한이 있으면 `legacy=true`를 반환합니다. 기존 업무 접근은 보존하지만 확인된 실명 명부에 나타나지 않고 감사 이름은 미확인 상태입니다. 아이디만 연결했다는 이유로 실명이나 동의가 확인됐다고 표시하지 않습니다.
+
+Owner가 로그인한 뒤 본인의 실제 실명·소속을 입력하고 안내를 직접 확인하여 `office_enroll_identity(...)`를 호출하면 **이미 연결된 동일한 아이디로 한 번만** 빈 프로필을 완성할 수 있습니다. 이때도 본인의 실명을 확인하지는 않습니다. 이름 정정은 프로필을 완성한 뒤 신청합니다. 완료된 프로필을 다시 빈 초기 상태로 되돌리거나 이미 연결된 아이디를 다른 값으로 바꾸는 요청은 거절합니다. 같은 아이디에 대한 서버 bootstrap 재시도는 기존 값·동의·확인 결과를 그대로 유지합니다.
+
+아이디 연결은 가입 예약·enrollment와 같은 이름 잠금 및 고유 제약을 사용합니다. 현재 사용 중인 아이디와 만료 전 가입 예약을 덮어쓰지 않습니다. 역할 변경과 같은 Owner 잠금을 공유하며 활성 Owner가 아닌 UUID, 본인에게만 공개된 아이디를 알아내려는 일반 사용자·익명 RPC 호출은 허용하지 않습니다. 실제 대상 UUID와 아이디는 운영자가 읽기 전용 대조 후 별도 바인딩해야 하며 예시 UUID·이메일에서 추측한 이름을 넣지 않습니다. 이 문서는 운영 RPC 실행이나 비밀번호 변경의 성공 증거가 아닙니다.
 
 ### 현재 유일한 Owner의 실명 확인
 
@@ -176,6 +187,7 @@ DB는 기존 역할 호환 경로를 유지하지만 역할 직접 CRUD는 회�
 | 영역 | 파일 |
 | --- | --- |
 | 개인 계정·승인·안전한 명부·감사·역할 경계 | `supabase/migrations/20261015043050_staff_identity_accounts.sql` |
+| 이름·동의 추측 없는 기존 Owner 아이디 연결 | `supabase/migrations/20261015052545_legacy_owner_username_bootstrap.sql` |
 | 공개 인증 gateway·환경·Auth REST 어댑터 | `supabase/functions/staff-auth/` |
 | 기존 초대 중단 보호 | `supabase/functions/invite-staff/handler.ts` |
 | 로그인·가입·기존 계정 전환 | `src/components/admin/StaffAuthPortal.astro`, `src/scripts/staff-auth.ts` |

@@ -34,7 +34,8 @@
 | 비밀번호 변경 | 일반 세션·복구/초대 세션·오래된 세션·위조 AMR·current password 오류 | 서버가 확인한 Auth 신원·최근 인증 조건을 적용; UI recovery 상태만 신뢰하지 않음 |
 | PKCE 복구 | plain/잘못된 challenge, 검증기·임의 redirect 제출, 링크 재사용, 다른 브라우저 | S256 challenge만 전달; 검증기 브라우저 보관; 서버 redirect 고정; 공식 SDK 코드 교환과 서명된 복구 AMR 필요 |
 | 가입 실패 중간 상태 | 예약 뒤 Auth 실패, 확인 메일 제한, 확정 실패, 동일 이메일 동시 가입 | 기존 사용자 연결·승인·역할 탈취 없음; 일반화 응답; 수동 재시도·검토 절차 확인 |
-| 유일 Owner 부트스트랩 | Owner만 있고 확인 담당자 없음 | 본인 자동 실명 확인 금지; 먼저 Owner가 타인 확인·승인, 권한 있는 타인이 Owner 확인; 완료 전 기존 접근 유지 |
+| 유일 Owner 아이디 연결 | 실명·소속·안내 확인이 없는 기존 활성 Owner | 서비스만 같은 UUID에 아이디를 연결; 프로필/동의/확인은 null, identity_enrolled=false; 새 신청자 필수 필드는 유지; 같은 아이디로 본인이 1회 완성; 익명·일반 사용자 호출/다른 역할/다른 아이디 재연결/예약 충돌/완료 프로필 초기화 거절 |
+| 유일 Owner 실명 확인 | Owner만 있고 확인 담당자 없음 | 본인 자동 실명 확인 금지; 먼저 Owner가 타인 확인·승인, 권한 있는 타인이 Owner 확인; 완료 전 기존 접근 유지 |
 | 명의 변경 | 과거 작업 후 새 실명 승인, 동일 이름의 다른 UUID | 과거 UUID·당시 승인 이름 유지; 이름만으로 사용자 병합하지 않음 |
 | 개인정보 동의 | 내부 동의만 체크, 선수 공개 동의 없음 | 운영진 명부/감사 범위만 적용; 선수·공개 프로필·사진 동의 자동 생성·변경 없음 |
 | 로그 귀속 | 서비스 키·자동화·직접 SQL, 요청자 정보 없음 | 사람으로 추측하지 않음; 미상/시스템 구분; 검증된 실행자와 알려진 요청자만 별도 기록 |
@@ -48,12 +49,12 @@
 | --- | --- | --- |
 | 정적 검사 | `npm run check` | 통과: 71개 파일, 오류·경고·힌트 각각 0 |
 | 기본 모드 정적 빌드·오프라인 export | 가짜 공개 Supabase 설정, 새 화면 플래그 off의 `npm run build`, `npm run export:preview` | 통합 빌드·export 완료; `npm test`의 오프라인 자산·페이지 검사 통과 |
-| 격리 PostgreSQL | `npm test` 안의 실제 PGlite 엔진 검사 | 통과: 기존 153개 + identity 71개 = 224개; 실제 Auth 서버·다중 연결 경합 검증은 포함하지 않음 |
-| 기본 모드 UI·모듈·SDK 회귀 | `npm test`의 `node --test tests/*.test.mjs` | 111개 중 107개 통과·실패 0·새 화면 통합 4개는 플래그 off라 건너뜀 |
-| 새 화면 플래그 on 통합 | 별도 플래그 on 빌드의 `tests/staff-identity-app.test.mjs` | 별도 실행 4개 통과: pending/정지의 내부 조회 금지, 기존 UUID 로그인, 권한 회수, 기존 Owner 전환 접근 |
+| 격리 PostgreSQL | `npm test` 안의 실제 PGlite 엔진 검사 | 통과: 기존 153개 + identity 95개 = 248개; 실제 Auth 서버·다중 연결 경합 검증은 포함하지 않음 |
+| 기본 모드 UI·모듈·SDK 회귀 | `npm test`의 `node --test tests/*.test.mjs` | 113개 중 108개 통과·실패 0·새 화면 통합 5개는 플래그 off라 건너뜀 |
+| 새 화면 플래그 on 통합 | 별도 플래그 on 빌드의 `tests/staff-identity-app.test.mjs` | 별도 실행 5개 통과: pending/정지의 내부 조회 금지, 기존 UUID 로그인, 권한 회수, 기존 Owner 전환 접근, 아이디만 연결된 Owner의 빈 프로필 등록 |
 | Edge 적대 입력·속도 제한 | `tests/auth-gateway.test.mjs` | 27개 통과: 원자적 제한 호출·식별자 정규화·위조 XFF·민감 오류·가입 경합·승인 우회·비밀번호/PKCE REST 계약·초대 선차단 |
 | PKCE 공식 SDK와 가짜 네트워크 | `tests/staff-auth-recovery.test.mjs` | 3개 통과: 브라우저 검증기/S256·같은 브라우저 코드 교환 이벤트·다른 브라우저 거절·제한 오류; 실제 제공자 메일·AMR은 미확인 |
-| 새 화면 UI·안전한 명부·이력 | `tests/staff-auth-ui.test.mjs`, `tests/staff-management-ui.test.mjs` | 각각 14개·9개 통과; 일본어·한국어·영어 문자열·원문 이름·역할·XSS·비동기 로그아웃 검사 포함 |
+| 새 화면 UI·안전한 명부·이력 | `tests/staff-auth-ui.test.mjs`, `tests/staff-management-ui.test.mjs` | 각각 15개·9개 통과; 일본어·한국어·영어 문자열·원문 이름·역할·XSS·비동기 로그아웃 검사 포함 |
 | 실제 Auth·메일·Owner·프록시 | 별도 테스트 프로젝트·허용 수신자·실제 배포 URL 필요 | 환경 미확보 시 미확인, 운영 활성화 보류 |
 | 실제 모바일·다국어 브라우저 | 브라우저별 결과·화면·접근성 검토 필요 | 자동 DOM 검사와 별개, 미실행이면 미확인 |
 | 운영 보관 정책 | 담당자·목적·기간·접근·백업/삭제 검토 | 결정 전 미확인, 자동 무기한 보관 승인 없음 |
