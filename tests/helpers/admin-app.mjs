@@ -4,7 +4,9 @@ import path from "node:path";
 import { JSDOM } from "jsdom";
 import { browserScript } from "./browser-script.mjs";
 // UI는 빌드한 실제 SDK로 검사하고 서버 응답만 대체합니다. 실제 DB 권한은 supabase/tests에서 따로 검증합니다.
-const html = await readFile("dist/admin/index.html", "utf8");
+// 전환 플래그가 켜진 별도 빌드를 검사할 때만 경로를 바꿉니다. 기존 회귀 검사는 기본 dist를 유지합니다.
+const buildRoot = process.env.STAFF_IDENTITY_TEST_DIST ?? process.env.ADMIN_TEST_DIST ?? "dist";
+const html = await readFile(path.join(buildRoot, "admin/index.html"), "utf8");
 export const uid = "00000000-0000-4000-8000-000000000001";
 const token =
   Buffer.from(JSON.stringify({ alg: "HS256", typ: "JWT" })).toString(
@@ -68,6 +70,19 @@ export async function app(
     app_metadata: {},
     created_at: new Date().toISOString(),
   };
+  // 초대·기존 계정 전환은 새 아이디 로그인을 가정하지 않고 기존의 검증된 세션 복원을 검사합니다.
+  if (authResponses.initialSession)
+    window.localStorage.setItem(
+      "kansai-admin-session",
+      JSON.stringify({
+        access_token: token,
+        refresh_token: "TEST-REFRESH",
+        token_type: "bearer",
+        expires_at: Math.floor(Date.now() / 1000) + 3600,
+        expires_in: 3600,
+        user,
+      }),
+    );
   const tables = {
     admin_roles: [
       { user_id: uid, email: user.email, role: staffRole, active: true },
@@ -126,6 +141,16 @@ export async function app(
     if (url.pathname.endsWith("/auth/v1/user")) return Response.json(user);
     if (url.pathname.endsWith("/auth/v1/logout"))
       return new Response(null, { status: 204 });
+    if (url.pathname.endsWith("/functions/v1/staff-auth")) {
+      const payload = JSON.parse(options.body || "{}");
+      if (authResponses.staffAuth) {
+        const value = await authResponses.staffAuth(payload);
+        return value instanceof Response ? value : Response.json(value);
+      }
+      return Response.json({
+        session: { access_token: token, refresh_token: "TEST-REFRESH" },
+      });
+    }
     // 실제 SDK의 회원가입 차단, 확인 메일 재전송, 발송 제한 처리를 검사합니다.
     if (
       url.pathname.endsWith("/auth/v1/otp") ||
@@ -145,6 +170,13 @@ export async function app(
         : Response.json({});
     }
     const name = url.pathname.split("/").pop();
+    if (name === "office_account_state" && authResponses.accountState) {
+      const value =
+        typeof authResponses.accountState === "function"
+          ? await authResponses.accountState()
+          : authResponses.accountState;
+      return value instanceof Response ? value : Response.json(value);
+    }
     if (name === "office_release_states")
       return Response.json(authResponses.releaseStates ?? []);
     if (name === "office_release_attention")
@@ -154,6 +186,7 @@ export async function app(
         schedule: Boolean(authResponses.schedule),
         content: Boolean(authResponses.content),
         publisher: Boolean(authResponses.publisher),
+        staff_identity: Boolean(authResponses.staffIdentity),
       });
     if (url.pathname.includes("/rpc/") && authResponses.rpc) {
       const value = await authResponses.rpc(
@@ -249,7 +282,7 @@ export async function app(
   };
   for (const script of window.document.querySelectorAll("script[src]")) {
     const relative = new URL(script.src).pathname.replace(/^\//, "");
-    window.eval(await browserScript(path.join("dist", relative)));
+    window.eval(await browserScript(path.join(buildRoot, relative)));
   }
   await eventually(() => !window.document.querySelector("#login-panel").hidden);
   return { dom, window, tables, requests };
