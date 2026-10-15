@@ -18,6 +18,8 @@ env:
   ASTRO_TELEMETRY_DISABLED: '1'
   PUBLIC_CMS_ENABLED: ${{ vars.PUBLIC_CMS_ENABLED }}
   PUBLIC_SCHEDULE_ENABLED: ${{ vars.PUBLIC_SCHEDULE_ENABLED }}
+  PUBLIC_STAFF_IDENTITY_ENABLED: ${{ vars.PUBLIC_STAFF_IDENTITY_ENABLED }}
+  PUBLIC_STAFF_LEGACY_LOGIN_ENABLED: ${{ vars.PUBLIC_STAFF_LEGACY_LOGIN_ENABLED }}
   PUBLIC_SUPABASE_URL: ${{ vars.PUBLIC_SUPABASE_URL }}
   PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ vars.PUBLIC_SUPABASE_PUBLISHABLE_KEY }}
 jobs:
@@ -59,8 +61,32 @@ jobs:
         run: npm run build
       - name: Export offline preview
         run: npm run export:preview
+      # 운영 로그인 플래그를 켠 뒤에도 기존 이메일 전환 경로의 회귀 검사를 유지합니다.
+      - name: Build isolated legacy compatibility fixture
+        env:
+          PUBLIC_CMS_ENABLED: 'false'
+          PUBLIC_STAFF_IDENTITY_ENABLED: 'false'
+          PUBLIC_SUPABASE_URL: 'https://identity-test.supabase.co'
+          PUBLIC_SUPABASE_PUBLISHABLE_KEY: 'sb_publishable_identity_test_only'
+        run: npm run build -- --outDir dist-legacy
       - name: Check permissions and interactions
+        env:
+          ADMIN_TEST_DIST: dist-legacy
         run: npm test
+      # 새 로그인 분기는 가짜 연결 정보로 별도 빌드합니다. Pages 업로드는 기존 dist만 사용합니다.
+      - name: Build isolated staff identity preview
+        env:
+          PUBLIC_CMS_ENABLED: 'false'
+          PUBLIC_SCHEDULE_ENABLED: 'false'
+          PUBLIC_STAFF_IDENTITY_ENABLED: 'true'
+          PUBLIC_STAFF_LEGACY_LOGIN_ENABLED: 'true'
+          PUBLIC_SUPABASE_URL: 'https://identity-test.supabase.co'
+          PUBLIC_SUPABASE_PUBLISHABLE_KEY: 'sb_publishable_identity_test_only'
+        run: npm run build -- --outDir dist-identity
+      - name: Check staff identity interactions
+        env:
+          STAFF_IDENTITY_TEST_DIST: dist-identity
+        run: node --test tests/staff-identity-app.test.mjs
       - name: Upload site
         uses: actions/upload-pages-artifact@v5
         with:
