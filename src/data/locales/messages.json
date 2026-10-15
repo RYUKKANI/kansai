@@ -3518,5 +3518,173 @@
   "パスワード支援の結果未確認": {
     "ko": "비밀번호 지원 결과 미확인",
     "en": "Password support outcome unknown"
+  },
+  "メンバー管理": {
+    "ko": "멤버 관리",
+    "en": "Member management"
+  },
+  "Ownerのみが加入承認、ID・実名・パスワード、権限を管理します。": {
+    "ko": "Owner만 가입 승인, 아이디·실명·비밀번호, 권한을 관리합니다.",
+    "en": "Only an Owner manages approval, login IDs, real names, passwords and access."
+  },
+  "自分自身の承認・本人確認・権限変更は別のOwnerに依頼してください。": {
+    "ko": "본인의 승인·본인 확인·권한 변경은 다른 Owner에게 요청해주세요.",
+    "en": "Ask another Owner to approve, verify or change your own access."
+  },
+  "OwnerによるID・実名の変更": {
+    "ko": "Owner의 아이디·실명 변경",
+    "en": "Owner login ID / real name change"
+  },
+  "Ownerによるパスワード再設定の受付": {
+    "ko": "Owner의 비밀번호 재설정 요청",
+    "en": "Owner password reset requested"
+  },
+  "Ownerによるパスワード再設定の完了": {
+    "ko": "Owner의 비밀번호 재설정 완료",
+    "en": "Owner password reset completed"
+  },
+  "Ownerによるパスワード再設定の失敗": {
+    "ko": "Owner의 비밀번호 재설정 실패",
+    "en": "Owner password reset failed"
+  },
+  "Ownerによるパスワード再設定の結果未確認": {
+    "ko": "Owner의 비밀번호 재설정 결과 확인 필요",
+    "en": "Owner password reset outcome uncertain"
+  },
+  "このログインIDは利用できません。別のIDをご確認ください。": {
+    "ko": "이 로그인 아이디는 사용할 수 없습니다. 다른 아이디를 확인해주세요.",
+    "en": "This login ID is unavailable. Please choose another ID."
+  },
+  "この操作はすでに処理されています。今回入力したパスワードで再変更していません。": {
+    "ko": "이 작업은 이미 처리되었습니다. 이번에 입력한 비밀번호로 다시 변경하지 않았습니다.",
+    "en": "This operation has already been processed. The password entered this time has not been applied."
+  },
+  "この操作はすでに処理されています。再変更はしていません。有効なパスワードでログインし直してください。": {
+    "ko": "이 작업은 이미 처리되었습니다. 다시 변경하지 않았습니다. 현재 유효한 비밀번호로 다시 로그인해주세요.",
+    "en": "This operation has already been processed and no further change was made. Sign in again with the current valid password."
+  },
+  "アカウントを管理": {
+    "ko": "계정 관리",
+    "en": "Manage account"
+  },
+  "アカウント情報を保存": {
+    "ko": "계정 정보 저장",
+    "en": "Save account details"
+  },
+  "アカウント情報を保存しました。": {
+    "ko": "계정 정보를 저장했습니다.",
+    "en": "Account details have been saved."
+  },
+  "アカウント情報を保存できませんでした。入力内容と現在の権限をご確認ください。": {
+    "ko": "계정 정보를 저장하지 못했습니다. 입력 내용과 현재 권한을 확인해주세요.",
+    "en": "Account details could not be saved. Check your entries and current access."
+  },
+  "アカウント情報を取得できません。現在のOwner権限をご確認ください。": {
+    "ko": "계정 정보를 불러올 수 없습니다. 현재 Owner 권한을 확인해주세요.",
+    "en": "Account details could not be loaded. Check your current Owner access."
+  },
+  "アカウント情報を読み込んでいます。": {
+    "ko": "계정 정보를 불러오는 중입니다.",
+    "en": "Loading account details."
+  },
+  "アカウント管理": {
+    "ko": "계정 관리",
+    "en": "Account management"
+  },
+  "パスワードの再設定は拒否されました。成功として記録していません。入力条件をご確認ください。": {
+    "ko": "비밀번호 재설정이 거부되었습니다. 성공으로 기록하지 않았습니다. 입력 조건을 확인해주세요.",
+    "en": "The password reset was rejected and has not been recorded as successful. Check the password requirements."
+  },
+  "パスワードの設定状態": {
+    "ko": "비밀번호 설정 상태",
+    "en": "Password status"
+  },
+  "パスワードを再設定": {
+    "ko": "비밀번호 재설정",
+    "en": "Reset password"
+  },
+  "ログアウトして再認証してからお試しください。MFAを設定しているアカウントはMFA認証も完了してください。": {
+    "ko": "로그아웃한 뒤 다시 인증하고 시도해주세요. MFA가 설정된 계정은 MFA 인증도 완료해주세요.",
+    "en": "Sign out and authenticate again before retrying. If your account uses MFA, complete MFA verification too."
+  },
+  "ログインIDと実名を編集": {
+    "ko": "로그인 아이디 및 실명 수정",
+    "en": "Edit login ID and real name"
+  },
+  "ログインID・実名・変更理由を確認してください。": {
+    "ko": "로그인 아이디·실명·변경 사유를 확인해주세요.",
+    "en": "Check the login ID, real name and reason for change."
+  },
+  "再設定の理由": {
+    "ko": "재설정 사유",
+    "en": "Reason for reset"
+  },
+  "再設定中です。結果が表示されるまで再実行しないでください。": {
+    "ko": "재설정 중입니다. 결과가 표시될 때까지 다시 실행하지 마세요.",
+    "en": "The reset is in progress. Wait for the result before taking another action."
+  },
+  "変更は保存されましたが、一覧を更新できませんでした。画面を開き直してください。": {
+    "ko": "변경은 저장되었지만 목록을 갱신하지 못했습니다. 화면을 다시 열어주세요.",
+    "en": "The change was saved, but the list could not be refreshed. Reopen this page."
+  },
+  "変更理由にパスワード・認証情報や連絡先を記入しないでください。": {
+    "ko": "변경 사유에 비밀번호·인증 정보·연락처를 입력하지 마세요.",
+    "en": "Do not include passwords, credentials or contact details in a change reason."
+  },
+  "対象アカウントを確認し、本人の依頼に基づくパスワード再設定を行います。": {
+    "ko": "대상 계정을 확인했으며, 본인의 요청에 따라 비밀번호를 재설정합니다.",
+    "en": "I have checked the target account and am resetting its password at the account holder’s request."
+  },
+  "新しいパスワード": {
+    "ko": "새 비밀번호",
+    "en": "New password"
+  },
+  "新しいパスワードに再設定": {
+    "ko": "새 비밀번호로 재설정",
+    "en": "Set a new password"
+  },
+  "新しいパスワードへの再設定を確認しました。": {
+    "ko": "새 비밀번호로 재설정된 것을 확인했습니다.",
+    "en": "The reset to the new password has been confirmed."
+  },
+  "現在のOwner権限を確認できません。画面を閉じてログインし直してください。": {
+    "ko": "현재 Owner 권한을 확인할 수 없습니다. 창을 닫고 다시 로그인해주세요.",
+    "en": "Your current Owner access could not be verified. Close this window and sign in again."
+  },
+  "現在のパスワードは表示・取得できません。必要な場合は新しいパスワードに再設定します。": {
+    "ko": "현재 비밀번호는 표시하거나 조회할 수 없습니다. 필요한 경우 새 비밀번호로 재설정합니다.",
+    "en": "The current password cannot be displayed or retrieved. Set a new password if needed."
+  },
+  "確認済みの自分の実名は、別のOwnerに訂正を依頼してください。": {
+    "ko": "확인된 본인의 실명 정정은 다른 Owner에게 요청해주세요.",
+    "en": "Ask another Owner to correct your own verified real name."
+  },
+  "結果を確認できない操作があります。再設定を繰り返さず、Ownerに確認してください。操作ID: {0}": {
+    "ko": "결과를 확인할 수 없는 작업이 있습니다. 재설정을 반복하지 말고 Owner에게 확인해주세요. 작업 ID: {0}",
+    "en": "The result of an operation is uncertain. Do not repeat the reset; ask an Owner to check. Operation ID: {0}"
+  },
+  "自分のパスワードを再設定しました。既存のログインIDと新しいパスワードでログインし直してください。": {
+    "ko": "본인의 비밀번호를 재설정했습니다. 기존 로그인 아이디와 새 비밀번호로 다시 로그인해주세요.",
+    "en": "Your password has been reset. Sign in again with your existing login ID and new password."
+  },
+  "設定済み": {
+    "ko": "설정됨",
+    "en": "Set"
+  },
+  "Ownerによるアカウント管理": {
+    "ko": "Owner의 계정 관리 요청",
+    "en": "Owner account management request"
+  },
+  "変更後の実名を本人に確認し、実名確認として記録することを確認しました。": {
+    "ko": "변경할 실명을 본인에게 확인했으며, 실명 확인으로 기록되는 것을 확인했습니다.",
+    "en": "I have confirmed the corrected real name with the account holder and understand that it will be recorded as verified."
+  },
+  "他の関係者の実名を変更すると、あなたを確認者として記録します。変更後の実名を本人に確認してください。": {
+    "ko": "다른 관계자의 실명을 변경하면 본인을 확인자로 기록합니다. 변경할 실명을 당사자에게 확인해주세요.",
+    "en": "When you change another staff member’s real name, you are recorded as its verifier. Confirm the corrected name with that person."
+  },
+  "変更後の実名を本人に確認してから保存してください。": {
+    "ko": "변경할 실명을 당사자에게 확인한 후 저장해주세요.",
+    "en": "Confirm the corrected real name with the account holder before saving."
   }
 }

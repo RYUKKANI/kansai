@@ -2,6 +2,8 @@
 
 `scripts/reset-staff-password.mjs`는 **프로젝트 관리자 본인의 신뢰한 기기와 대화형 터미널**에서만 사용하는 선택적 운영 도구입니다. 공개 재설정 API나 일회용 지원 링크는 추가하지 않습니다. 이 문서와 격리 검사는 운영 계정의 비밀번호가 실제로 변경됐다는 증거가 아닙니다.
 
+후속 [Owner 전용 계정 관리](OWNER_ACCOUNT_MANAGEMENT.md)에는 인증된 Owner만 사용하는 비공개 웹 초기화 경로가 있습니다. 그 화면의 현재 세션·MFA·최근 인증 조건과 결과 불명 처리 계약은 별도 문서에 따릅니다. 아래의 터미널 실행·기기 제한은 이 CLI 도구에 대한 설명입니다.
+
 기존 Supabase Auth UUID에 공식 `auth.admin.updateUserById(userId, { password })`만 호출합니다. 비밀번호 저장·검증·해시는 Supabase Auth가 수행하며, 도구는 `auth.users`에 직접 쓰지 않습니다. 이메일·확인 상태·역할·실명·공개 동의·콘텐츠를 변경하거나 기존 사용자를 삭제·재생성하지 않습니다.
 
 ## 실행 전 확인
@@ -72,3 +74,5 @@ DB의 요청·최종 기록과 Supabase Auth 변경은 **서로 다른 트랜잭
 - [공식 verify 구현](https://github.com/supabase/auth/blob/master/internal/api/verify.go): PKCE 복구와 일반 OTP 발급의 차이.
 
 `node --test tests/staff-password-support.test.mjs`는 모의 SDK 응답·실제 숨김 입력 함수·비대화형 실행 거부를 검사합니다. 실제 운영 비밀번호 변경, Android 실행, 메일 알림, 세션 회수는 수행하지 않았습니다. 해당 검증 전에는 실제 복구 완료로 보고하지 않습니다.
+
+후속 Owner 웹 관리가 추가된 뒤의 통합 회귀도 이 CLI 검사를 포함해 통과했습니다. check 72개 파일 오류·경고·힌트 0개, build/export 32페이지·32개 HTML, 기존 화면 fixture 빌드 통과, SQL 409개·Node 171개 통과/6개 건너뜀/실패 0개이며 별도 새 화면 통합 6개도 통과했습니다. 이는 실제 CLI 비밀번호 변경을 실행했다는 뜻은 아닙니다. 정확한 명령과 남은 실제 시험은 [Owner 검증 결과](OWNER_ACCOUNT_MANAGEMENT.md#검증-결과)를 확인합니다.

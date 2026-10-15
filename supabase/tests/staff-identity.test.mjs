@@ -134,6 +134,8 @@ try {
   await as(6); check((await state()).email_confirmed && !(await state()).active, "confirming email grants no automatic approval");
   await as(2);
   await reject("select public.office_review_staff($1,'approved','owner','forbidden grant')", [user(6)]);
+  await reject("select public.office_review_staff($1,'approved','editor','administrator cannot review members')", [user(6)]);
+  await as(1);
   await db.query("select public.office_review_staff($1,'approved','editor','verified application')", [user(6)]);
   await as(6);
   check((await state()).active && (await state()).approved_real_name === "試験 김 A-B", "review verifies name and assigns independent approved role");

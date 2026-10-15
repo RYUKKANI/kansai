@@ -6,7 +6,7 @@ import { recoverAuthEmail } from "./auth-recovery.ts";
 import { createRegistrationCaptchaVerifier } from "./registration-captcha.ts";
 
 // [편집 안내] JWT 검증을 꺼서 공개 로그인·가입을 받는 대신 각 작업에서 인증 경계를 직접 검사합니다.
-// 서비스 키는 비공개 RPC와 새 Auth 계정 생성에만 사용합니다. 로그인 클라이언트와 분리해 서비스 세션이 바뀌지 않게 합니다.
+// 서비스 키는 비공개 RPC, 새 Auth 생성, DB가 승인한 Owner 비밀번호 초기화에만 사용합니다. 로그인 클라이언트와 분리합니다.
 const env = (name: string) => Deno.env.get(name);
 const options = { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false };
 let serve: (request: Request) => Promise<Response>;

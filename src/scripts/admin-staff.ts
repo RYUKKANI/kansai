@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { StaffRole } from "../lib/content-types";
 import { text as t, format, localizedDate, currentLocale } from "../lib/i18n";
+import { renderOwnerAccountManagement } from "./owner-account-management";
 
 // [편집 안내] 관계자 화면은 비공개 매핑 테이블을 직접 읽지 않습니다. RPC가 현재 세션의
 // 승인·활동·업무 권한을 매번 확인하고 반환한 최소 정보만 텍스트 노드로 표시합니다.
@@ -253,7 +254,7 @@ export function staffAuditActor(row: Row): string {
   // 과거 로그를 현재 명부의 이름으로 덮어 쓰거나 미확인 이름을 승인된 실명처럼 표시하지 않습니다.
   if (row.actor_name_status === "verified" && string(row.actor_name))
     return string(row.actor_name);
-  return source === "human" && string(row.actor_id)
+  return ["human", "owner_password_reset"].includes(source) && string(row.actor_id)
     ? t("実名確認前のアカウント")
     : t("以前の記録 / 作業者確認不可");
 }
@@ -269,6 +270,11 @@ function auditAction(row: Row): string {
     support_password_reset_succeeded: t("パスワード支援の完了"),
     support_password_reset_failed: t("パスワード支援の失敗"),
     support_password_reset_indeterminate: t("パスワード支援の結果未確認"),
+    owner_identity_updated: t("OwnerによるID・実名の変更"),
+    owner_password_reset_requested: t("Ownerによるパスワード再設定の受付"),
+    owner_password_reset_succeeded: t("Ownerによるパスワード再設定の完了"),
+    owner_password_reset_failed: t("Ownerによるパスワード再設定の失敗"),
+    owner_password_reset_uncertain: t("Ownerによるパスワード再設定の結果未確認"),
     application_approved: t("加入申請の承認"),
     application_rejected: t("加入申請の却下"),
     access_changed: t("権限・アクセスの変更"),
@@ -316,7 +322,9 @@ export function renderStaffAuditEntry(row: Row): HTMLElement {
       [t("実行主体"), valueOrDash(row.executor)],
       [
         t("処理区分"),
-        source === "human"
+        source === "owner_password_reset"
+          ? t("Ownerによるアカウント管理")
+          : source === "human"
           ? t("認証済みアカウントの操作")
           : source === "system_support"
             ? t("管理者支援 / 実行者確認不可")
@@ -389,6 +397,11 @@ export async function renderStaffOffice(
   let disposed = false;
   let sequence = 0;
   let busy = false;
+  // 대화창이 닫히거나 업무 화면·계정이 바뀌면 비밀번호 입력과 Auth 구독도 폐기합니다.
+  const accountWindows: { dispose: () => void }[] = [];
+  function disposeAccountWindows() {
+    for (const window of accountWindows.splice(0)) window.dispose();
+  }
   const current = () => !disposed && options.isCurrent();
   async function rpc(name: string, args: Row = {}): Promise<unknown> {
     const result = await client.rpc(name, args);
@@ -633,7 +646,7 @@ export async function renderStaffOffice(
       }
       if (self)
         card.append(
-          note(t("自分自身の変更は別の承認担当者に依頼してください。")),
+          note(t("自分自身の承認・本人確認・権限変更は別のOwnerに依頼してください。")),
         );
       else if (
         id &&
@@ -798,6 +811,18 @@ export async function renderStaffOffice(
           card.append(access);
         }
       }
+      if (owner && id) {
+        const accountWindow = renderOwnerAccountManagement({
+          client, userId, targetUserId: id, isCurrent: current, notice,
+          onChanged: async () => {
+            if (!current()) return;
+            await load();
+            if (current()) await options.refresh();
+          },
+        });
+        accountWindows.push(accountWindow);
+        card.append(accountWindow.element);
+      }
       section.append(card);
     }
     const corrections = element("section", "", "staff-name-requests");
@@ -866,6 +891,7 @@ export async function renderStaffOffice(
   async function load() {
     const token = ++sequence;
     if (!current()) return;
+    disposeAccountWindows();
     container.setAttribute("aria-busy", "true");
     container.replaceChildren(note(t("関係者情報を読み込んでいます。")));
     try {
@@ -880,7 +906,7 @@ export async function renderStaffOffice(
         view = directory(records(await rpc("office_staff_directory")));
       else if (page === "staff_applications") {
         const role = string(account.role);
-        if (!["owner", "administrator"].includes(role)) throw { code: "42501" };
+        if (role !== "owner") throw { code: "42501" };
         const [members, requests] = await Promise.all([
           rpc("office_staff_applications"),
           rpc("office_staff_name_requests"),
@@ -949,6 +975,7 @@ export async function renderStaffOffice(
     dispose() {
       disposed = true;
       ++sequence;
+      disposeAccountWindows();
     },
     refresh: load,
   };
