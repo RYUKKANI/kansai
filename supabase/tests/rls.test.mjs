@@ -9,10 +9,10 @@ async function main() {
     [
       "create role anon; create role authenticated; create role service_role bypassrls;",
       "create schema auth; create schema storage;",
-      "create table auth.users(id uuid primary key,email text,email_confirmed_at timestamptz default now(),created_at timestamptz default clock_timestamp(),raw_user_meta_data jsonb default '{}',raw_app_meta_data jsonb default '{}',encrypted_password text);",
+      "create table auth.users(id uuid primary key,email text,email_confirmed_at timestamptz default now(),created_at timestamptz default clock_timestamp(),raw_user_meta_data jsonb default '{}',raw_app_meta_data jsonb default '{}',encrypted_password text,banned_until timestamptz);",
       "create table auth.sessions(id uuid primary key,user_id uuid references auth.users(id),not_after timestamptz,aal text not null default 'aal1');",
       "create table auth.mfa_factors(id uuid primary key default gen_random_uuid(),user_id uuid references auth.users(id),status text not null);",
-      "create function auth.jwt() returns jsonb language sql stable as $$select '{}'::jsonb$$;",
+      "create function auth.jwt() returns jsonb language sql stable as $$select jsonb_build_object('sub',current_setting('request.jwt.claim.sub',true),'session_id',current_setting('request.jwt.claim.session_id',true),'aal',current_setting('request.jwt.claim.aal',true))$$;",
       "create function auth.uid() returns uuid language sql stable as $$ select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid; $$;",
       "grant usage on schema auth,storage,public to anon,authenticated;",
       "grant execute on function auth.uid() to anon,authenticated;",
@@ -32,8 +32,10 @@ async function main() {
   for (const file of files)
     await db.exec(await readFile("supabase/migrations/" + file, "utf8"));
   const user = (n) => "00000000-0000-4000-8000-" + String(n).padStart(12, "0");
-  for (let n = 1; n <= 6; n++)
+  for (let n = 1; n <= 6; n++) {
     await db.query("insert into auth.users(id) values($1)", [user(n)]);
+    await db.query("insert into auth.sessions(id,user_id) values($1,$2)", [user(n + 10000),user(n)]);
+  }
   for (const [n, role, active] of [
     [1, "owner", true],
     [2, "administrator", true],
@@ -51,6 +53,10 @@ async function main() {
     await db.exec(n === null ? "set role anon" : "set role authenticated");
     await db.query("select set_config('request.jwt.claim.sub',$1,false)", [
       n === null ? "" : user(n),
+    ]);
+    // UUID만 가정하지 않고 실제 Auth 세션과 일치하는 session_id claim을 전달합니다.
+    await db.query("select set_config('request.jwt.claim.session_id',$1,false),set_config('request.jwt.claim.aal','aal1',false)", [
+      n === null ? "" : user(n + 10000),
     ]);
   }
   async function denied(sql, params = []) {

@@ -110,6 +110,7 @@ try {
   }
   await privileged();
   await db.query("insert into auth.users(id,email) values($1,'legacy-nine@example.invalid')",[user(9)]);
+  await db.query("insert into auth.sessions(id,user_id) values($1,$2)",[user(10009),user(9)]);
   await db.query("insert into public.admin_roles(user_id,email,role) values($1,'legacy-nine@example.invalid','owner')",[user(9)]);
   await privileged("service_role"); await db.query("select public.staff_auth_bootstrap_owner($1,'legacy.nine')",[user(9)]);
   await as(1);
