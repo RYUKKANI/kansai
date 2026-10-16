@@ -62,7 +62,7 @@
   white-space: nowrap;
   border: 0;
 }
-.staff-auth-portal input:not([type="checkbox"]) {
+.staff-auth-portal :is(input:not([type="checkbox"]), select) {
   min-width: 0;
   width: 100%;
   min-height: 58px;
@@ -78,11 +78,11 @@
   box-shadow: none;
 }
 .staff-auth-portal input::placeholder { color: #d9dde4; opacity: 1; }
-.staff-auth-portal input:not([type="checkbox"]):focus { border-bottom-color: #84b9ff; }
+.staff-auth-portal :is(input:not([type="checkbox"]), select):focus { border-bottom-color: #84b9ff; }
 .staff-auth-portal input:not([type="checkbox"]):disabled { background: transparent; color: var(--staff-auth-muted); }
 .staff-auth-portal input:-webkit-autofill { -webkit-text-fill-color: #f3f5f8; caret-color: #f3f5f8; -webkit-box-shadow: 0 0 0 1000px #202020 inset; }
 .staff-auth-portal input[aria-invalid="true"] { border-bottom-color: #ff9ba6; }
-.staff-auth-portal :is(input, button, a):focus-visible { outline: 2px solid #84b9ff; outline-offset: 4px; }
+.staff-auth-portal :is(input, select, button, a):focus-visible { outline: 2px solid #84b9ff; outline-offset: 4px; }
 .staff-auth-portal .admin-help { margin: 0 0 8px; color: var(--staff-auth-muted); font-size: 12px; line-height: 1.7; }
 .staff-auth-portal .admin-primary {
   display: flex;
@@ -137,3 +137,7 @@
   .staff-account-state { grid-template-columns: 1fr; gap: 4px; }
   .staff-account-state dd { margin-bottom: 10px; }
 }
+
+/* 소속 선택은 키보드로도 조작하는 기본 select를 사용합니다. */
+.staff-auth-portal select { color-scheme: dark; background: #202020; }
+.staff-auth-portal option { color: #f3f5f8; background: #202020; }
