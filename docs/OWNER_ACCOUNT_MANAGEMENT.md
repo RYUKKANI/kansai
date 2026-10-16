@@ -54,7 +54,7 @@ DB 감사와 Auth 변경은 서로 다른 트랜잭션입니다. 성공 응답�
 
 공식 Auth v2.197.0의 관리자 비밀번호 변경은 대상의 전체 native 세션과 대기 중 복구·재인증·주소 변경 토큰을 정리합니다. MFA factor를 제거하지는 않습니다. 관리자 API 자체는 일반 사용자 변경의 현재 비밀번호·nonce·MFA 재인증 검사를 대신 실행하지 않으므로, 위의 Owner·최근 인증·MFA 검사가 앱의 필수 경계입니다.
 
-이미 발급된 access JWT는 만료까지 서명 검증을 통과할 수 있습니다. 새 Owner 관리 RPC는 세션 존재를 추가 확인하지만 기존 콘텐츠 전체에 그 검사를 새로 적용한 것은 아닙니다. 기존 콘텐츠는 현재 역할·정지 상태를 매 요청 검사하며, 비밀번호 초기화만으로 모든 업무의 JWT가 즉시 무효화됐다고 주장하지 않습니다. 실제 배포 Auth 버전과 refresh/access token 동작을 별도 확인합니다.
+이미 발급된 access JWT는 만료까지 서명 검증을 통과할 수 있습니다. 후속 `staff_live_session_authorization` migration은 콘텐츠·명부·감사·본인 프로필의 공통 DB 경계에서도 실제 세션 존재·사용자·만료·Auth 정지를 검사합니다. 따라서 Auth가 세션을 삭제한 다음 요청은 기존 JWT로도 차단됩니다. stateless 서명 자체를 취소하는 것과 구분하며, 실제 Auth/refresh 동작은 네이티브 통합 및 실제 배포에서 확인합니다.
 
 이력에는 operation UUID·대상 UUID·서버가 확인한 당시 Owner UUID/역할/확인 이름·변경 필드·사유만 남깁니다. 비밀번호·해시·토큰·이메일과 아이디·실명의 변경 전후 민감 값은 저장하지 않습니다. `source=owner_password_reset`이며 요청 감사의 실행자는 `authenticated_user`, 결과 감사의 실행자는 `staff_auth_edge_function`으로 요청자와 서버 실행을 구분합니다. 해당 Owner 자격을 사용한 실제 사람이 누구인지 DB만으로 증명하지 않습니다. 서비스 키·DB 소유자는 이 경계를 우회할 수 있어 별도 플랫폼 감사가 필요합니다.
 
@@ -97,3 +97,5 @@ DB 감사와 Auth 변경은 서로 다른 트랜잭션입니다. 성공 응답�
 - [Admin updateUserById](https://supabase.com/docs/reference/javascript/auth-admin-updateuserbyid), [고정 버전 Admin 구현](https://github.com/supabase/auth/blob/v2.197.0/internal/api/admin.go): 서버 자격의 같은 UUID 비밀번호 변경.
 - [UpdatePassword와 세션 정리](https://github.com/supabase/auth/blob/v2.197.0/internal/models/user.go#L434-L463), [세션과 JWT 만료](https://supabase.com/docs/guides/auth/sessions#how-to-ensure-an-access-token-jwt-cannot-be-used-after-a-user-signs-out): 세션 삭제와 stateless JWT의 차이.
 - [getUser의 현재 세션 검사](https://github.com/supabase/auth/blob/v2.197.0/internal/api/auth.go#L118-L163), [MFA 규칙 강제](https://supabase.com/docs/guides/auth/auth-mfa#enforce-rules-for-mfa-logins): 서명 확인에 더해 앱이 강제할 민감 작업 경계.
+
+후속 [2026-10-16 인증 재점검](STAFF_AUTH_REBUILD.md)에는 메일 없는 유일 Owner 지원 복구, 공통 세션 경계와 실제 네이티브 CI 절차가 있습니다.
