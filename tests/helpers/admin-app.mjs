@@ -79,6 +79,9 @@ export async function app(
   restoredSessions.set(window, testSession);
   if (authResponses.initialSession)
     window.localStorage.setItem("kansai-admin-session", JSON.stringify(testSession));
+  // URL 콜백 검사에서는 실제 SDK가 읽는 브라우저 verifier도 테스트 전용 값으로 준비합니다.
+  for (const [name, value] of Object.entries(authResponses.initialStorage ?? {}))
+    window.localStorage.setItem(name, value);
   const tables = {
     admin_roles: [
       { user_id: uid, email: user.email, role: staffRole, active: true },
@@ -117,7 +120,7 @@ export async function app(
     );
     const headers = new Headers(options.headers ?? {});
     const method = options.method ?? "GET";
-    requests.push({ url: url.href, method, body: options.body });
+    requests.push({ url: url.href, method, body: options.body, authorization: headers.get("Authorization") });
     if (url.pathname.endsWith("/build.json"))
       return Response.json({
         version: 1,
