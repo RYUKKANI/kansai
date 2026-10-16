@@ -21,7 +21,7 @@
 | 오프라인 미리보기 | 전체 생성·CSP 검증 성공 후 교체; 철회 경로 제거, 실패 시 이전 결과 보존 |
 | CI | 공식 Actions 커밋 SHA 고정, 주간 업데이트 검토 PR, 실제 Auth 직접 가입 차단 검사 추가 |
 
-DB 변경은 CLI가 만든 `20261016130710_security_profile_audit_boundaries.sql` 하나입니다.
+DB 변경은 CLI가 만들고 운영 적용 후 원격이 발급한 버전에 맞춘 `20261016133328_security_profile_audit_boundaries.sql` 하나입니다.
 기존 `profile_read_staff` 정책을 교체하고 `training_series`에 기존 감사 함수를 연결합니다.
 계정·콘텐츠 행을 수정하거나 과거 감사 기록을 소급 생성하지 않습니다.
 
