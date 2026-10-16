@@ -89,10 +89,17 @@
   font-size: 11px;
   overflow: hidden;
   text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .office-header-account span:not(.office-avatar) {
   font-size: 10px;
   color: var(--office-muted);
+}
+/* 등록한 이름과 실명 확인 상태를 분리해, 확인 전에도 현재 이름을 식별할 수 있게 합니다. */
+.office-header-account .office-name-status:not([hidden]) {
+  color: #855519;
+  font-size: 9px;
+  line-height: 1.25;
 }
 .office-avatar {
   width: 34px;
