@@ -29,6 +29,14 @@ class NativeAuthFailure extends Error {
 function verify(condition, code) {
   if (!condition) throw new NativeAuthFailure(code);
 }
+// 네이티브/게이트웨이 실패는 고정 코드와 HTTP 상태만 진단합니다. 메시지·요청값·사용자 응답은 출력하지 않습니다.
+function safeFailure(status, code) {
+  const allowed = new Set(["email_provider_disabled", "invalid_credentials", "email_not_confirmed", "signup_disabled",
+    "over_request_rate_limit", "over_email_send_rate_limit", "captcha_failed", "unexpected_failure", "validation_failed",
+    "bad_jwt", "not_authenticated", "invalid_api_key", "origin_denied", "feature_unavailable", "service_unavailable", "rate_limited", "invalid_request"]);
+  const http = Number.isInteger(status) && status >= 100 && status <= 599 ? status : "unknown";
+  return `http_${http}_${allowed.has(code) ? code : "unclassified"}`;
+}
 function localAddress(value) {
   let url;
   try { url = new URL(value); } catch { throw new NativeAuthFailure("invalid_local_address"); }
@@ -125,7 +133,9 @@ async function main() {
     ["auth", "enabled", true], ["auth", "site_url", APP_ORIGIN + "/"],
     ["auth", "additional_redirect_urls", [APP_ORIGIN + "/admin/", APP_ORIGIN + "/admin/help/"]],
     ["auth", "jwt_expiry", 3600], ["auth", "enable_signup", false], ["auth", "enable_anonymous_sign_ins", false],
-    ["auth.email", "enable_signup", false], ["auth.email", "enable_confirmations", true], ["auth.email", "max_frequency", "60s"],
+    // CLI의 email.enable_signup은 GOTRUE_EXTERNAL_EMAIL_ENABLED에도 연결됩니다. 이메일/비밀번호 제공자는
+    // 유지하고 위의 auth.enable_signup=false로 공개 가입만 차단해야 기존 계정이 로그인할 수 있습니다.
+    ["auth.email", "enable_signup", true], ["auth.email", "enable_confirmations", true], ["auth.email", "max_frequency", "60s"],
     ["storage", "enabled", true], ["storage", "file_size_limit", "10MiB"],
     ["functions.staff-auth", "enabled", true], ["functions.staff-auth", "verify_jwt", false],
     ["functions.staff-auth", "entrypoint", "./functions/staff-auth/index.ts"],
@@ -193,7 +203,7 @@ async function main() {
   }
   async function idLogin(username, password) {
     const result = await gateway({ action: "login", username, password });
-    verify(result.status === 200 && typeof result.body.session?.access_token === "string", "gateway_login_failed");
+    verify(result.status === 200 && typeof result.body.session?.access_token === "string", "gateway_login_failed_" + safeFailure(result.status, result.body.error));
     const current = client(api, publicKey);
     data(await current.auth.setSession(result.body.session), "gateway_session_failed");
     return current;
@@ -210,6 +220,12 @@ async function main() {
   uuid(owner.id);
   await sql(`insert into public.admin_roles(user_id,email,role,active) values(${sqlLiteral(owner.id)}::uuid,${sqlLiteral(ownerEmail)},'owner',true);`);
   data(await service.rpc("staff_auth_bootstrap_owner", { p_user_id: owner.id, p_username: ownerUsername }), "owner_identity_bootstrap_failed");
+  // 첫 게이트웨이 요청 전 네이티브 제공자를 한 번 확인해 로컬 설정 오류와 아이디 경로 오류를 구분합니다.
+  // 게이트웨이 식별자 제한은 소비하지 않으며, 오류 원문이나 자격 증명은 출력하지 않습니다.
+  const nativeLogin = await client(api, publicKey).auth.signInWithPassword({ email: ownerEmail, password: initialPassword });
+  verify(!nativeLogin.error && nativeLogin.data?.user?.id === owner.id,
+    "native_owner_password_login_failed_" + safeFailure(nativeLogin.error?.status, nativeLogin.error?.code));
+  report("native email/password provider accepts the disposable Owner");
   const initialOwner = await idLogin(ownerUsername.toUpperCase(), initialPassword);
   const initialToken = data(await initialOwner.auth.getSession(), "initial_owner_session_missing").session?.access_token;
   verify(initialToken && data(await initialOwner.auth.getUser(), "initial_owner_user_failed").user.id === owner.id, "initial_owner_uuid_mismatch");
