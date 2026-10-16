@@ -279,7 +279,8 @@ test("a recovery query alone cannot enable password updates even with an existin
 });
 
 test("verified Auth recovery enables password update, clears credentials and closes recovery session", async () => {
-  const app = application({ help: true, getClaims: () => recoveryClaims(), query: "&type=recovery#access_token=transient-token" });
+  // URL 토큰을 채택하지 않고, 검증된 기존 복구 세션의 Auth 이벤트만 재현합니다.
+  const app = application({ help: true, getClaims: () => recoveryClaims(), query: "&type=recovery" });
   try {
     app.emit("PASSWORD_RECOVERY");
     await eventually(() => !app.document.querySelector("#staff-new-password-panel").hidden);
