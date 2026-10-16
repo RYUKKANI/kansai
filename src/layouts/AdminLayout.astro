@@ -12,6 +12,7 @@ import "../styles/admin-base.css";
 import "../styles/admin.css";
 import "../styles/languages.css";
 import LanguageSwitcher from "../components/LanguageSwitcher.astro";
+import SecurityHead from "../components/SecurityHead.astro";
 // [편집 안내] 공개 메뉴와 분리한 관리자 전용 화면입니다. 로그인과 권한 검사 전에는 데이터를 표시하지 않습니다.
 ---
 
@@ -19,9 +20,9 @@ import LanguageSwitcher from "../components/LanguageSwitcher.astro";
 <html lang="ja">
   <head>
     <meta charset="UTF-8" />
+    <SecurityHead office />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="robots" content="noindex, nofollow" />
-    <meta name="referrer" content="same-origin" />
     <meta name="theme-color" content="#0B2447" />
     <title>KANSAI UNITED FC — CLUB OFFICE</title>
   </head>
