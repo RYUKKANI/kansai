@@ -4,7 +4,7 @@ import { asset } from "../../lib/urls";
 import { localeFromUrl, localizedPage } from "../../lib/i18n";
 import LanguageSwitcher from "../../components/LanguageSwitcher.astro";
 import StaffSupportRecovery from "../../components/StaffSupportRecovery.astro";
-import "../../styles/global.css";
+import "../../styles/admin-base.css";
 import "../../styles/admin.css";
 import "../../styles/languages.css";
 import "../../styles/staff-auth.css";
@@ -39,10 +39,10 @@ const enabled = import.meta.env.PUBLIC_STAFF_IDENTITY_ENABLED === "true";
             <h1 id="help-heading"><span data-i18n="ログインのヘルプ">ログインのヘルプ</span></h1>
           </div>
           <div id="staff-help-message" class="staff-auth-message" role="status" aria-live="polite" tabindex="-1"></div>
-          <p id="staff-help-unavailable" class="admin-help" hidden={enabled}><span data-i18n="新しいログイン方式は移行準備中です。現在のログイン画面をご利用ください。">新しいログイン方式は移行準備中です。現在のログイン画面をご利用ください。</span></p>
+          <p id="staff-help-unavailable" class="admin-help" hidden={enabled}><span data-i18n="このログイン機能は現在利用できません。ログイン画面に戻るか、最高管理者にご相談ください。">このログイン機能は現在利用できません。ログイン画面に戻るか、最高管理者にご相談ください。</span></p>
           <div id="staff-help-options" hidden={!enabled}>
             <h2><span data-i18n="ログインできない場合">ログインできない場合</span></h2>
-            <p class="admin-help"><span data-i18n="ログインIDが不明な場合やパスワードを再設定する場合は、運営責任者（Owner）にご相談ください。本人と既存アカウントを確認したうえで管理画面から対応します。">ログインIDが不明な場合やパスワードを再設定する場合は、運営責任者（Owner）にご相談ください。本人と既存アカウントを確認したうえで管理画面から対応します。</span></p>
+            <p class="admin-help"><span data-i18n="ログインIDが不明な場合やパスワードを忘れた場合は、最高管理者にご相談ください。本人と既存アカウントを確認し、管理画面から対応します。">ログインIDが不明な場合やパスワードを忘れた場合は、最高管理者にご相談ください。本人と既存アカウントを確認し、管理画面から対応します。</span></p>
             <StaffSupportRecovery />
           </div>
           <div id="staff-new-password-panel" hidden>
