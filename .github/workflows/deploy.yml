@@ -86,7 +86,7 @@ jobs:
       - name: Check staff identity interactions
         env:
           STAFF_IDENTITY_TEST_DIST: dist-identity
-        run: node --test tests/staff-identity-app.test.mjs
+        run: node --test tests/staff-identity-app.test.mjs tests/staff-profile-state-app.test.mjs
       - name: Upload site
         uses: actions/upload-pages-artifact@v5
         with:
