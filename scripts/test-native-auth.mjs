@@ -329,21 +329,40 @@ async function main() {
   report("real Mailpit mail, same-browser PKCE and new password login succeed; old password and reused link fail");
 
   stage = "pending account native Auth and RLS";
-  const pendingEmail = `pending-${randomBytes(5).toString("hex")}@example.test`;
+  // 새 가입은 연락 주소를 입력받지 않습니다. 실제 Auth가 서버 식별자로 계정을 만들고
+  // 메일을 발송하지 않은 채 아이디 로그인·승인 대기 제한을 적용하는지 함께 확인합니다.
+  async function mailboxCount() {
+    const response = await localFetch(`${mailbox}/api/v1/messages?limit=50`);
+    verify(response.ok, "mailbox_listing_unavailable");
+    const listing = await response.json();
+    verify(Number.isInteger(listing.total), "mailbox_count_missing");
+    return listing.total;
+  }
+  const mailCountBeforeSignup = await mailboxCount();
   const pendingPassword = randomBytes(24).toString("base64url");
   const registered = await gateway({ action: "register", username: "native.pending", password: pendingPassword, password_confirmation: pendingPassword,
-    real_name: "隔離テスト 담당", department: "CI only", email: pendingEmail, notice_accepted: true });
+    real_name: "隔離テスト 담당", department: "CI only", notice_accepted: true });
   verify(registered.status === 200 && registered.body.code === "registration_received", "pending_registration_failed");
+  verify(!JSON.stringify(registered.body).includes("@"), "registration_exposed_technical_address");
   const pending = await idLogin("native.pending", pendingPassword);
-  const pendingToken = data(await pending.auth.getSession(), "pending_session_missing").session?.access_token;
+  const pendingSession = data(await pending.auth.getSession(), "pending_session_missing").session;
+  const pendingToken = pendingSession?.access_token;
+  const pendingAuth = data(await service.auth.admin.getUserById(uuid(pendingSession?.user.id)), "pending_native_user_missing").user;
+  verify(/^staff-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}@accounts\.kansai\.invalid$/.test(pendingAuth.email), "pending_auth_identifier_not_server_generated");
+  verify(await mailboxCount() === mailCountBeforeSignup, "signup_sent_unrequested_email");
   const pendingState = await rpc("office_account_state", {}, pendingToken);
-  verify(pendingState.status === 200 && pendingState.body.approval_status === "pending" && pendingState.body.role === null && pendingState.body.active === false, "pending_received_internal_role");
+  verify(pendingState.status === 200 && pendingState.body.approval_status === "pending" && pendingState.body.role === null && pendingState.body.active === false &&
+    pendingState.body.email_confirmation_required === false && pendingState.body.email_confirmed === false, "pending_received_internal_role");
+  const recoveredOwnerToken = data(await recoveredOwner.auth.getSession(), "recovered_owner_session_missing").session?.access_token;
+  const technicalContact = await rpc("office_staff_application_contact", { p_user_id: pendingAuth.id }, recoveredOwnerToken);
+  verify(technicalContact.status === 200 && technicalContact.body.email === null && technicalContact.body.contact_available === false,
+    "technical_identifier_exposed_as_contact");
   const listing = await rpc("office_staff_directory", {}, pendingToken);
   verify(listing.status >= 400, "pending_accessed_staff_directory");
   const internal = await localFetch(`${api}/rest/v1/players?select=id`, { headers: { apikey: publicKey, Authorization: `Bearer ${pendingToken}` } });
   const playerRows = await internal.json();
   verify(internal.ok && Array.isArray(playerRows) && playerRows.length === 0, "pending_read_internal_players");
-  report("real pending user has an Auth session and no staff directory or internal player access");
+  report("email-free signup sends no mail; server Auth identifier stays out of contacts and pending user cannot access internal data");
 
   stage = "mail-free support request, project administrator approval and one-time completion";
   const requestId = randomUUID();
@@ -386,9 +405,13 @@ async function main() {
   report("approved support changes the same UUID once, preserves Owner, revokes old sessions and rejects proof/replay attacks");
 
   stage = "native email resend failure is surfaced honestly";
-  const recoveryInput = () => ({ action: "recovery", email: pendingEmail,
+  // 기존 실제 이메일 계정의 복구 호환성은 보존합니다. 새 무메일 가입과 분리한 일회용
+  // 주소에서만 제공자 재발송 오류를 검사하며, 기술 식별자에는 복구 메일을 요청하지 않습니다.
+  const legacyMailAddress = `legacy-mail-${randomBytes(5).toString("hex")}@example.test`;
+  data(await service.auth.admin.createUser({ email: legacyMailAddress, password: randomBytes(24).toString("base64url"), email_confirm: true }), "legacy_mail_fixture_creation_failed");
+  const recoveryInput = () => ({ action: "recovery", email: legacyMailAddress,
     code_challenge: createHash("sha256").update(randomBytes(32).toString("hex")).digest("base64url"), code_challenge_method: "s256" });
-  // 이 pending 주소에는 아직 복구 메일을 요청하지 않았습니다. 첫 요청 직후 다시 요청해
+  // 이 호환성 주소에는 아직 복구 메일을 요청하지 않았습니다. 첫 요청 직후 다시 요청해
   // native max_frequency 60초 제한을 확인합니다. 게이트웨이 3회/시간 한도는 넘지 않습니다.
   const firstPendingMail = await gateway(recoveryInput());
   verify(firstPendingMail.status === 200 && firstPendingMail.body.code === "recovery_received", "first_pending_native_mail_not_accepted");
