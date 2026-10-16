@@ -1,0 +1,12 @@
+/* [편집 안내] 비밀번호 복구는 도움말 안에서만 확장합니다. 긴 요청 번호도 휴대전화 폭 안에서 줄바꿈합니다. */
+.staff-support-recovery { margin: 22px 0; padding: 18px 0; border-block: 1px solid #454545; }
+.staff-support-recovery summary { min-height: 44px; padding: 10px 2px; color: #b1d1ff; font-size: 14px; cursor: pointer; }
+.staff-support-recovery summary:focus-visible { outline: 2px solid #84b9ff; outline-offset: 4px; }
+.staff-support-recovery details[open] > div { padding-top: 12px; }
+.staff-support-reference { display: grid; gap: 6px; margin: 18px 0; font-size: 12px; }
+.staff-support-reference dt { color: #a8abb2; }
+.staff-support-reference dd { margin: 0 0 8px; overflow-wrap: anywhere; color: #eef4ff; }
+.staff-support-reference output { font: inherit; font-weight: 600; letter-spacing: .02em; user-select: text; }
+#staff-support-password-form { margin-top: 22px; }
+#staff-support-password-form h3 { margin: 0; font-size: 16px; }
+.staff-support-recovery button { max-width: 100%; overflow-wrap: anywhere; white-space: normal; }

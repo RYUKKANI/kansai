@@ -21,7 +21,8 @@ jwt_expiry = 3600
 enable_signup = false
 enable_anonymous_sign_ins = false
 [auth.email]
-enable_signup = false
+# CLI에서 이 값은 이메일·비밀번호 제공자도 켭니다. 공개 가입 차단은 위 auth.enable_signup으로 유지합니다.
+enable_signup = true
 enable_confirmations = true
 [storage]
 enabled = true

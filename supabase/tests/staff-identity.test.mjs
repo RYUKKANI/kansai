@@ -54,6 +54,7 @@ try {
   const blankProfile = (await db.query("select * from private.staff_accounts where user_id=$1", [user(1)])).rows[0];
   check(blankProfile.real_name === null && blankProfile.department === null && blankProfile.notice_accepted_at === null && blankProfile.name_verified_at === null, "bootstrap stores no guessed name, department, verification or notice acceptance");
   await db.query("insert into auth.users(id,email) values($1,'null-profile-test@example.invalid')", [user(7)]);
+  await db.query("insert into auth.sessions(id,user_id) values($1,$2)", [user(10007),user(7)]);
   await reject("insert into private.staff_accounts(user_id,username,real_name,department,notice_accepted_at) values($1,'invalid.new',null,null,null)", [user(7)]);
   await reject("insert into private.staff_accounts(user_id,username,legacy_account,profile_enrollment_pending) values($1,'invalid.new',false,true)", [user(7)]);
   await as(1);
@@ -115,6 +116,7 @@ try {
   await reject("select public.staff_auth_finalize($1,$2)", [reservation, user(1)]);
   await superuser();
   await db.query("insert into auth.users(id,email,email_confirmed_at,raw_user_meta_data) values($1,'new-person@example.invalid',null,'{\"role\":\"owner\",\"approval_status\":\"approved\",\"email_confirmation_required\":false}')", [user(6)]);
+  await db.query("insert into auth.sessions(id,user_id) values($1,$2)", [user(10006),user(6)]);
   await service();
   await db.query("select public.staff_auth_finalize($1,$2)", [reservation, user(6)]);
   await reject("select public.staff_auth_finalize($1,$2)", [reservation, user(6)]);
@@ -159,6 +161,7 @@ try {
   await reject("select public.staff_auth_finalize($1,$2)", [manualReservation, user(1)]);
   await superuser();
   await db.query("insert into auth.users(id,email,email_confirmed_at) values($1,'manual@example.invalid',null)", [user(8)]);
+  await db.query("insert into auth.sessions(id,user_id) values($1,$2)", [user(10008),user(8)]);
   await service();
   await reject("select public.staff_auth_finalize($1,$2)", [manualReservation, user(8)]);
   await superuser();
@@ -181,6 +184,7 @@ try {
   await db.query("update auth.users set raw_app_meta_data='{" + '\"staff_signup_policy\":\"manual_approval_no_email_v1\"' + "}' where id=$1", [user(8)]);
   // Auth 생성 후 확정 이전/실패 상태에서도 서버 정책은 보존되며 일반 enrollment가 금지됩니다.
   await db.query("insert into auth.users(id,email,raw_app_meta_data) values($1,'manual-orphan@example.invalid','{" + '\"staff_signup_policy\":\"manual_approval_no_email_v1\"' + "}')", [user(9)]);
+  await db.query("insert into auth.sessions(id,user_id) values($1,$2)", [user(10009),user(9)]);
   await as(9);
   const orphan = await state();
   check(!orphan.email_confirmation_required && orphan.email_verification_status === "not_required" && !orphan.email_confirmed && !orphan.active, "autoconfirmed portal orphan never claims email ownership verified before or after finalize failure");

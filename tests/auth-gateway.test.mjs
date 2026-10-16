@@ -51,6 +51,7 @@ function fixture(overrides = {}) {
       return ok("bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb");
     }
     if (name === "staff_auth_finalize") return ok(null);
+    if (name === "staff_auth_release_reservation") { reservationNames.clear(); return ok(true); }
     if (name === "office_enroll_identity") return ok({ user_id: USER, username: args.p_username, approval_status: "approved" });
     if (name === "office_owner_begin_password_reset") {
       if (overrides.ownerRole && overrides.ownerRole !== "owner" || overrides.sessionRevoked || ![USER, TARGET].includes(args.p_user_id)) return bad("42501");
@@ -195,11 +196,11 @@ test("registration atomically reserves then creates an Auth account without send
 test("concurrent duplicate registration produces one Auth creation and no existing-email mapping takeover", async () => {
   const f = fixture();
   const responses = await Promise.all([f.send(registration()), f.send(registration({ username: "KANSAI.OWNER" }))]);
-  assert.equal(responses.every(response => response.status === 200), true);
+  assert.deepEqual(responses.map(response => response.status).sort(), [200, 409]);
   assert.equal(authCalls(f).filter(call => call.method === "admin.createUser").length, 1);
   const existing = fixture({ rpc: name => name === "staff_auth_reserve" ? bad("23505") : undefined });
   const duplicate = await existing.send(registration());
-  assert.deepEqual(await duplicate.json(), { success: true, code: "registration_received" });
+  assert.deepEqual(await duplicate.json(), { error: "registration_unavailable" });
   assert.equal(authCalls(existing).length, 0);
   assert.equal(rpcCalls(existing, "staff_auth_finalize").length, 0);
 });
@@ -207,7 +208,8 @@ test("concurrent duplicate registration produces one Auth creation and no existi
 test("failed finalization does not grant approval or expose service-created UUID or contact", async () => {
   const f = fixture({ rpc: name => name === "staff_auth_finalize" ? bad("P0001") : undefined });
   const response = await f.send(registration());
-  assert.deepEqual(await response.json(), { success: true, code: "registration_received" });
+  assert.equal(response.status, 503);
+  assert.deepEqual(await response.json(), { error: "registration_uncertain" });
   assert.equal(rpcCalls(f).some(call => /role|approve|owner/.test(call.name)), false);
 });
 
@@ -219,13 +221,51 @@ test("service account creation never hands an anonymous registration an Auth ses
   assert.equal(rpcCalls(f, "staff_auth_finalize").length, 0);
 });
 
-test("failed Auth creation stays generic and never finalizes or alters an existing account", async () => {
-  for (const error of [bad("email_exists"), bad("unexpected_failure")]) {
+test("failed Auth creation stays honest and generic and never finalizes or alters an existing account", async () => {
+  for (const [error, code, status] of [[bad("email_exists"), "registration_unavailable", 409], [bad("weak_password"), "weak_password", 422], [bad("unexpected_failure"), "registration_uncertain", 503]]) {
     const f = fixture({ createUser: () => error });
     const response = await f.send(registration());
-    assert.deepEqual(await response.json(), { success: true, code: "registration_received" });
+    assert.equal(response.status, status);
+    assert.deepEqual(await response.json(), { error: code });
     assert.equal(rpcCalls(f, "staff_auth_finalize").length, 0);
     assert.equal(authCalls(f).some(call => /updateUser|deleteUser|signUp|invite/.test(call.method)), false);
+    assert.equal(rpcCalls(f, "staff_auth_release_reservation").length, code === "registration_uncertain" ? 0 : 1);
+  }
+});
+
+test("definitely rejected signup releases only its empty reservation so corrected input can retry", async () => {
+  let rejected = true;
+  const f = fixture({ createUser: input => {
+    if (rejected) { rejected = false; return bad("weak_password"); }
+    return ok({ user: { id: USER, email: input.email } });
+  } });
+  const first = await f.send(registration());
+  assert.deepEqual(await first.json(), { error: "weak_password" });
+  assert.deepEqual(rpcCalls(f, "staff_auth_release_reservation")[0].args, { p_reservation: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb" });
+  assert.deepEqual(await (await f.send(registration({ password: "corrected-strong-password", password_confirmation: "corrected-strong-password" }))).json(), { success: true, code: "registration_received" });
+  for (const result of [ok(false), bad("XX000"), ok(null)]) {
+    const failed = fixture({ createUser: () => bad("weak_password"), rpc: name => name === "staff_auth_release_reservation" ? result : undefined });
+    assert.deepEqual(await (await failed.send(registration())).json(), { error: "registration_uncertain" });
+    assert.equal(authCalls(failed).filter(call => call.method === "admin.createUser").length, 1);
+  }
+});
+
+test("registration never returns receipt for ambiguous native or DB mutation results", async () => {
+  for (const createUser of [() => { throw new Error(`network ${EMAIL}`); }, () => ok({}), () => ok({ user: { id: "not-a-uuid", email: "new-account@example.invalid" } }), () => ok({ user: { id: USER, email: "different@example.invalid" } }), () => ({ data: null, error: { code: "request_timeout", status: 408 } })]) {
+    const f = fixture({ createUser });
+    const response = await f.send(registration());
+    assert.equal(response.status, 503);
+    assert.deepEqual(await response.json(), { error: "registration_uncertain" });
+    assert.equal(rpcCalls(f, "staff_auth_finalize").length, 0);
+    assert.equal(rpcCalls(f, "staff_auth_release_reservation").length, 0);
+    assert.equal(authCalls(f).some(call => /updateUser|deleteUser|signInWithPassword/.test(call.method)), false);
+  }
+  for (const rpc of [name => name === "staff_auth_finalize" ? ok({}) : undefined, name => { if (name === "staff_auth_finalize") throw new Error(`lost response ${EMAIL}`); }]) {
+    const f = fixture({ rpc });
+    const response = await f.send(registration());
+    assert.equal(response.status, 503);
+    assert.deepEqual(await response.json(), { error: "registration_uncertain" });
+    assert.equal(authCalls(f).filter(call => call.method === "admin.createUser").length, 1);
   }
 });
 
@@ -323,12 +363,23 @@ test("CAPTCHA provider adapters use official POST endpoints and require approved
 });
 
 test("recovery generic result never resolves usernames or exposes existing email and uses configured help URL", async () => {
-  for (const result of [ok({}), bad("email_not_found"), bad("over_email_send_rate_limit")]) {
+  for (const result of [ok({}), bad("email_not_found")]) {
     const f = fixture({ resetPasswordForEmail: () => result });
     const response = await f.send({ action: "recovery", email: "  RECOVERY@EXAMPLE.INVALID ", code_challenge: CHALLENGE, code_challenge_method: "s256" });
     assert.deepEqual(await response.json(), { success: true, code: "recovery_received" });
     assert.equal(rpcCalls(f, "staff_auth_identity").length, 0);
     assert.deepEqual(authCalls(f)[0].args, ["recovery@example.invalid", { redirectTo: "https://club.example.invalid/admin/help/", captchaToken: undefined, codeChallenge: CHALLENGE, codeChallengeMethod: "s256" }]);
+  }
+});
+
+test("recovery and legacy provider throttling or outages are never accepted receipts", async () => {
+  for (const action of ["recovery", "legacy_login"]) {
+    for (const [result, code, status] of [[bad("over_email_send_rate_limit"), "rate_limited", 429], [bad("unexpected_failure"), "service_unavailable", 503], [{ data: null, error: { code: "unknown", status: 429 } }, "rate_limited", 429]]) {
+      const f = fixture({ [action === "recovery" ? "resetPasswordForEmail" : "signInWithOtp"]: () => result });
+      const response = await f.send({ action, email: EMAIL, ...(action === "recovery" ? { code_challenge: CHALLENGE, code_challenge_method: "s256" } : {}) });
+      assert.equal(response.status, status);
+      assert.deepEqual(await response.json(), { error: code });
+    }
   }
 });
 
@@ -353,6 +404,18 @@ test("server Auth recovery adapter forwards SDK challenge and configured help UR
   assert.equal(requests[0].init.headers["Sb-Forwarded-For"], undefined);
   assert.deepEqual(JSON.parse(requests[0].init.body), { email: EMAIL, code_challenge: CHALLENGE, code_challenge_method: "s256", gotrue_meta_security: { captcha_token: "captcha-for-auth" } });
   assert.equal(requests[0].init.body.includes("code_verifier"), false);
+});
+
+test("recovery flow ID is reconstructed only on the server fixed callback address", async () => {
+  const f = fixture();
+  const response = await f.send({ action: "recovery", email: EMAIL, code_challenge: CHALLENGE, code_challenge_method: "s256", flow_id: "opaque_flow_1234" });
+  assert.equal(response.status, 200);
+  assert.equal(authCalls(f)[0].args[1].redirectTo, "https://club.example.invalid/admin/help/?sb_flow_id=opaque_flow_1234");
+  for (const flow_id of ["short", "https://attacker.invalid", "a".repeat(65), {}, ["opaque_flow_1234"]]) {
+    const invalid = fixture();
+    assert.equal((await invalid.send({ action: "recovery", email: EMAIL, code_challenge: CHALLENGE, code_challenge_method: "s256", flow_id })).status, 400);
+    assert.equal(authCalls(invalid).length, 0);
+  }
 });
 
 test("legacy help fallback is explicit and cannot automatically create a user", async () => {
@@ -402,6 +465,8 @@ test("password reset requires server-verified recent recovery/invite AMR or Supa
   assert.deepEqual(authCalls(f).find(call => call.method === "updateUser").args[0], { password: "new-safe-test-password", current_password: "actual-existing-password" });
   assert.deepEqual(authCalls(f).find(call => call.method === "signInWithPassword").args[0], { email: EMAIL, password: "actual-existing-password" });
   assert.deepEqual(authCalls(f).find(call => call.method === "signOut").args[0], { scope: "local" });
+  assert.ok(f.calls.some(call => call.type === "userClient" && call.token === "actual-auth-access-token"));
+  assert.ok(f.calls.findIndex(call => call.type === "auth" && call.method === "updateUser") < f.calls.findIndex(call => call.type === "auth" && call.method === "signOut"));
   assert.equal(authCalls(f).some(call => call.method === "getClaims"), false);
 });
 
@@ -426,14 +491,66 @@ test("stateless Auth update uses verified bearer official REST and snake-case cu
   assert.deepEqual(JSON.parse(requests[0].init.body), { password: "new-safe-password", current_password: "verified-current-password" });
   assert.equal(JSON.stringify(requests).includes("refresh_token"), false);
   const failed = await updateAuthUser("https://auth.example.invalid", "key", "bearer", { password: "new-safe-password" }, null, async () => new Response(JSON.stringify({ error: `private ${EMAIL}` }), { status: 422 }));
-  assert.deepEqual(failed, { data: null, error: { code: "password_update_failed" } });
+  assert.deepEqual(failed, { data: null, error: { code: "password_update_failed", status: 400 } });
 });
 
 test("failed password save is not reported as success", async () => {
   const f = fixture({ updateUser: () => bad("same_password") });
   const response = await f.send({ action: "set_password", password: "new-safe-test-password", password_confirmation: "new-safe-test-password" }, { authorization: "Bearer recovery-session" });
-  assert.equal(response.status, 400);
-  assert.deepEqual(await response.json(), { error: "password_update_failed" });
+  assert.equal(response.status, 422);
+  assert.deepEqual(await response.json(), { error: "same_password" });
+});
+
+test("password save success has an explicit contract and requires the original UUID", async () => {
+  const input = { action: "set_password", password: "new-safe-test-password", password_confirmation: "new-safe-test-password" };
+  const success = fixture();
+  assert.deepEqual(await (await success.send(input, { authorization: "Bearer recovery-session" })).json(), { success: true, code: "password_updated" });
+  for (const updateUser of [() => ok({}), () => ok({ user: { id: TARGET } }), () => { throw new Error("private provider detail"); }]) {
+    const f = fixture({ updateUser });
+    const response = await f.send(input, { authorization: "Bearer recovery-session" });
+    assert.equal(response.status, 503);
+    assert.deepEqual(await response.json(), { error: "password_update_uncertain" });
+  }
+});
+
+test("current password reauthentication preserves MFA and does not update from the new AAL1 session", async () => {
+  const input = { action: "set_password", password: "new-safe-test-password", password_confirmation: "new-safe-test-password", current_password: "actual-existing-password" };
+  const factors = [{ status: "verified", factor_type: "totp" }];
+  const rejected = fixture({ getUser: () => ok({ user: { id: USER, email: EMAIL, factors } }), getClaims: () => ownerClaims({ aal: "aal1" }) });
+  assert.equal((await rejected.send(input, ownerHeaders)).status, 409);
+  assert.equal(authCalls(rejected).some(call => call.method === "signInWithPassword" || call.method === "updateUser"), false);
+  const accepted = fixture({ getUser: () => ok({ user: { id: USER, email: EMAIL, factors } }), getClaims: () => ownerClaims({ aal: "aal2" }) });
+  assert.equal((await accepted.send(input, ownerHeaders)).status, 200);
+  assert.equal(accepted.calls.filter(call => call.type === "userClient").length, 1);
+  for (const invalid of [null, {}, [null], [{ status: "unknown" }]]) {
+    const f = fixture({ getUser: () => ok({ user: { id: USER, email: EMAIL, factors: invalid } }) });
+    assert.equal((await f.send(input, ownerHeaders)).status, 409);
+    assert.equal(authCalls(f).some(call => call.method === "updateUser"), false);
+  }
+});
+
+test("Auth password errors expose only actionable safe codes and never provider detail", async () => {
+  for (const [native, status, expected] of [["same_password", 422, "same_password"], ["weak_password", 422, "weak_password"], ["insufficient_aal", 401, "mfa_required"], ["reauthentication_needed", 400, "reauthentication_required"], ["bad_jwt", 401, "authentication_required"], ["over_request_rate_limit", 429, "rate_limited"], ["request_timeout", 408, "password_update_uncertain"], ["unexpected_failure", 500, "password_update_uncertain"]]) {
+    const result = await updateAuthUser("https://auth.example.invalid", "public-test-key", "verified-token", { password: "new-safe-password" }, null, async () => Response.json({ code: native, msg: `private ${EMAIL} token` }, { status }));
+    assert.equal(result.error.code, expected);
+    assert.doesNotMatch(JSON.stringify(result), /private|secret-token|@/);
+  }
+  const legacyShape = await updateAuthUser("https://auth.example.invalid", "key", "token", { password: "new-safe-password" }, null,
+    async () => Response.json({ code: 422, error_code: "same_password", msg: `private ${EMAIL}` }, { status: 422 }));
+  assert.deepEqual(legacyShape, { data: null, error: { code: "same_password", status: 422 } });
+  for (const request of [async () => { throw new Error(`network ${EMAIL}`); }, async () => new Response("malformed", { status: 200 }), async () => Response.json({})]) {
+    const result = await updateAuthUser("https://auth.example.invalid", "key", "token", { password: "new-safe-password" }, null, request);
+    assert.deepEqual(result, { data: null, error: { code: "password_update_uncertain", status: 503 } });
+  }
+});
+
+test("native recovery failures survive both adapter and gateway without email or provider body", async () => {
+  for (const [request, status, code] of [[async () => Response.json({ code: "over_email_send_rate_limit", msg: `private ${EMAIL}` }, { status: 429 }), 429, "rate_limited"], [async () => Response.json({ code: "unexpected_failure", msg: `private ${EMAIL}` }, { status: 500 }), 503, "service_unavailable"], [async () => { throw new Error(`network ${EMAIL}`); }, 503, "service_unavailable"]]) {
+    const f = fixture({ resetPasswordForEmail: (address, options) => recoverAuthEmail("https://auth.example.invalid", "key", address, options, null, request) });
+    const response = await f.send({ action: "recovery", email: EMAIL, code_challenge: CHALLENGE, code_challenge_method: "s256" });
+    assert.equal(response.status, status);
+    assert.deepEqual(await response.json(), { error: code });
+  }
 });
 
 test("Owner reset binds an authenticated audited operation and sends only the new password to Auth Admin", async () => {

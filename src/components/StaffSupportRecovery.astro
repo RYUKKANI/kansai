@@ -1,0 +1,38 @@
+---
+import "../styles/staff-support-recovery.css";
+// [편집 안내] 요청 번호는 관리자가 대조하는 공개 식별자입니다. 기기 비밀값과 비밀번호는 DOM에 표시하지 않습니다.
+---
+<section id="staff-support-recovery" class="staff-support-recovery" aria-labelledby="staff-support-heading">
+  <details id="staff-support-details">
+    <summary id="staff-support-heading"><span data-i18n="メールを受信できないOwnerの復旧">メールを受信できないOwnerの復旧</span></summary>
+    <div id="staff-support-recovery-root">
+      <p class="admin-help"><span data-i18n="唯一のOwnerがログインできない場合の手続きです。申請だけでは権限は得られません。プロジェクト管理者が本人と既存アカウントを別途確認します。">唯一のOwnerがログインできない場合の手続きです。申請だけでは権限は得られません。プロジェクト管理者が本人と既存アカウントを別途確認します。</span></p>
+      <div id="staff-support-message" class="staff-auth-message" role="status" aria-live="polite" tabindex="-1"></div>
+      <form id="staff-support-request-form">
+        <label for="staff-support-username"><span data-i18n="ログインID">ログインID</span></label>
+        <input id="staff-support-username" name="username" placeholder="ログインID" data-i18n-placeholder="ログインID" type="text" autocomplete="username" autocapitalize="none" spellcheck="false" required minlength="3" maxlength="32" pattern="[A-Za-z0-9][A-Za-z0-9._\-]{2,31}" />
+        <button class="admin-secondary" type="submit"><span data-i18n="この端末で復旧を申請">この端末で復旧を申請</span></button>
+      </form>
+      <div id="staff-support-request-panel" hidden>
+        <p class="admin-help"><span data-i18n="この画面を開いたまま、下の申請番号と端末確認番号だけを、確認済みのプロジェクト管理者に伝えてください。パスワードは共有しないでください。">この画面を開いたまま、下の申請番号と端末確認番号だけを、確認済みのプロジェクト管理者に伝えてください。パスワードは共有しないでください。</span></p>
+        <dl class="staff-support-reference">
+          <dt><span data-i18n="復旧申請番号">復旧申請番号</span></dt><dd><output id="staff-support-request-id"></output></dd>
+          <dt><span data-i18n="端末確認番号">端末確認番号</span></dt><dd><output id="staff-support-fingerprint"></output></dd>
+          <dt><span data-i18n="有効期限">有効期限</span></dt><dd><output id="staff-support-expiry"></output></dd>
+        </dl>
+        <button id="staff-support-check" type="button" class="admin-secondary"><span data-i18n="管理者の確認状況を更新">管理者の確認状況を更新</span></button>
+        <form id="staff-support-password-form" hidden>
+          <h3 tabindex="-1"><span data-i18n="新しいパスワードを設定">新しいパスワードを設定</span></h3>
+          <p id="staff-support-password-help" class="admin-help"><span data-i18n="パスワードは12文字以上、UTF-8で72バイト以内にしてください。">パスワードは12文字以上、UTF-8で72バイト以内にしてください。</span></p>
+          <label for="staff-support-password"><span data-i18n="パスワード">パスワード</span></label>
+          <div class="staff-password-field"><input id="staff-support-password" name="password" placeholder="パスワード" data-i18n-placeholder="パスワード" type="password" autocomplete="new-password" required minlength="12" maxlength="72" aria-describedby="staff-support-password-help" /><button type="button" data-password-toggle="staff-support-password" aria-controls="staff-support-password" aria-pressed="false"><span data-i18n="表示">表示</span></button></div>
+          <label for="staff-support-password-confirm"><span data-i18n="パスワードの確認">パスワードの確認</span></label>
+          <div class="staff-password-field"><input id="staff-support-password-confirm" name="password_confirmation" placeholder="パスワードの確認" data-i18n-placeholder="パスワードの確認" type="password" autocomplete="new-password" required minlength="12" maxlength="72" /><button type="button" data-password-toggle="staff-support-password-confirm" aria-controls="staff-support-password-confirm" aria-pressed="false"><span data-i18n="表示">表示</span></button></div>
+          <button type="submit" class="admin-primary"><span data-i18n="新しいパスワードを保存">新しいパスワードを保存</span></button>
+        </form>
+        <button id="staff-support-forget" type="button" class="staff-auth-text-button"><span data-i18n="この端末の申請を閉じる">この端末の申請を閉じる</span></button>
+      </div>
+    </div>
+  </details>
+</section>
+<script src="../scripts/staff-support-recovery.ts"></script>

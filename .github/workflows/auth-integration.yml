@@ -1,0 +1,35 @@
+name: Verify native staff authentication
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main, 'fix/staff-auth-recovery-*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: native-auth-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  native-auth:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    env:
+      ASTRO_TELEMETRY_DISABLED: '1'
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      # [편집 안내] 운영 프로젝트/저장소 secrets 없이 매번 폐기할 로컬 Auth·DB·메일함을 만듭니다.
+      # Docker/메일/Edge가 없거나 실제 복구가 실패하면 이 검사는 건너뛰지 않고 실패합니다.
+      - name: Test real GoTrue, Mailpit, RLS and recovery gateway
+        run: node scripts/test-native-auth.mjs

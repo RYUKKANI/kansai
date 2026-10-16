@@ -8,6 +8,7 @@ type AuthResult = {
   success?: boolean;
   code?: string;
   error?: string;
+  operation_id?: string;
 };
 type StaffAuthOptions = {
   client: SupabaseClient;
@@ -36,7 +37,25 @@ export async function staffAuthRequest(
     }
     throw new Error(code);
   }
-  if (!data || data.error) throw new Error(data?.error ?? "service_unavailable");
+  if (!data || typeof data !== "object" || Array.isArray(data) || data.error)
+    throw new Error(data?.error ?? "service_unavailable");
+  // HTTP 200이나 빈 객체만으로 저장 성공을 표시하지 않습니다. 작업별 확정 응답을
+  // 검사해 프록시 오류·구버전 배포·잘못된 모의 응답이 비밀번호 저장으로 보이지 않게 합니다.
+  const received = (code: string) => data.success === true && data.code === code;
+  const confirmed = body.action === "login"
+    ? typeof data.session?.access_token === "string" && data.session.access_token.length > 0 &&
+      typeof data.session.refresh_token === "string" && data.session.refresh_token.length > 0 && data.success !== false
+    : body.action === "register" ? received("registration_received")
+    : body.action === "recovery" ? received("recovery_received")
+    : body.action === "legacy_login" ? received("legacy_link_received")
+    : body.action === "enroll" ? data.success === true && data.account !== null &&
+      typeof data.account === "object" && !Array.isArray(data.account) && typeof data.account.user_id === "string"
+    : body.action === "set_password" ? received("password_updated")
+    : body.action === "owner_reset_password" ? data.success === true &&
+      data.operation_id === body.operation_id &&
+      ["owner_password_reset_succeeded", "owner_password_reset_already_succeeded"].includes(data.code ?? "")
+    : false;
+  if (!confirmed) throw new Error("invalid_response");
   return data;
 }
 
@@ -44,6 +63,10 @@ export function staffAuthError(error: unknown): string {
   const code = error instanceof Error ? error.message : "service_unavailable";
   if (code === "rate_limited")
     return t("試行回数が制限されています。少し時間をおいてから再度お試しください。");
+  if (code === "email_rate_limited")
+    return t("メールの送信が制限され、今回は申請を受け付けられませんでした。パスワードは変更されていません。時間をおくか、メールを使わない復旧をご利用ください。");
+  if (code === "email_unavailable")
+    return t("確認メールの申請を完了できませんでした。パスワードは変更されていません。メールを使わない復旧をご利用いただくか、運営責任者にご相談ください。");
   if (code === "invalid_credentials")
     return t("ログインIDまたはパスワードをご確認ください。");
   if (code === "invalid_request")
@@ -52,8 +75,22 @@ export function staffAuthError(error: unknown): string {
     return t("ログインを確認できません。もう一度ログインしてください。");
   if (code === "enrollment_unavailable")
     return t("登録を完了できませんでした。IDを確認し、必要な場合は運営責任者にご相談ください。");
+  if (code === "registration_unavailable")
+    return t("登録を完了できませんでした。同じID・メールを使った申請がある場合は、ログインまたは復旧をご利用ください。登録を繰り返さず、運営責任者にご確認ください。");
+  if (code === "registration_uncertain")
+    return t("登録結果を確認できません。アカウントが作成された可能性があります。この画面から再申請せず、ログインまたは復旧を確認し、利用できない場合は運営責任者にご相談ください。");
   if (code === "password_update_failed")
     return t("パスワードを設定できませんでした。ログイン状態を確認するか、運営責任者にご相談ください。");
+  if (code === "same_password")
+    return t("現在と同じパスワードです。別のパスワードを入力するか、入力したパスワードでログインしてください。");
+  if (code === "weak_password")
+    return t("このパスワードは利用できません。12文字以上で、推測されにくい別のパスワードを入力してください。");
+  if (["reauthentication_required", "current_password_required", "current_password_mismatch"].includes(code))
+    return t("パスワード変更の認証を確認できません。確認リンクを申請し直すか、運営責任者にご相談ください。");
+  if (code === "mfa_required")
+    return t("追加の本人確認が必要です。運営責任者に復旧をご相談ください。");
+  if (code === "password_update_uncertain")
+    return t("保存結果を確認できません。パスワードは変更された可能性があります。再設定を繰り返さず、入力した新しいパスワードでログインを確認し、利用できない場合は運営責任者にご相談ください。");
   if (code === "feature_unavailable")
     return t("新しいログイン方式は移行準備中です。現在のログイン画面をご利用ください。");
   return t("操作を完了できませんでした。時間をおいて再度お試しください。");
@@ -97,6 +134,7 @@ export function mountStaffAuth({ client, notice, refresh }: StaffAuthOptions) {
   let busy = false;
   let viewGeneration = 0;
   let ownState: StaffAccountState | null = null;
+  let registrationUncertain = false;
   const form = (name: string) => portal.querySelector<HTMLFormElement>("#staff-" + name + "-form")!;
   const field = (element: HTMLFormElement, name: string) => element.elements.namedItem(name) as HTMLInputElement;
   const read = (element: HTMLFormElement, name: string) => field(element, name).value;
@@ -132,6 +170,8 @@ export function mountStaffAuth({ client, notice, refresh }: StaffAuthOptions) {
       busy = false;
       element.removeAttribute("aria-busy");
       for (const button of portal.querySelectorAll<HTMLButtonElement>("button")) button.disabled = false;
+      if (registrationUncertain)
+        form("signup").querySelector<HTMLButtonElement>('button[type="submit"]')!.disabled = true;
     }
   }
   function invalid(element: HTMLInputElement, value: string) {
@@ -175,6 +215,7 @@ export function mountStaffAuth({ client, notice, refresh }: StaffAuthOptions) {
     await refresh();
   });
   bind("signup", async (element) => {
+    if (registrationUncertain) { message(staffAuthError(new Error("registration_uncertain")), true); return; }
     const generation = viewGeneration;
     const password = read(element, "password");
     const confirmation = read(element, "password_confirmation");
@@ -188,11 +229,21 @@ export function mountStaffAuth({ client, notice, refresh }: StaffAuthOptions) {
     }
     const payload = { action: "register", ...identity(element), password, password_confirmation: confirmation, email: read(element, "email").trim() };
     clearStaffPasswords(portal);
-    await staffAuthRequest(client, payload);
+    try { await staffAuthRequest(client, payload); }
+    catch (error) {
+      const code = error instanceof Error ? error.message : "service_unavailable";
+      if (!["registration_unavailable", "weak_password", "invalid_request", "rate_limited", "feature_unavailable"].includes(code)) {
+        // 생성 API 이후 응답이 유실되면 계정 생성 여부를 단정할 수 없습니다.
+        // 기존 UUID와 중복 연결을 피하도록 같은 화면의 재신청을 잠급니다.
+        registrationUncertain = true;
+        throw new Error("registration_uncertain");
+      }
+      throw error;
+    }
     if (generation !== viewGeneration) return;
     element.reset();
     show("login", false);
-    message(t("登録申請を受け付けました。メールの確認は不要です。登録できた場合は、入力したIDとパスワードでログインして承認状態をご確認ください。ログインできない場合は運営責任者にご相談ください。"));
+    message(t("アカウントを作成しました。メールの確認は不要です。入力したIDとパスワードでログインして承認状態をご確認ください。"));
   });
   bind("enroll", async (element) => {
     const generation = viewGeneration;
