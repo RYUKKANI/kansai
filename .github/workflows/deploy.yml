@@ -72,6 +72,9 @@ jobs:
       - name: Check permissions and interactions
         env:
           ADMIN_TEST_DIST: dist-legacy
+          # 검사 대상 빌드와 연결 변수를 맞추고 운영 주소를 테스트에 상속하지 않습니다.
+          PUBLIC_SUPABASE_URL: 'https://identity-test.supabase.co'
+          PUBLIC_SUPABASE_PUBLISHABLE_KEY: 'sb_publishable_identity_test_only'
         run: npm test
       # 새 로그인 분기는 가짜 연결 정보로 별도 빌드합니다. Pages 업로드는 기존 dist만 사용합니다.
       - name: Build isolated staff identity preview
