@@ -1743,14 +1743,6 @@
     grid-template-columns: minmax(0, 1fr);
   }
 }
-.office-repository-link {
-  flex-basis: 100%;
-  font-size: 12px;
-  margin-left: auto;
-  color: #1168bc;
-  font-weight: 600;
-  text-decoration: underline;
-}
 #publication-status {
   flex-wrap: wrap;
 }

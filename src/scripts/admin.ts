@@ -37,6 +37,7 @@ import { mountStaffAuth } from "./staff-auth";
 import type { StaffAccountState } from "../lib/staff-auth-types";
 import { renderStaffOffice } from "./admin-staff";
 import { buildDashboard } from "./admin-dashboard";
+import { renderPublicationStatus } from "./admin-publication-status";
 import { createPlayerPortal } from "./player-portal";
 import { normalizeMemberGrade } from "../lib/member-grades";
 import { attachPlayerEditor, type PlayerEditor } from "./admin-player";
@@ -493,67 +494,14 @@ function navigation() {
 }
 async function publicationStatus(version = requestId) {
   if (!client || role === "player") return;
-  const state = await result(
-    client
-      .from("publication_state")
-      .select("version,changed_at")
-      .eq("id", 1)
-      .single(),
-  );
-  let text = t(
-    "公開内容は次回の更新でサイトに反映されます（通常15分間隔。遅れる場合があります）。",
-  );
-  let status = "unknown";
-  try {
-    const response = await fetch(base + "build.json", { cache: "no-store" });
-    if (response.ok) {
-      const deployed = await response.json();
-      if (
-        !Number.isFinite(Number(deployed.version)) ||
-        !Number.isFinite(Number(state.data?.version))
-      )
-        throw new Error(t("公開版を確認できません。"));
-      if (!deployed.fromCms)
-        text = t(
-          "サイトへの反映をまだ確認できません。時間をおいて再確認してください。",
-        );
-      else if (scheduleEnabled && deployed.schedulesEnabled !== true) {
-        status = "waiting";
-        text = t(
-          "公開予定のサイト連携は準備中です。保存した予定はまだホームページに表示されません。運営責任者に連携設定をご確認ください。",
-        );
-      } else if (Number(deployed.version) < Number(state.data?.version)) {
-        status = "waiting";
-        text = t(
-          "サイトへの反映待ちです。通常15分間隔で更新しますが、処理状況により遅れる場合があります。",
-        );
-      } else {
-        status = "synced";
-        text =
-          t("公開サイトに反映済みです。最終更新：") +
-          dateLabel(deployed.builtAt, true);
-      }
-    }
-  } catch {
-    /* 배포 상태 조회 실패가 성공한 저장 작업을 취소하지 않도록 합니다. */
-  }
-  if (version !== requestId || !role) return;
-  const element = $("#publication-status");
-  element.hidden = false;
-  element.dataset.state = status;
-  element.replaceChildren(
-    icon(status === "synced" ? "check" : "clock"),
-    node("span", text),
-  );
-  const archive = node(
-    "a",
-    t("公開資料の保存先：kansai-sub ↗"),
-    "office-repository-link",
-  );
-  archive.href = "https://github.com/RYUKKANI/kansai-sub";
-  archive.target = "_blank";
-  archive.rel = "noopener noreferrer";
-  element.append(archive);
+  const accountId = userId;
+  const page = current;
+  await renderPublicationStatus({
+    client, base, scheduleEnabled,
+    element: $("#publication-status"),
+    isCurrent: () => version === requestId && Boolean(role) && role !== "player" &&
+      userId === accountId && current === page,
+  });
 }
 async function show(
   resource: OfficePage,
