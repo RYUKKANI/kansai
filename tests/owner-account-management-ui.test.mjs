@@ -56,6 +56,7 @@ function app(options = {}) {
   let listener;
   let unsubscribeCount = 0;
   let changedCount = 0;
+  let ownIdentityChangedCount = 0;
   let signOutCount = 0;
   const calls = [];
   const notices = [];
@@ -68,7 +69,16 @@ function app(options = {}) {
           : { data: { ...account, ...options.account }, error: null };
       return options.update
         ? options.update(args)
-        : { data: null, error: null };
+        : {
+            data: {
+              ...account,
+              ...options.account,
+              user_id: args.p_user_id,
+              username: args.p_username,
+              real_name: args.p_real_name,
+            },
+            error: null,
+          };
     },
     functions: {
       async invoke(name, request) {
@@ -126,6 +136,11 @@ function app(options = {}) {
     targetUserId: options.targetUserId ?? targetId,
     onChanged() {
       changedCount++;
+      return options.onChanged?.();
+    },
+    onOwnIdentityChanged() {
+      ownIdentityChangedCount++;
+      return options.onOwnIdentityChanged?.();
     },
     isCurrent: () => current,
     notice: (...args) => notices.push(args),
@@ -146,6 +161,7 @@ function app(options = {}) {
     passwordForm,
     counts: () => ({
       changed: changedCount,
+      ownIdentityChanged: ownIdentityChangedCount,
       signOut: signOutCount,
       unsubscribed: unsubscribeCount,
     }),
@@ -282,7 +298,12 @@ test("identity edits normalize only the login ID, preserve UUID and Unicode name
     assert.equal(
       context.calls.filter((call) => call.name === "office_owner_account")
         .length,
-      2,
+      1,
+    );
+    assert.equal(context.counts().ownIdentityChanged, 0);
+    assert.equal(
+      context.dialog.querySelector('[name="real_name"]').value,
+      "李 Jean-Luc サトウ",
     );
     assert.equal(
       context.calls.some((call) => call.kind === "edge"),
@@ -292,6 +313,230 @@ test("identity edits normalize only the login ID, preserve UUID and Unicode name
       context.notices.some(([, error]) => error),
       false,
     );
+  } finally {
+    context.close();
+  }
+});
+test("an unverified legacy Owner can update their saved Unicode name and refresh the current header independently of the directory", async () => {
+  const context = app({
+    targetUserId: ownerId,
+    account: {
+      user_id: ownerId,
+      real_name: "カンギ",
+      profile_enrollment_pending: true,
+      name_verified_at: null,
+      can_edit_real_name: true,
+    },
+    onChanged: () => {
+      throw new Error("directory refresh failed");
+    },
+  });
+  try {
+    await context.open();
+    const form = context.dialog.querySelector('[data-owner-form="identity"]');
+    assert.equal(form.elements.namedItem("real_name").readOnly, false);
+    form.elements.namedItem("real_name").value = "カン・ギ Ana-María";
+    form.elements.namedItem("reason").value = "本人が未確認の登録表記を訂正";
+    context.submit(form);
+    await until(() => context.counts().changed === 1);
+    assert.equal(context.counts().ownIdentityChanged, 1);
+    assert.equal(
+      context.dialog.querySelector('[name="real_name"]').value,
+      "カン・ギ Ana-María",
+    );
+    assert.equal(context.notices[0][0], "アカウント情報を保存しました。");
+    assert.match(context.notices.at(-1)[0], /変更は保存されましたが/);
+    assert.equal(
+      context.notices.some(([message]) => /保存できませんでした/.test(message)),
+      false,
+    );
+  } finally {
+    context.close();
+  }
+});
+test("a failed header refresh does not reverse a confirmed save or prevent the directory refresh", async () => {
+  const context = app({
+    targetUserId: ownerId,
+    account: { user_id: ownerId },
+    onOwnIdentityChanged: () => {
+      throw new Error("header refresh failed");
+    },
+  });
+  try {
+    await context.open();
+    const form = context.dialog.querySelector('[data-owner-form="identity"]');
+    form.elements.namedItem("real_name").value = "金 Ana";
+    form.elements.namedItem("reason").value = "登録表記の訂正";
+    context.submit(form);
+    await until(() => context.counts().changed === 1);
+    assert.equal(context.counts().ownIdentityChanged, 1);
+    assert.equal(context.notices[0][1], undefined);
+    assert.match(context.notices.at(-1)[0], /変更は保存されましたが/);
+    assert.equal(context.notices.at(-1)[1], true);
+  } finally {
+    context.close();
+  }
+});
+test("identity mutation accepts only the exact saved account response and never reports malformed results as success", async () => {
+  for (const result of [
+    { data: null, error: null },
+    { data: false, error: null },
+    { data: { success: false }, error: null },
+    {
+      data: { user_id: targetId, username: "staff.name", real_name: "wrong name" },
+      error: null,
+    },
+    {
+      data: { user_id: ownerId, username: "staff.name", real_name: "新しい名前" },
+      error: null,
+    },
+  ]) {
+    const context = app({ update: () => result });
+    try {
+      await context.open();
+      const form = context.dialog.querySelector('[data-owner-form="identity"]');
+      form.elements.namedItem("real_name").value = "新しい名前";
+      form.elements.namedItem("reason").value = "登録表記の訂正";
+      form.elements.namedItem("name_change_acknowledged").checked = true;
+      context.submit(form);
+      await until(() => context.dialog.querySelector('[role="alert"]')?.textContent);
+      assert.match(context.dialog.textContent, /保存結果を確認できませんでした/);
+      assert.equal(context.counts().changed, 0);
+      assert.equal(context.counts().ownIdentityChanged, 0);
+      assert.equal(context.notices.length, 0);
+    } finally {
+      context.close();
+    }
+  }
+});
+test("verified self name remains unchanged for a login ID edit, while a missing legacy name may remain null", async () => {
+  for (const verified of [true, false]) {
+    const context = app({
+      targetUserId: ownerId,
+      account: {
+        user_id: ownerId,
+        real_name: verified ? "確認された名前" : null,
+        profile_enrollment_pending: !verified,
+        name_verified_at: verified ? "2026-10-15T05:00:00Z" : null,
+        can_edit_real_name: !verified,
+      },
+    });
+    try {
+      await context.open();
+      const form = context.dialog.querySelector('[data-owner-form="identity"]');
+      form.elements.namedItem("username").value = "NEW.Owner";
+      form.elements.namedItem("reason").value = "ログインIDの訂正";
+      context.submit(form);
+      await until(() => context.counts().changed === 1);
+      assert.equal(
+        context.calls.find((call) => call.name === "office_owner_update_identity")
+          .args.p_real_name,
+        verified ? "確認された名前" : null,
+      );
+      assert.equal(context.counts().ownIdentityChanged, 1);
+    } finally {
+      context.close();
+    }
+  }
+});
+test("identity errors distinguish an MFA challenge and verified self correction without exposing server details", async () => {
+  for (const [message, expected] of [
+    ["owner_mfa_required", /MFA認証も完了/],
+    ["self_verified_name_requires_review", /別のOwner/],
+  ]) {
+    const context = app({
+      update: () => ({
+        data: null,
+        error: { code: "42501", message, details: "private server detail" },
+      }),
+    });
+    try {
+      await context.open();
+      const form = context.dialog.querySelector('[data-owner-form="identity"]');
+      form.elements.namedItem("username").value = "new.owner";
+      form.elements.namedItem("reason").value = "ログインIDの訂正";
+      context.submit(form);
+      await until(() => context.dialog.querySelector('[role="alert"]')?.textContent);
+      assert.match(context.dialog.querySelector('[role="alert"]').textContent, expected);
+      assert.equal(context.dialog.textContent.includes("private server detail"), false);
+      assert.equal(context.counts().changed, 0);
+    } finally {
+      context.close();
+    }
+  }
+});
+test("pending identity saves prevent duplicate submissions and refresh a confirmed self change even after closing the dialog", async () => {
+  let complete;
+  let submitted;
+  const context = app({
+    targetUserId: ownerId,
+    account: { user_id: ownerId },
+    update: (args) => {
+      submitted = args;
+      return new Promise((resolve) => {
+        complete = resolve;
+      });
+    },
+  });
+  try {
+    await context.open();
+    const form = context.dialog.querySelector('[data-owner-form="identity"]');
+    form.elements.namedItem("real_name").value = "新しい名前";
+    form.elements.namedItem("reason").value = "登録表記の訂正";
+    context.submit(form);
+    context.submit(form);
+    await until(() => Boolean(complete));
+    assert.equal(
+      context.calls.filter((call) => call.name === "office_owner_update_identity").length,
+      1,
+    );
+    context.dialog.querySelector(".owner-account-close").click();
+    complete({
+      data: {
+        ...account,
+        user_id: submitted.p_user_id,
+        username: submitted.p_username,
+        real_name: submitted.p_real_name,
+      },
+      error: null,
+    });
+    await until(() => context.counts().changed === 1);
+    assert.equal(context.dialog.open, false);
+    assert.equal(context.counts().ownIdentityChanged, 1);
+    assert.equal(context.notices[0][1], undefined);
+  } finally {
+    context.close();
+  }
+});
+test("a saved result from a signed-out identity cannot update the next account's header or directory", async () => {
+  let complete;
+  const context = app({
+    targetUserId: ownerId,
+    account: { user_id: ownerId },
+    update: () => new Promise((resolve) => { complete = resolve; }),
+  });
+  try {
+    await context.open();
+    const form = context.dialog.querySelector('[data-owner-form="identity"]');
+    form.elements.namedItem("real_name").value = "新しい名前";
+    form.elements.namedItem("reason").value = "登録表記の訂正";
+    context.submit(form);
+    await until(() => Boolean(complete));
+    context.emit("SIGNED_OUT", null);
+    complete({
+      data: {
+        ...account,
+        user_id: ownerId,
+        username: account.username,
+        real_name: "新しい名前",
+      },
+      error: null,
+    });
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    assert.equal(context.counts().ownIdentityChanged, 0);
+    assert.equal(context.counts().changed, 0);
+    assert.equal(context.notices.length, 0);
+    assert.equal(context.dialog.open, false);
   } finally {
     context.close();
   }
