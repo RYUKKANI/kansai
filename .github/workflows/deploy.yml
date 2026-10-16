@@ -31,6 +31,9 @@ jobs:
   plan:
     name: Select affected parts
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: read
     outputs:
       matrix: ${{ steps.plan.outputs.matrix }}
       has_parts: ${{ steps.plan.outputs.has_parts }}
@@ -46,8 +49,17 @@ jobs:
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
           node-version: '24'
+      # 직전 push가 미검증/실패 상태이면 부분 변경으로 실패한 코드를 건너뛰지 않습니다.
+      - id: base
+        name: Verify preceding push baseline
+        if: github.event_name == 'push'
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: node scripts/release-checks.mjs --verify-base
       - id: plan
         name: Plan checks from changed files
+        env:
+          BASELINE_VERIFIED: ${{ steps.base.outputs.baseline_verified }}
         run: node scripts/plan-checks.mjs
   content:
     name: Check public content version
