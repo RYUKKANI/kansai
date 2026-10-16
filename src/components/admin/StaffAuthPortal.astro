@@ -35,7 +35,7 @@ const help = localizedPage("admin/help/", locale);
 
     <div data-staff-panel="signup" hidden>
       <h2 tabindex="-1"><span data-i18n="会員登録">会員登録</span></h2>
-      <p class="admin-help"><span data-i18n="メールアドレスは不要です。Ownerが本人と関係者であることを確認し、承認後にご利用いただけます。">メールアドレスは不要です。Ownerが本人と関係者であることを確認し、承認後にご利用いただけます。</span></p>
+      <p class="admin-help"><span data-i18n="メールアドレスは不要です。最高管理者が本人と関係者であることを確認し、承認後にご利用いただけます。">メールアドレスは不要です。最高管理者が本人と関係者であることを確認し、承認後にご利用いただけます。</span></p>
       <form id="staff-signup-form">
         <label for="staff-signup-username"><span data-i18n="ログインID">ログインID</span></label>
         <input id="staff-signup-username" placeholder="ログインID" data-i18n-placeholder="ログインID" name="username" type="text" autocomplete="username" autocapitalize="none" spellcheck="false" required minlength="3" maxlength="32" pattern="[a-zA-Z0-9][a-zA-Z0-9._\-]{2,31}" aria-describedby="staff-signup-username-help" />
@@ -56,7 +56,7 @@ const help = localizedPage("admin/help/", locale);
         <label for="staff-signup-department"><span data-i18n="所属・担当業務">所属・担当業務</span></label>
         <input id="staff-signup-department" placeholder="所属・担当業務" data-i18n-placeholder="所属・担当業務" name="department" type="text" autocomplete="organization-title" required maxlength="200" />
         <label class="staff-auth-consent"><input name="notice_accepted" type="checkbox" required /><span data-i18n="実名と担当業務を承認済み関係者に表示し、操作履歴に記録することを確認しました。公開サイトへの名前・写真掲載の同意とは別です。">実名と担当業務を承認済み関係者に表示し、操作履歴に記録することを確認しました。公開サイトへの名前・写真掲載の同意とは別です。</span></label>
-        <p class="admin-help"><span data-i18n="権限はOwnerが承認時に設定します。登録だけで管理権限は付与されません。">権限はOwnerが承認時に設定します。登録だけで管理権限は付与されません。</span></p>
+        <p class="admin-help"><span data-i18n="権限は最高管理者が承認時に設定します。登録申請だけでは管理機能を利用できません。">権限は最高管理者が承認時に設定します。登録申請だけでは管理機能を利用できません。</span></p>
         <button type="submit" class="admin-primary"><span data-i18n="登録を申請">登録を申請</span></button>
       </form>
     </div>
@@ -64,7 +64,7 @@ const help = localizedPage("admin/help/", locale);
     <div data-staff-panel="account" hidden>
       <h2 tabindex="-1"><span data-i18n="申請・アカウントの状態">申請・アカウントの状態</span></h2>
       <dl id="staff-account-state" class="staff-account-state"></dl>
-      <p class="admin-help"><span data-i18n="承認待ちの間は、ご本人の申請状態のみ確認できます。">承認待ちの間は、ご本人の申請状態のみ確認できます。</span></p>
+      <p class="admin-help"><span data-i18n="承認待ちの間は、ご本人の承認状況のみ確認できます。">承認待ちの間は、ご本人の承認状況のみ確認できます。</span></p>
       <button type="button" class="admin-primary" id="staff-account-refresh"><span data-i18n="状態を再確認">状態を再確認</span></button>
       <button type="button" class="admin-secondary" id="staff-account-enroll" hidden><span data-i18n="関係者情報の登録を完了">関係者情報の登録を完了</span></button>
       <button type="button" class="staff-auth-text-button" id="staff-account-signout"><span data-i18n="ログアウト">ログアウト</span></button>
