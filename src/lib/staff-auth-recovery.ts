@@ -21,6 +21,14 @@ export function createStaffRecoveryFetch(
         code_challenge: body.code_challenge,
         code_challenge_method: body.code_challenge_method,
       };
+      // SDK 2.117.3은 요청마다 별도 verifier 슬롯을 만듭니다. 주소 전체는
+      // 전달하지 않고 슬롯 선택용 opaque ID만 보존해 실패한 재전송이 앞선 링크를 깨지 않게 합니다.
+      const redirect = url.searchParams.get("redirect_to");
+      if (redirect) {
+        const values = new URL(redirect).searchParams.getAll("sb_flow_id");
+        if (values.length > 1 || values.length === 1 && !/^[A-Za-z0-9_-]{8,64}$/.test(values[0] ?? "")) throw new Error("Invalid flow ID");
+        if (values.length === 1) gatewayBody.flow_id = values[0];
+      }
       if (typeof body.gotrue_meta_security?.captcha_token === "string")
         gatewayBody.captcha_token = body.gotrue_meta_security.captcha_token;
       const response = await upstream(origin + "/functions/v1/staff-auth", {
@@ -29,13 +37,16 @@ export function createStaffRecoveryFetch(
         body: JSON.stringify(gatewayBody),
         cache: "no-store",
       });
-      if (response.ok) return Response.json({});
       const value = await response.json().catch(() => ({}));
+      // 익명 접수는 이메일 소유나 배송 완료를 증명하지 않습니다. 게이트웨이가 실제
+      // 접수를 확인한 경우만 SDK 성공으로 바꾸며, 빈 200 응답은 전송 성공으로 취급하지 않습니다.
+      if (response.ok && value?.success === true && value?.code === "recovery_received")
+        return Response.json({}, { headers: { "Cache-Control": "no-store" } });
       // SDK가 읽는 제한된 코드만 재구성합니다. Auth/DB의 원문 오류를 표시하지 않습니다.
       const code = ["rate_limited", "invalid_request", "feature_unavailable"].includes(value?.error)
         ? value.error : "service_unavailable";
       return Response.json({ code, msg: "Recovery request could not be completed" }, {
-        status: response.status, headers: { "Cache-Control": "no-store", "x-supabase-api-version": "2024-01-01" },
+        status: response.ok ? 503 : response.status, headers: { "Cache-Control": "no-store", "x-supabase-api-version": "2024-01-01" },
       });
     } catch {
       return Response.json({ code: "service_unavailable", msg: "Recovery request could not be completed" }, {
