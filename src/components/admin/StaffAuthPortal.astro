@@ -35,7 +35,7 @@ const help = localizedPage("admin/help/", locale);
 
     <div data-staff-panel="signup" hidden>
       <h2 tabindex="-1"><span data-i18n="会員登録">会員登録</span></h2>
-      <p class="admin-help"><span data-i18n="メールアドレスは不要です。最高管理者が本人と関係者であることを確認し、承認後にご利用いただけます。">メールアドレスは不要です。最高管理者が本人と関係者であることを確認し、承認後にご利用いただけます。</span></p>
+      <p class="admin-help"><span data-i18n="メールアドレスは不要です。統括が本人と関係者であることを確認し、承認後にご利用いただけます。">メールアドレスは不要です。統括が本人と関係者であることを確認し、承認後にご利用いただけます。</span></p>
       <form id="staff-signup-form">
         <label for="staff-signup-username"><span data-i18n="ログインID">ログインID</span></label>
         <input id="staff-signup-username" placeholder="ログインID" data-i18n-placeholder="ログインID" name="username" type="text" autocomplete="username" autocapitalize="none" spellcheck="false" required minlength="3" maxlength="32" pattern="[a-zA-Z0-9][a-zA-Z0-9._\-]{2,31}" aria-describedby="staff-signup-username-help" />
@@ -53,10 +53,18 @@ const help = localizedPage("admin/help/", locale);
         </div>
         <label for="staff-signup-real-name"><span data-i18n="実名">実名</span></label>
         <input id="staff-signup-real-name" placeholder="実名" data-i18n-placeholder="実名" name="real_name" type="text" autocomplete="name" required maxlength="150" />
-        <label for="staff-signup-department"><span data-i18n="所属・担当業務">所属・担当業務</span></label>
-        <input id="staff-signup-department" placeholder="所属・担当業務" data-i18n-placeholder="所属・担当業務" name="department" type="text" autocomplete="organization-title" required maxlength="200" />
+        <!-- 소속 희망은 권한이 아니며 실제 등급은 총괄이 승인할 때 지정합니다. -->
+        <label for="staff-signup-grade"><span data-i18n="希望する所属">希望する所属</span></label>
+        <select id="staff-signup-grade" name="requested_grade" required aria-describedby="staff-signup-grade-help">
+          <option value="owner" data-i18n="統括">統括</option>
+          <option value="staff" data-i18n="スタッフ">スタッフ</option>
+          <option value="player" selected data-i18n="選手">選手</option>
+        </select>
+        <p id="staff-signup-grade-help" class="admin-help"><span data-i18n="所属は希望として受け付けます。実際の所属と権限は統括が承認時に設定します。">所属は希望として受け付けます。実際の所属と権限は統括が承認時に設定します。</span></p>
+        <label for="staff-signup-department"><span data-i18n="担当業務（任意）">担当業務（任意）</span></label>
+        <input id="staff-signup-department" placeholder="担当業務（任意）" data-i18n-placeholder="担当業務（任意）" name="department" type="text" autocomplete="organization-title" maxlength="200" />
         <label class="staff-auth-consent"><input name="notice_accepted" type="checkbox" required /><span data-i18n="実名と担当業務を承認済み関係者に表示し、操作履歴に記録することを確認しました。公開サイトへの名前・写真掲載の同意とは別です。">実名と担当業務を承認済み関係者に表示し、操作履歴に記録することを確認しました。公開サイトへの名前・写真掲載の同意とは別です。</span></label>
-        <p class="admin-help"><span data-i18n="権限は最高管理者が承認時に設定します。登録申請だけでは管理機能を利用できません。">権限は最高管理者が承認時に設定します。登録申請だけでは管理機能を利用できません。</span></p>
+        <p class="admin-help"><span data-i18n="権限は統括が承認時に設定します。登録申請だけでは管理機能を利用できません。">権限は統括が承認時に設定します。登録申請だけでは管理機能を利用できません。</span></p>
         <button type="submit" class="admin-primary"><span data-i18n="登録を申請">登録を申請</span></button>
       </form>
     </div>
@@ -79,8 +87,9 @@ const help = localizedPage("admin/help/", locale);
         <p id="staff-enroll-username-help" class="admin-help"><span data-i18n="半角英数字・ピリオド・ハイフン・アンダースコアで3〜32文字。大文字と小文字は区別しません。">半角英数字・ピリオド・ハイフン・アンダースコアで3〜32文字。大文字と小文字は区別しません。</span></p>
         <label for="staff-enroll-real-name"><span data-i18n="実名">実名</span></label>
         <input id="staff-enroll-real-name" placeholder="実名" data-i18n-placeholder="実名" name="real_name" type="text" autocomplete="name" required maxlength="150" />
-        <label for="staff-enroll-department"><span data-i18n="所属・担当業務">所属・担当業務</span></label>
-        <input id="staff-enroll-department" placeholder="所属・担当業務" data-i18n-placeholder="所属・担当業務" name="department" type="text" autocomplete="organization-title" required maxlength="200" />
+        <p class="admin-help"><span data-i18n="所属">所属</span>: <strong id="staff-enroll-grade"></strong></p>
+        <label for="staff-enroll-department"><span data-i18n="担当業務（任意）">担当業務（任意）</span></label>
+        <input id="staff-enroll-department" placeholder="担当業務（任意）" data-i18n-placeholder="担当業務（任意）" name="department" type="text" autocomplete="organization-title" maxlength="200" />
         <label class="staff-auth-consent"><input name="notice_accepted" type="checkbox" required /><span data-i18n="実名と担当業務を承認済み関係者に表示し、操作履歴に記録することを確認しました。公開サイトへの名前・写真掲載の同意とは別です。">実名と担当業務を承認済み関係者に表示し、操作履歴に記録することを確認しました。公開サイトへの名前・写真掲載の同意とは別です。</span></label>
         <p class="admin-help"><span data-i18n="パスワードが未設定・不明の場合は「ログインのヘルプ」から運営責任者にご相談ください。">パスワードが未設定・不明の場合は「ログインのヘルプ」から運営責任者にご相談ください。</span></p>
         <button type="submit" class="admin-primary"><span data-i18n="登録する">登録する</span></button>
