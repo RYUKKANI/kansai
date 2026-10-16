@@ -3880,7 +3880,7 @@
     "en": "A photo is uploading. Wait until it finishes before saving."
   },
   "選択候補にない写真が含まれています。下書きには保持できます。発行前に写真を確認するか、選択を外してください。": {
-    "ko": "선택 후보에 없는 사진이 포함돼 있습니다. 초안에는 유지할 수 있습니다. 발행 전에 사진을 확인하거나 선택을 해제해주세요.",
+    "ko": "선택 후보에 없는 사진이 포함돼 있습니다. 초안에는 유지할 수 있습니다. 게시 전에 사진을 확인하거나 선택을 해제해주세요.",
     "en": "Some photos are not in the selection list. They can remain in the draft. Review them or remove the selection before publishing."
   },
   "メールアドレスは不要です。Ownerが本人と関係者であることを確認し、承認後にご利用いただけます。": {
@@ -3926,5 +3926,493 @@
   "運営責任者の承認後にご利用いただけます。承認前は自分の申請状態のみ確認できます。": {
     "ko": "구단 운영 책임자가 승인하면 이용할 수 있습니다. 승인 전에는 본인의 신청 상태만 확인할 수 있습니다.",
     "en": "You can use the account after approval by the club administrator. Until then, you can only check your own application status."
+  },
+  "最高管理者": {
+    "ko": "최고 관리자",
+    "en": "Owner"
+  },
+  "管理者": {
+    "ko": "관리자",
+    "en": "Administrator"
+  },
+  "編集者": {
+    "ko": "콘텐츠 편집자",
+    "en": "Editor"
+  },
+  "コーチ": {
+    "ko": "코치",
+    "en": "Coach"
+  },
+  "確認済みの自分の実名は、別の最高管理者に訂正を依頼してください。": {
+    "ko": "확인된 본인의 실명 정정은 다른 최고 관리자에게 요청해주세요.",
+    "en": "Ask another Owner to correct your own verified real name."
+  },
+  "最後の有効な最高管理者は、利用停止や権限の引き下げができません。": {
+    "ko": "마지막 활성 최고 관리자는 정지하거나 강등할 수 없습니다.",
+    "en": "The last active Owner cannot be suspended or demoted."
+  },
+  "操作の完了を確認できません。一覧を更新して現在の状態を確認してください。": {
+    "ko": "작업 완료 여부를 확인할 수 없습니다. 목록을 새로고침해 현재 상태를 확인해 주세요.",
+    "en": "The result could not be confirmed. Refresh the list to check the current state."
+  },
+  "自分自身の承認・本人確認・権限変更は、別の最高管理者に依頼してください。": {
+    "ko": "본인의 승인·본인 확인·권한 변경은 다른 최고 관리자에게 요청해주세요.",
+    "en": "Ask another Owner to approve, verify or change your own access."
+  },
+  "最高管理者の権限を確認できません。この画面を閉じ、ログインし直してください。": {
+    "ko": "현재 최고 관리자 권한을 확인할 수 없습니다. 창을 닫고 다시 로그인해주세요.",
+    "en": "Your current Owner access could not be verified. Close this window and sign in again."
+  },
+  "アカウント情報を取得できません。最高管理者の権限を確認し、画面を開き直してください。": {
+    "ko": "계정 정보를 불러올 수 없습니다. 최고 관리자 권한을 확인한 뒤 창을 다시 열어 주세요.",
+    "en": "Account details could not be loaded. Check your Owner access and reopen this window."
+  },
+  "変更結果を確認できません。再設定を繰り返さず、最高管理者に確認してください。操作番号: {0}": {
+    "ko": "변경 결과를 확인할 수 없습니다. 재설정을 반복하지 말고 최고 관리자에게 확인해 주세요. 작업 번호: {0}",
+    "en": "The result could not be confirmed. Do not repeat the reset; ask an Owner to check. Operation reference: {0}"
+  },
+  "パスワードを再設定できませんでした。入力条件を確認してから、もう一度お試しください。": {
+    "ko": "비밀번호를 재설정하지 못했습니다. 입력 조건을 확인한 뒤 다시 시도해 주세요.",
+    "en": "The password could not be reset. Check the requirements and try again."
+  },
+  "ログインし直してからお試しください。多要素認証を設定している場合は、その認証も完了してください。": {
+    "ko": "다시 로그인한 뒤 시도해 주세요. 다중 인증을 설정했다면 해당 인증도 완료해 주세요.",
+    "en": "Sign in again before retrying. If you use multi-factor authentication, complete that verification too."
+  },
+  "コーチは公開承認済みの選手写真を選べます。新しい写真の登録・承認は、最高管理者または管理者に依頼してください。": {
+    "ko": "코치는 공개 승인된 선수 사진을 선택할 수 있습니다. 새 사진의 등록·승인은 최고 관리자 또는 관리자에게 요청해 주세요.",
+    "en": "Coaches can select approved player photos. Ask an Owner or Administrator to upload and approve new photos."
+  },
+  "メールアドレスは不要です。最高管理者が本人と関係者であることを確認し、承認後にご利用いただけます。": {
+    "ko": "이메일 주소는 필요하지 않습니다. 최고 관리자가 본인과 구단 관계자 여부를 확인하고 승인하면 이용할 수 있습니다.",
+    "en": "No email address is needed. The Owner verifies your identity and club affiliation before approving access."
+  },
+  "権限は最高管理者が承認時に設定します。登録申請だけでは管理機能を利用できません。": {
+    "ko": "권한은 최고 관리자가 승인할 때 부여합니다. 가입 신청만으로는 관리 기능을 이용할 수 없습니다.",
+    "en": "An Owner assigns access during approval. Applying alone does not grant access to management features."
+  },
+  "最高管理者アカウントの復旧": {
+    "ko": "최고 관리자 계정 복구",
+    "en": "Owner account recovery"
+  },
+  "唯一の最高管理者がログインできない場合にご利用ください。プロジェクト管理者が本人と既存アカウントを別途確認します。申請だけではログインや権限の変更はできません。": {
+    "ko": "유일한 최고 관리자가 로그인할 수 없을 때 이용해 주세요. 프로젝트 관리자가 본인과 기존 계정을 별도로 확인합니다. 신청만으로 로그인하거나 권한을 변경할 수는 없습니다.",
+    "en": "Use this if the sole Owner cannot sign in. A project administrator independently verifies your identity and existing account. A request alone does not allow sign-in or change access."
+  },
+  "ログインIDが不明な場合やパスワードを忘れた場合は、最高管理者にご相談ください。本人と既存アカウントを確認し、管理画面から対応します。": {
+    "ko": "로그인 아이디를 모르거나 비밀번호를 잊었다면 최고 관리자에게 문의해 주세요. 본인과 기존 계정을 확인한 뒤 관리자 화면에서 처리합니다.",
+    "en": "If you do not know your login ID or have forgotten your password, contact an Owner. They will verify your identity and existing account, then help through the admin page."
+  },
+  "登録結果を確認できません。再申請せず、入力したIDとパスワードでログインをお試しください。ログインできない場合は最高管理者にご相談ください。": {
+    "ko": "가입 결과를 확인할 수 없습니다. 다시 신청하지 말고 입력한 아이디와 비밀번호로 로그인해 보세요. 로그인할 수 없으면 최고 관리자에게 문의해 주세요.",
+    "en": "Registration could not be confirmed. Do not apply again. Try signing in with the ID and password you entered, and contact an Owner if you cannot sign in."
+  },
+  "登録を完了できませんでした。申請済みの場合はログインをお試しください。解決しない場合は、再申請せず最高管理者にご相談ください。": {
+    "ko": "가입을 완료하지 못했습니다. 이미 신청했다면 로그인해 보세요. 해결되지 않으면 다시 신청하지 말고 최고 관리자에게 문의해 주세요.",
+    "en": "Registration could not be completed. If you have already applied, try signing in. If that does not help, contact an Owner rather than applying again."
+  },
+  "このログイン機能は現在利用できません。ログイン画面に戻るか、最高管理者にご相談ください。": {
+    "ko": "현재 이 로그인 기능을 이용할 수 없습니다. 로그인 화면으로 돌아가거나 최고 관리자에게 문의해 주세요.",
+    "en": "This sign-in feature is currently unavailable. Return to the login page or contact an Owner."
+  },
+  "所属・担当業務の入力と案内の確認が未完了です。登録を完了しても、現在のアカウントと権限は変わりません。": {
+    "ko": "소속·담당 업무 입력과 안내 확인이 완료되지 않았습니다. 등록을 마쳐도 현재 계정과 권한은 유지됩니다.",
+    "en": "Your duties and notice acknowledgment are incomplete. Completing them keeps your current account and access."
+  },
+  "確認済みの実名を変更する場合は、正しい氏名と理由を入力して訂正を申請してください。過去の作業記録とアカウントのつながりは維持されます。": {
+    "ko": "확인된 실명을 변경하려면 올바른 이름과 사유를 입력해 정정을 신청해 주세요. 과거 작업 이력과 계정의 연결은 유지됩니다.",
+    "en": "To change a verified real name, submit the correct name and a reason. Past activity remains linked to the same account."
+  },
+  "実名訂正の審査結果を保存しました。過去の作業記録とアカウントのつながりは維持されます。": {
+    "ko": "실명 정정 심사 결과를 저장했습니다. 과거 작업 이력과 계정의 연결은 유지됩니다.",
+    "en": "The name correction review was saved. Past activity remains linked to the same account."
+  },
+  "アカウント識別番号": {
+    "ko": "계정 식별 번호",
+    "en": "Account identifier"
+  },
+  "作業者のアカウント識別番号": {
+    "ko": "작업자 계정 식별 번호",
+    "en": "Actor account identifier"
+  },
+  "確認済みの依頼者の識別番号: {0}": {
+    "ko": "확인된 요청자 식별 번호: {0}",
+    "en": "Verified requester identifier: {0}"
+  },
+  "最高管理者によるID・実名の変更": {
+    "ko": "최고 관리자의 아이디·실명 변경",
+    "en": "Owner login ID / real name change"
+  },
+  "最高管理者によるパスワード再設定の受付": {
+    "ko": "최고 관리자의 비밀번호 재설정 요청",
+    "en": "Owner password reset requested"
+  },
+  "最高管理者によるパスワード再設定の完了": {
+    "ko": "최고 관리자의 비밀번호 재설정 완료",
+    "en": "Owner password reset completed"
+  },
+  "最高管理者によるパスワード再設定の失敗": {
+    "ko": "최고 관리자의 비밀번호 재설정 실패",
+    "en": "Owner password reset failed"
+  },
+  "最高管理者によるパスワード再設定の結果未確認": {
+    "ko": "최고 관리자의 비밀번호 재설정 결과 확인 필요",
+    "en": "Owner password reset outcome uncertain"
+  },
+  "最高管理者によるアカウント管理": {
+    "ko": "최고 관리자의 계정 관리 요청",
+    "en": "Owner account management request"
+  },
+  "承認見送り": {
+    "ko": "승인 반려",
+    "en": "Not approved"
+  },
+  "承認しない": {
+    "ko": "반려",
+    "en": "Decline"
+  },
+  "加入申請の見送り": {
+    "ko": "가입 신청 반려",
+    "en": "Application rejected"
+  },
+  "実名訂正の見送り": {
+    "ko": "실명 정정 반려",
+    "en": "Name correction rejected"
+  },
+  "承認状況": {
+    "ko": "승인 상태",
+    "en": "Approval status"
+  },
+  "予約日時以降に公開条件を確認し、自動で公開処理を行います。サイトへの反映には時間がかかる場合があります。公開中の記事を予約すると、一度非公開になります。": {
+    "ko": "예약 시각 이후 공개 조건을 확인해 자동으로 게시 처리합니다. 홈페이지 반영에는 시간이 걸릴 수 있습니다. 공개 중인 기사를 예약하면 먼저 비공개로 전환됩니다.",
+    "en": "Publication conditions are checked automatically after the scheduled time. Website updates may take time. Scheduling an already published article unpublishes it first."
+  },
+  "自動保存はこのブラウザー内に限られます。下書きの保存・公開は上のボタンで行ってください。一時保存の有効期間は7日間です。期限切れの内容は次回表示時、ログアウト時はすぐに削除されます。": {
+    "ko": "자동 저장은 이 브라우저 안에만 보관됩니다. 초안 저장·게시는 위 버튼을 이용해 주세요. 임시 저장은 7일간 유효하며 만료된 내용은 다음 표시 때, 로그아웃할 때는 즉시 삭제됩니다.",
+    "en": "Autosave keeps edits in this browser only. Use the buttons above to save a draft or publish. Local drafts last seven days; expired drafts are removed when next viewed, and all local drafts are removed on sign-out."
+  },
+  "このブラウザーでは一時保存を利用できません。下書き保存をご利用ください。": {
+    "ko": "이 브라우저에서는 임시 저장을 사용할 수 없습니다. 초안 저장을 이용하세요.",
+    "en": "Local drafts are unavailable in this browser. Save a server draft instead."
+  },
+  "このブラウザー内の一時保存：変更待ち": {
+    "ko": "이 브라우저 임시 저장: 변경 대기",
+    "en": "Local draft: waiting for changes"
+  },
+  "公開できませんでした": {
+    "ko": "게시하지 못했습니다",
+    "en": "Publication failed"
+  },
+  "このブラウザー内に一時保存中…": {
+    "ko": "이 브라우저에 임시 저장 중…",
+    "en": "Saving local draft…"
+  },
+  "予約公開は運営責任者による公開処理の有効化後に利用できます。": {
+    "ko": "운영 책임자가 게시 처리를 활성화한 뒤 예약 게시를 사용할 수 있습니다.",
+    "en": "Scheduled publishing becomes available once enabled by the club administrator."
+  },
+  "公開済み": {
+    "ko": "게시됨",
+    "en": "Published"
+  },
+  "現在の編集を置き換え、この版を非公開の下書きとして保存します。公開には再確認が必要です。": {
+    "ko": "현재 편집 내용을 바꾸고 이 버전을 비공개 초안으로 저장합니다. 게시하려면 다시 확인해야 합니다.",
+    "en": "Replace your current edits and save this version as an unpublished draft. Review it again before publishing."
+  },
+  "このブラウザー内に一時保存済み：": {
+    "ko": "이 브라우저에 임시 저장됨: ",
+    "en": "Local draft saved: "
+  },
+  "予約公開（日本時間）": {
+    "ko": "예약 게시 (일본 시간)",
+    "en": "Scheduled publication (Japan time)"
+  },
+  "公開できなかった予約、または予約時刻を過ぎた項目を確認してください。": {
+    "ko": "게시에 실패했거나 예약 시각이 지난 항목을 확인하세요.",
+    "en": "Review failed or overdue scheduled publications."
+  },
+  "{0}の予約公開": {
+    "ko": "{0} 예약 게시",
+    "en": "Scheduled publication: {0}"
+  },
+  "翻訳しない言語は空欄のままにできます。入力した言語は全項目を完成させてから公開してください。": {
+    "ko": "작성하지 않는 언어는 비워 둘 수 있습니다. 작성한 언어는 모든 항목을 완성한 뒤 게시해 주세요.",
+    "en": "Leave unused languages blank. Complete all fields in each language you use before publishing."
+  },
+  "予約公開": {
+    "ko": "예약 게시",
+    "en": "Scheduled publication"
+  },
+  "保存と公開": {
+    "ko": "저장·게시",
+    "en": "Save and publish"
+  },
+  "公開する": {
+    "ko": "게시",
+    "en": "Publish"
+  },
+  "更新して公開": {
+    "ko": "수정 후 게시",
+    "en": "Update and publish"
+  },
+  "保存・公開後、公開サイトの反映状態を別途ご確認ください。": {
+    "ko": "저장·게시 후 공개 홈페이지 반영 상태를 별도로 확인하세요.",
+    "en": "After saving or publishing, check the public website update separately."
+  },
+  "この画面でプロフィールと写真の公開同意を確認すると公開できます。保存だけでは公開されません。": {
+    "ko": "이 화면에서 프로필과 사진의 공개 동의를 확인하면 게시할 수 있습니다. 저장만으로는 공개되지 않습니다.",
+    "en": "Confirm profile and photo consent here before publishing. Saving alone does not publish them."
+  },
+  "この操作に必要な権限がありません。最新の承認状況を確認してください。": {
+    "ko": "이 작업에 필요한 권한이 없습니다. 최신 승인 상태를 확인해 주세요.",
+    "en": "You do not have permission for this action. Check your current approval status."
+  },
+  "運営責任者の承認後にご利用いただけます。承認前は自分の承認状況のみ確認できます。": {
+    "ko": "운영 책임자가 승인하면 이용할 수 있습니다. 승인 전에는 본인의 승인 상태만 확인할 수 있습니다.",
+    "en": "Access is available after club management approves your account. Until then, you can only check your own approval status."
+  },
+  "公開済みの記事": {
+    "ko": "게시된 기사",
+    "en": "Published articles"
+  },
+  "アカウントを作成しました。入力したIDとパスワードでログインして承認状況をご確認ください。": {
+    "ko": "계정을 만들었습니다. 입력한 아이디와 비밀번호로 로그인해 승인 상태를 확인해 주세요.",
+    "en": "Your account was created. Sign in with your chosen ID and password to check your approval status."
+  },
+  "承認待ちの間は、ご本人の承認状況のみ確認できます。": {
+    "ko": "승인 대기 중에는 본인의 승인 상태만 확인할 수 있습니다.",
+    "en": "While awaiting approval, you can only check your own approval status."
+  },
+  "関西ユナイテッドFC公式サイト。ニュース、試合日程・結果、選手紹介、写真・動画、参加案内をお届けします。": {
+    "ko": "간사이 유나이티드 FC 공식 홈페이지. 뉴스, 경기 일정·결과, 선수 소개, 사진·영상, 참여 안내를 전합니다.",
+    "en": "Official Kansai United FC website. Find news, fixtures and results, player profiles, photos, videos and information on joining the club."
+  },
+  "クラブについては、公式Instagramをご覧ください。": {
+    "ko": "구단 소식은 공식 Instagram에서 확인해 주세요.",
+    "en": "Visit our official Instagram for more about the club."
+  },
+  "現在、公開中の予定はありません。": {
+    "ko": "현재 공개된 일정이 없습니다.",
+    "en": "No events are currently published."
+  },
+  "現在、公開中のニュースはありません。": {
+    "ko": "현재 공개된 뉴스가 없습니다.",
+    "en": "No news is currently published."
+  },
+  "現在、公開中の写真はありません。": {
+    "ko": "현재 공개된 사진이 없습니다.",
+    "en": "No photos are currently published."
+  },
+  "現在、公開中の動画はありません。": {
+    "ko": "현재 공개된 영상이 없습니다.",
+    "en": "No videos are currently published."
+  },
+  "クラブの活動を写真と動画でご紹介します。": {
+    "ko": "구단의 활동을 사진과 영상으로 소개합니다.",
+    "en": "Explore the club's activities in photos and videos."
+  },
+  "試合日程と結果をお知らせします。": {
+    "ko": "경기 일정과 결과를 안내합니다.",
+    "en": "Find match fixtures and results."
+  },
+  "現在、公開中の試合日程はありません。": {
+    "ko": "현재 공개된 경기 일정이 없습니다.",
+    "en": "No fixtures are currently published."
+  },
+  "現在、公開中の試合結果はありません。": {
+    "ko": "현재 공개된 경기 결과가 없습니다.",
+    "en": "No match results are currently published."
+  },
+  "関西ユナイテッドFCの選手をご紹介します。": {
+    "ko": "간사이 유나이티드 FC의 선수들을 소개합니다.",
+    "en": "Meet the players of Kansai United FC."
+  },
+  "プロフィール未公開": {
+    "ko": "공개된 프로필 없음",
+    "en": "No profiles published"
+  },
+  "参加・見学のお問い合わせ": {
+    "ko": "참여·견학 문의",
+    "en": "Joining and visiting"
+  },
+  "参加や見学をご希望の方は、公式InstagramのDMでお問い合わせください。": {
+    "ko": "참여나 견학을 원하시면 공식 Instagram DM으로 문의해 주세요.",
+    "en": "To join or visit, send us a DM on our official Instagram."
+  },
+  "チーム": {
+    "ko": "팀",
+    "en": "Team"
+  },
+  "チーム | ": {
+    "ko": "팀 | ",
+    "en": "Team | "
+  },
+  "確認リンクを読み取れませんでした。リンクを申請したブラウザーで開くか、最高管理者に復旧をご相談ください。": {
+    "ko": "확인 링크를 읽을 수 없습니다. 링크를 신청한 브라우저에서 열거나 최고 관리자에게 복구를 문의해 주세요.",
+    "en": "The verification link could not be read. Open it in the browser that requested it, or contact an Owner for recovery."
+  },
+  "最後の最高管理者は無効化・削除できません。": {
+    "ko": "마지막 최고 관리자는 비활성화하거나 삭제할 수 없습니다.",
+    "en": "The last Owner cannot be disabled or deleted."
+  },
+  "予約公開はまだ有効になっていません。下書き保存をご利用ください。": {
+    "ko": "예약 게시가 아직 활성화되지 않았습니다. 초안 저장을 이용하세요.",
+    "en": "Scheduled publishing is not enabled yet. Save a draft instead."
+  },
+  "入力途中の翻訳があります。全項目を完成させるか、その言語を空欄にしてから公開してください。": {
+    "ko": "작성 중인 번역이 있습니다. 해당 언어의 모든 항목을 완성하거나 비운 뒤 게시해 주세요.",
+    "en": "A translation is incomplete. Complete all its fields or clear that language before publishing."
+  },
+  "使用するアルバムを先に公開してください。": {
+    "ko": "사용할 앨범을 먼저 게시하세요.",
+    "en": "Publish the album first."
+  },
+  "写真をアップロードしてから公開してください。": {
+    "ko": "사진을 업로드한 뒤 게시하세요.",
+    "en": "Upload a photo before publishing."
+  },
+  "使用する写真を先に公開してください。": {
+    "ko": "사용할 사진을 먼저 게시하세요.",
+    "en": "Publish the selected photos first."
+  },
+  "プロフィールの公開は最高管理者または管理者が承認します。": {
+    "ko": "프로필 게시는 최고 관리자 또는 관리자가 승인합니다.",
+    "en": "An Owner or Administrator must approve profile publication."
+  },
+  "公開済みのURLと識別子は変更できません。": {
+    "ko": "게시된 URL과 식별자는 변경할 수 없습니다.",
+    "en": "Published URLs and identifiers cannot be changed."
+  },
+  "未来の日時で公開できません。下書きに保存してください。": {
+    "ko": "미래 시각으로 바로 게시할 수 없습니다. 초안으로 저장하세요.",
+    "en": "You cannot publish immediately with a future publication date. Save a draft."
+  },
+  "公開内容は次回の更新でサイトに反映されます（通常15分間隔。遅れる場合があります）。": {
+    "ko": "공개 내용은 다음 홈페이지 갱신 때 반영됩니다. 보통 15분 간격이며 지연될 수 있습니다.",
+    "en": "Published content appears at the next website update, normally every 15 minutes. Updates may be delayed."
+  },
+  "公開版を確認できません。": {
+    "ko": "게시 버전을 확인할 수 없습니다.",
+    "en": "The published version could not be checked."
+  },
+  "サイトへの反映をまだ確認できません。時間をおいて再確認してください。": {
+    "ko": "홈페이지 반영 여부를 아직 확인할 수 없습니다. 잠시 후 다시 확인해 주세요.",
+    "en": "The website update cannot be confirmed yet. Please check again later."
+  },
+  "サイトへの反映待ちです。通常15分間隔で更新しますが、処理状況により遅れる場合があります。": {
+    "ko": "홈페이지 반영을 기다리고 있습니다. 보통 15분 간격으로 갱신하지만 처리 상황에 따라 지연될 수 있습니다.",
+    "en": "Waiting for the website update. Updates normally run every 15 minutes, but processing may cause delays."
+  },
+  "公開サイトに反映済みです。最終更新：": {
+    "ko": "공개 홈페이지에 반영됐습니다. 최종 갱신: ",
+    "en": "Live on the public website. Last update: "
+  },
+  "表示用に圧縮して保存します。写真を公開する前に掲載権限を確認してください。": {
+    "ko": "표시용으로 압축해 저장합니다. 사진을 게시하기 전에 게시 권한을 확인하세요.",
+    "en": "Photos are compressed for display. Check publication rights before publishing."
+  },
+  "選択候補にない写真が含まれています。下書きには保持できます。公開前に写真を確認するか、選択を外してください。": {
+    "ko": "선택 후보에 없는 사진이 포함돼 있습니다. 초안에는 유지할 수 있습니다. 게시 전에 사진을 확인하거나 선택을 해제해주세요.",
+    "en": "Some photos are not in the selection list. They can remain in the draft. Review them or remove the selection before publishing."
+  },
+  "先に写真を登録して公開してください。": {
+    "ko": "먼저 사진을 등록하고 게시하세요.",
+    "en": "Register and publish a photo first."
+  },
+  "選手写真がありません。写真・動画で「選手写真」を選び、写真を登録して公開してください。": {
+    "ko": "선수 사진이 없습니다. 사진·영상에서 ‘선수 사진’ 카테고리로 사진을 등록하고 게시해 주세요.",
+    "en": "No player photos are available. Register and publish a photo in the Player photos category in the media library."
+  },
+  "選手の識別番号：": {
+    "ko": "선수 식별 번호: ",
+    "en": "Player identifier: "
+  },
+  "選手・プロフィール・写真を保存して公開しました。公開サイトの反映状態をご確認ください。": {
+    "ko": "선수·프로필·사진을 함께 저장하고 게시했습니다. 공개 홈페이지 반영 상태를 확인해 주세요.",
+    "en": "Player, profile and photo saved and published. Check the website update status."
+  },
+  "予約公開する未来の日時を日本時間で入力してください。": {
+    "ko": "예약 게시할 미래 시각을 일본 시간으로 입력하세요.",
+    "en": "Enter a future scheduled publication time in Japan time."
+  },
+  "公開しました。公開サイトの反映状態をご確認ください。": {
+    "ko": "게시했습니다. 공개 홈페이지 반영 상태를 확인하세요.",
+    "en": "Published. Check the public website update status."
+  },
+  "予約を保存しました。予約時刻以降の公開と、公開サイトの反映は別に確認できます。": {
+    "ko": "예약을 저장했습니다. 예약 시각 이후의 게시와 공개 홈페이지 반영은 별도로 확인할 수 있습니다.",
+    "en": "Schedule saved. Publication after the scheduled time and the public website update are checked separately."
+  },
+  "公開には選手のプロフィール公開同意と、写真を使用する場合は写真の公開同意が必要です。選手登録画面でご確認ください。": {
+    "ko": "게시하려면 선수의 프로필 공개 동의가 필요하며 사진을 사용하면 사진 공개 동의도 필요합니다. 선수 등록 화면에서 확인하세요.",
+    "en": "Publication requires profile consent and photo consent when a photo is used. Check these in player registration."
+  },
+  "ニュースの作成・編集と公開状況を管理します。": {
+    "ko": "뉴스 작성·편집과 게시 상태를 관리합니다.",
+    "en": "Create and edit news and manage publication status."
+  },
+  "写真・動画と掲載確認を管理します。未確認の素材は公開できません。": {
+    "ko": "사진·영상과 게시 확인을 관리합니다. 미확인 자료는 게시할 수 없습니다.",
+    "en": "Manage photos, videos and publication checks. Unconfirmed material cannot be published."
+  },
+  "運営メンバーの権限と利用状態を管理します。": {
+    "ko": "운영 멤버의 권한과 이용 상태를 관리합니다.",
+    "en": "Manage staff access and account status."
+  },
+  "加入申請とアカウントを管理します。ID・実名・パスワードの変更は最高管理者が行います。": {
+    "ko": "가입 신청과 계정을 관리합니다. 아이디·실명·비밀번호는 최고 관리자가 변경합니다.",
+    "en": "Manage applications and accounts. Owners change login IDs, real names and passwords."
+  },
+  "同じ選手の記録を保ったまま、公開プロフィールを編集します。": {
+    "ko": "기존 선수 기록을 유지하면서 공개 프로필을 편집합니다.",
+    "en": "Edit the public profile while keeping the same player record."
+  },
+  "最後の最高管理者を停止するには、先に別の最高管理者を設定してください。退任者の記録は削除せず、利用を停止します。": {
+    "ko": "마지막 최고 관리자의 이용을 정지하려면 먼저 다른 최고 관리자를 지정해 주세요. 퇴임자의 기록은 삭제하지 않고 이용을 정지합니다.",
+    "en": "Assign another Owner before suspending the last active Owner. Suspend access for departing staff while retaining their records."
+  },
+  "半角英数字とハイフン。初回公開後は変更できません。": {
+    "ko": "영문 소문자·숫자·하이픈을 사용합니다. 처음 게시한 뒤에는 변경할 수 없습니다.",
+    "en": "Use lowercase letters, numbers and hyphens. It cannot change after first publication."
+  },
+  "公開後、次回のサイト再構築で反映されます。": {
+    "ko": "게시 후 다음 홈페이지 재빌드 때 반영됩니다.",
+    "en": "Publication will appear after the next website rebuild."
+  },
+  "選手の識別番号": {
+    "ko": "선수 식별 번호",
+    "en": "Player identifier"
+  },
+  "確認前の素材は公開できません。": {
+    "ko": "확인하지 않은 자료는 게시할 수 없습니다.",
+    "en": "Unconfirmed material cannot be published."
+  },
+  "写真のキャプション": {
+    "ko": "사진 설명",
+    "en": "Photo caption"
+  },
+  "本人確認日時": {
+    "ko": "본인 확인 일시",
+    "en": "Identity verification time"
+  },
+  "実名確認日時": {
+    "ko": "실명 확인 일시",
+    "en": "Real name verification time"
+  },
+  "実名の確認者": {
+    "ko": "실명 확인자",
+    "en": "Real name verified by"
+  },
+  "承認日時": {
+    "ko": "승인 일시",
+    "en": "Approval time"
+  },
+  "見送り日時": {
+    "ko": "반려 일시",
+    "en": "Decision time"
+  },
+  "編集中の内容を確認する画面です。保存・公開はまだ行われていません。": {
+    "ko": "편집 중인 내용을 확인하는 화면입니다. 아직 저장하거나 게시하지 않았습니다.",
+    "en": "This is a preview of your edits. They have not been saved or published."
   }
 }
