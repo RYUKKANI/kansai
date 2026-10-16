@@ -52,7 +52,7 @@ test("mail-free gateway uses the pinned SDK Admin endpoint and retains isolated 
     method: "POST", headers: { "Content-Type": "application/json", Origin: "https://club.example.invalid" },
     body: JSON.stringify({ action: "register", username: "test.staff",
       password: "fixture-only-password", password_confirmation: "fixture-only-password",
-      real_name: "テスト担当", department: "Staff", notice_accepted: true }),
+      real_name: "テスト担当", requested_grade: "staff", department: "Staff", notice_accepted: true }),
   }));
   assert.equal(response.status, 200);
   const receipt = await response.json();
@@ -63,6 +63,7 @@ test("mail-free gateway uses the pinned SDK Admin endpoint and retains isolated 
   const reservation = calls.find(call => call.path.endsWith("staff_auth_reserve")).body;
   assert.equal(reservation.p_email, technicalAddress);
   assert.equal(reservation.p_email_confirmation_required, false);
+  assert.equal(reservation.p_requested_grade, "staff");
   for (const privateValue of [technicalAddress, userId, "fixture-only-password", serverKey])
     assert.equal(JSON.stringify(receipt).includes(privateValue), false);
   assert.deepEqual(calls.find(call => call.path.endsWith("staff_auth_finalize")).body, { p_reservation: reservationId, p_user_id: userId });

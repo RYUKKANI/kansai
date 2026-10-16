@@ -111,7 +111,7 @@ test("saved preview disables login and makes no authentication requests", async 
     dom.window.close();
   }
 });
-test("coach metadata cannot expose owner/editor menus or profile publishing", async () => {
+test("legacy coach becomes Staff while forged metadata cannot expose Owner controls or publishing", async () => {
   const { dom, window } = await app(
     "coach",
     undefined,
@@ -131,7 +131,8 @@ test("coach metadata cannot expose owner/editor menus or profile publishing", as
     await login(window);
     const document = window.document;
     assert.equal(document.querySelector('[data-resource="admin_roles"]'), null);
-    assert.equal(document.querySelector('[data-resource="articles"]'), null);
+    assert.ok(document.querySelector('[data-resource="articles"]'));
+    assert.ok(document.querySelector('[data-resource="media_assets"]'));
     assert.ok(document.querySelector('[data-resource="training_sessions"]'));
     assert.equal(
       document.querySelector(

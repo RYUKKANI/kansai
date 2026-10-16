@@ -77,8 +77,8 @@ test("header uses server username for missing name and hides unverified label on
 });
 
 test("header change respects server role instead of Auth user metadata and renders name as text", { skip: !enabled }, async () => {
-  const account = { ...owner, role: "coach", real_name: '<img src=x onerror="throw 1"> 李' };
-  const context = await helper.app("coach", undefined, {
+  const account = { ...owner, role: "staff", real_name: '<img src=x onerror="throw 1"> 李' };
+  const context = await helper.app("staff", undefined, {
     initialSession: true, staffIdentity: true, accountState: account,
   });
   try {

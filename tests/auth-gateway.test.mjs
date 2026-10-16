@@ -99,7 +99,7 @@ function fixture(overrides = {}) {
   }));
   return { calls, counters, handler, send, client, operations };
 }
-const registration = overrides => ({ action: "register", username: "Kansai.Owner", password: "safe-test-password-only", password_confirmation: "safe-test-password-only", real_name: "田中  류컁이 José-Anne", department: "コーチ / 운영", notice_accepted: true, ...overrides });
+const registration = overrides => ({ action: "register", username: "Kansai.Owner", password: "safe-test-password-only", password_confirmation: "safe-test-password-only", real_name: "田中  류컁이 José-Anne", requested_grade: "player", department: "コーチ / 운영", notice_accepted: true, ...overrides });
 const authCalls = fixture => fixture.calls.filter(call => call.type === "auth");
 const rpcCalls = (fixture, name) => fixture.calls.filter(call => call.type === "rpc" && (!name || call.name === name));
 const ownerClaims = (claims = {}) => ok({ claims: { sub: USER, aal: "aal1", amr: [{ method: "password", timestamp: NOW / 1000 }], ...claims } });
@@ -244,6 +244,47 @@ test("registration refuses caller-supplied email rather than retaining hidden co
     const response = await f.send(registration({ email: value }));
     assert.equal(response.status, 400);
     assert.deepEqual(await response.json(), { error: "invalid_request" });
+    assert.equal(f.calls.length, 0);
+  }
+});
+
+test("three requested grades are reservation details and never become Auth authority", async () => {
+  for (const requested_grade of ["owner", "staff", "player"]) {
+    const f = fixture();
+    const response = await f.send(registration({ requested_grade, department: "" }));
+    assert.equal(response.status, 200);
+    const reservation = rpcCalls(f, "staff_auth_reserve")[0].args;
+    assert.equal(reservation.p_requested_grade, requested_grade);
+    assert.equal(reservation.p_department, "");
+    const create = authCalls(f).find(call => call.method === "admin.createUser").args[0];
+    assert.deepEqual(create.app_metadata, { staff_signup_policy: "manual_approval_no_email_v1" });
+    assert.equal("user_metadata" in create, false);
+    assert.equal(rpcCalls(f).some(call => /^office_(review_staff|set_staff_access)/.test(call.name)), false);
+    assert.deepEqual(await response.json(), { success: true, code: "registration_received" });
+  }
+  const compatible = fixture();
+  const payload = registration(); delete payload.requested_grade; delete payload.department;
+  assert.equal((await compatible.send(payload)).status, 200);
+  assert.equal(rpcCalls(compatible, "staff_auth_reserve")[0].args.p_requested_grade, "player");
+  assert.equal(rpcCalls(compatible, "staff_auth_reserve")[0].args.p_department, "");
+});
+
+test("malformed grade, duty and direct authority fields fail before reservation or account creation", async () => {
+  for (const value of ["administrator", "editor", "coach", "OWNER", "", null, {}, ["staff"]]) {
+    const f = fixture();
+    assert.equal((await f.send(registration({ requested_grade: value }))).status, 400);
+    assert.equal(rpcCalls(f, "staff_auth_reserve").length, 0);
+    assert.equal(authCalls(f).length, 0);
+  }
+  for (const department of [null, {}, "スタッフ\u0000", "a".repeat(201)]) {
+    const f = fixture();
+    assert.equal((await f.send(registration({ department }))).status, 400);
+    assert.equal(rpcCalls(f, "staff_auth_reserve").length, 0);
+    assert.equal(authCalls(f).length, 0);
+  }
+  for (const injected of [{ role: "owner" }, { actor_id: USER }, { approval_status: "approved" }, { active: true }]) {
+    const f = fixture();
+    assert.equal((await f.send(registration(injected))).status, 400);
     assert.equal(f.calls.length, 0);
   }
 });
@@ -636,7 +677,7 @@ test("Owner reset binds an authenticated audited operation and sends only the ne
 });
 
 test("non-Owner, pending role and revoked current sessions cannot reach Owner Auth mutation", async () => {
-  for (const overrides of [{ ownerRole: "administrator" }, { ownerRole: "editor" }, { ownerRole: "pending" }, { sessionRevoked: true }]) {
+  for (const overrides of [{ ownerRole: "staff" }, { ownerRole: "player" }, { ownerRole: "administrator" }, { ownerRole: "editor" }, { ownerRole: "pending" }, { sessionRevoked: true }]) {
     const f = ownerFixture(overrides);
     const response = await f.send(ownerReset(), ownerHeaders);
     assert.equal(response.status, 403);

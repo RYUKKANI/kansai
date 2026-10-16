@@ -59,6 +59,7 @@ for (const event of ["focus", "visibility"]) {
       const form = document.querySelector("#staff-signup-form");
       form.elements.namedItem("username").value = "signup.test";
       form.elements.namedItem("real_name").value = "登録 テスト";
+      form.elements.namedItem("requested_grade").value = "staff";
       form.elements.namedItem("department").value = "運営テスト";
       assert.equal(form.elements.namedItem("email"), null);
       form.elements.namedItem("password").value = "synthetic-test-password";
@@ -72,6 +73,7 @@ for (const event of ["focus", "visibility"]) {
         "no-session revalidation must not clear unsent signup passwords");
       assert.equal(form.elements.namedItem("username").value, "signup.test");
       assert.equal(form.elements.namedItem("real_name").value, "登録 テスト");
+      assert.equal(form.elements.namedItem("requested_grade").value, "staff");
       assert.equal(document.querySelector("#workspace").hidden, true);
       assert.equal(context.requests.some(request => new URL(request.url).pathname.includes("/staff-auth")), false);
     } finally { await dispose(context); }
@@ -171,8 +173,8 @@ test("role withdrawal closes enrollment and rebuilds only the currently permitte
   try {
     const form = await enroll(context);
     const document = context.window.document;
-    account = { ...legacy, role: "coach" };
-    context.tables.admin_roles[0].role = "coach";
+    account = { ...legacy, role: "staff" };
+    context.tables.admin_roles[0].role = "staff";
     restore(context, "visibility");
     await helper.eventually(() => !document.querySelector("#workspace").hidden &&
       !document.querySelector('[data-resource="staff_applications"]'));
