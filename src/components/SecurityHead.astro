@@ -1,0 +1,24 @@
+---
+// [편집 안내] 공개 화면은 같은 사이트의 자료와 공식 영상만 불러옵니다. 관리 화면은
+// 현재 배포 변수의 Supabase 프로젝트만 연결하며 다른 프로젝트 전체를 허용하지 않습니다.
+// 비밀번호·복구 코드가 있는 관리 주소는 외부 링크의 Referer로 보내지 않습니다.
+interface Props {
+  office?: boolean;
+}
+const { office = false } = Astro.props;
+const endpoints: string[] = [];
+if (office && import.meta.env.PUBLIC_SUPABASE_URL) {
+  const configured = new URL(import.meta.env.PUBLIC_SUPABASE_URL);
+  const local = ["localhost", "127.0.0.1", "[::1]"].includes(configured.hostname);
+  if (configured.protocol !== "https:" && !(configured.protocol === "http:" && local)) {
+    throw new Error("관리자 연결은 HTTPS 또는 로컬 테스트 주소여야 합니다.");
+  }
+  endpoints.push(configured.origin);
+}
+// Vite 개발 서버에는 CSP 런타임이 없습니다. 배포 빌드에서는 config의 CSP가 활성화됩니다.
+Astro.csp?.insertDirective(`connect-src ${["'self'", ...endpoints].join(" ")}`);
+Astro.csp?.insertDirective(`img-src ${["'self'", "data:", "blob:", ...endpoints].join(" ")}`);
+Astro.csp?.insertDirective(office ? "frame-src 'none'" : "frame-src https://www.youtube-nocookie.com");
+---
+
+<meta name="referrer" content={office ? "no-referrer" : "strict-origin-when-cross-origin"} />

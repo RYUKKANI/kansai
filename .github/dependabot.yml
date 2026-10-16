@@ -1,0 +1,8 @@
+# 고정된 공식 Action 커밋의 새 버전은 자동 적용하지 않고 PR로 검토합니다.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5

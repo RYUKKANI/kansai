@@ -14,6 +14,7 @@ import Header from "../components/Header.astro";
 import Footer from "../components/Footer.astro";
 import SearchDialog from "../components/SearchDialog.astro";
 import PhotoDialog from "../components/PhotoDialog.astro";
+import SecurityHead from "../components/SecurityHead.astro";
 
 import { asset } from "../lib/urls";
 import "../styles/global.css";
@@ -39,6 +40,7 @@ const {
 <html lang={locale}>
   <head>
     <meta charset="UTF-8" />
+    <SecurityHead />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="description" content={description} />
     <!-- 공개 홈페이지의 검색 노출 설정입니다. 관리자 화면은 별도 noindex를 유지합니다. -->

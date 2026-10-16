@@ -4,6 +4,7 @@ import { asset } from "../../lib/urls";
 import { localeFromUrl, localizedPage } from "../../lib/i18n";
 import LanguageSwitcher from "../../components/LanguageSwitcher.astro";
 import StaffSupportRecovery from "../../components/StaffSupportRecovery.astro";
+import SecurityHead from "../../components/SecurityHead.astro";
 import "../../styles/admin-base.css";
 import "../../styles/admin.css";
 import "../../styles/languages.css";
@@ -18,9 +19,9 @@ const enabled = import.meta.env.PUBLIC_STAFF_IDENTITY_ENABLED === "true";
 <html lang={locale}>
   <head>
     <meta charset="UTF-8" />
+    <SecurityHead office />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="robots" content="noindex, nofollow" />
-    <meta name="referrer" content="no-referrer" />
     <meta name="theme-color" content="#0B2447" />
     <title>KANSAI UNITED FC — CLUB OFFICE HELP</title>
   </head>

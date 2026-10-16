@@ -148,7 +148,7 @@ const browserBundle = await build({ stdin: {
     export function boot(root, network) {
       const callback = recoveryCallbackState(window.location.href);
       const client = createClient('${url}', '${key}', {
-        auth: { storageKey: 'browser-recovery-test', persistSession: true, autoRefreshToken: false, detectSessionInUrl: true, flowType: 'pkce', experimental: { appendPkceFlowIdToRedirects: true } },
+        auth: { storageKey: 'browser-recovery-test', persistSession: true, autoRefreshToken: false, detectSessionInUrl: false, flowType: 'pkce', experimental: { appendPkceFlowIdToRedirects: true } },
         global: { fetch: createStaffRecoveryFetch('${url}', '${key}', network) }
       });
       const controller = mountStaffAuthHelp({ root, client, callback });
