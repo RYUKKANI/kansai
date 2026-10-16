@@ -39,7 +39,7 @@ export function mountStaffAuthHelp({ root, client, callback = recoveryCallbackSt
   // 보류하고, 이 브라우저 verifier로 코드 교환을 마친 세션만 복구 검증에 넘깁니다.
   const callbackUrl = new URL(window.location.href);
   let callbackInitializing = callbackPresent;
-  const callbackFailure = () => message(t("確認リンクを読み取れませんでした。リンクを申請したブラウザーで開くか、最高管理者に復旧をご相談ください。"), true);
+  const callbackFailure = () => message(t("確認リンクを読み取れませんでした。リンクを申請したブラウザーで開くか、統括に復旧をご相談ください。"), true);
   function message(value: string, error = false) {
     if (destroyed) return;
     notice.textContent = value;

@@ -8,6 +8,7 @@ import {
   dateLabel,
   imageSources,
   selectFields,
+  publicReadOnlyMessage,
   type Row,
 } from "../lib/admin-ui";
 import { text as t } from "../lib/i18n";
@@ -80,7 +81,8 @@ export async function attachPlayerEditor(
       )) as Row | null)
     : null;
   if (!isCurrent()) return null;
-  const canApprove = ["owner", "administrator"].includes(role);
+  const canApprove = role === "owner";
+  const readOnly = !canApprove && profile?.status === "published";
   let query = client
     .from("media_assets")
     .select(
@@ -89,33 +91,10 @@ export async function attachPlayerEditor(
     .eq("kind", "photo")
     .eq("media_category", "player")
     .order("title");
-  // 코치는 기존 사진 승인 권한을 얻지 않습니다. 기존 RLS와 함께 선택 후보도 공개 자료로 제한합니다.
-  if (!canApprove)
-    query = query
-      .eq("status", "published")
-      .eq("public_approved", true)
-      .lte("published_at", new Date().toISOString());
+  // 스태프도 비공개 선수 사진을 준비할 수 있으나 실제 공개 승인은 총괄만 수행합니다.
   const photos = ((await read(query)) ?? []) as Row[];
   if (!isCurrent()) return null;
-  const albumIds = [
-    ...new Set(photos.map((photo) => photo.album_id).filter(Boolean)),
-  ];
-  const albums = albumIds.length
-    ? await read(
-        client
-          .from("media_albums")
-          .select("id")
-          .in("id", albumIds)
-          .eq("status", "published"),
-      )
-    : [];
-  if (!isCurrent()) return null;
-  const publicAlbums = new Set(albums?.map((album) => album.id));
-  const availablePhotos = canApprove
-    ? photos
-    : photos.filter(
-        (photo) => !photo.album_id || publicAlbums.has(photo.album_id),
-      );
+  const availablePhotos = photos;
   let profilePhoto = profile?.photo_path
     ? photos.find(
         (photo) =>
@@ -356,7 +335,7 @@ export async function attachPlayerEditor(
         )
       : "";
   }
-  if (canApprove) {
+  if (!readOnly) {
     const upload = node("div", "", "admin-field admin-field-wide");
     const label = node(
       "label",
@@ -439,7 +418,7 @@ export async function attachPlayerEditor(
       node(
         "p",
         t(
-          "コーチは公開承認済みの選手写真を選べます。新しい写真の登録・承認は、最高管理者または管理者に依頼してください。",
+          "新しい写真の登録・公開承認は、統括にご相談ください。",
         ),
         "admin-help",
       ),
@@ -500,7 +479,10 @@ export async function attachPlayerEditor(
     button.dataset.saveStatus = status;
     actions.append(button);
   };
-  if (profile?.status === "published" && canApprove) {
+  if (readOnly) {
+    fields.querySelectorAll<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement | HTMLButtonElement>("input,select,textarea,button").forEach((control) => { control.disabled = true; });
+    actions.append(node("p", publicReadOnlyMessage(), "admin-help"));
+  } else if (profile?.status === "published" && canApprove) {
     submit(t("更新して公開"), "published");
     submit(t("非公開で保存"), "draft", "admin-secondary");
   } else {
@@ -536,6 +518,7 @@ export async function attachPlayerEditor(
   }
   async function save(status: string): Promise<Row> {
     assertCurrent();
+    if (readOnly) throw new Error(publicReadOnlyMessage());
     const values = new FormData(form);
     const text = (name: string) => String(values.get(name) ?? "").trim();
     const person = {

@@ -22,6 +22,8 @@ import {
   officeGroups,
   officePages,
   roleLabels,
+  isPublicOfficeRecord,
+  publicReadOnlyMessage,
   type Row,
   type OfficePage,
   type ListFilter,
@@ -35,6 +37,8 @@ import { mountStaffAuth } from "./staff-auth";
 import type { StaffAccountState } from "../lib/staff-auth-types";
 import { renderStaffOffice } from "./admin-staff";
 import { buildDashboard } from "./admin-dashboard";
+import { createPlayerPortal } from "./player-portal";
+import { normalizeMemberGrade } from "../lib/member-grades";
 import { attachPlayerEditor, type PlayerEditor } from "./admin-player";
 import { uploadOfficePhoto } from "./admin-photo";
 import { createList, type ListController } from "./admin-list";
@@ -163,7 +167,7 @@ function message(error: unknown): string {
   )
     return t("この操作に必要な権限がありません。運営責任者にご確認ください。");
   if (/last owner/i.test(raw))
-    return t("最後の最高管理者は無効化・削除できません。");
+    return t("最後の統括は無効化・削除できません。");
   if (code === "40001" || /content changed|schedule changed/i.test(raw))
     return t(
       "ほかの操作で内容が更新されています。編集画面を閉じて最新の内容を開き直してください。一時保存の内容は復元時に照合できます。",
@@ -201,7 +205,7 @@ function message(error: unknown): string {
   if (/must be approved/i.test(raw))
     return t("使用する写真を先に公開してください。");
   if (/approval requires/i.test(raw))
-    return t("プロフィールの公開は最高管理者または管理者が承認します。");
+    return t("プロフィールの公開は統括が承認します。");
   if (/published URL|UUID is immutable|record ID/i.test(raw))
     return t("公開済みのURLと識別子は変更できません。");
   if (/duplicate key/i.test(raw))
@@ -289,6 +293,7 @@ function resetLogin(invalidateRequests = true) {
   document.body.dataset.authenticated = "false";
   $("#admin-content").replaceChildren();
   $("#publication-status").replaceChildren();
+  $("#publication-status").hidden = true;
   $("#admin-navigation").replaceChildren();
   editor.close();
   editorForm.reset();
@@ -357,27 +362,27 @@ async function authenticate(preserveForms = false) {
   if (attempt !== authenticationVersion) return;
   // 폐기된 계정 조회의 오류가 새 계정의 로그인 화면까지 초기화하지 않도록 순서를 지킵니다.
   if (membership.error) throw membership.error;
+  // 기존 역할 행은 보존하되 화면은 서버가 확인한 세 등급만 사용합니다.
+  const membershipGrade = normalizeMemberGrade(identity?.role ?? membership.data?.role);
   if (
     !membership.data?.active ||
-    !["owner", "administrator", "editor", "coach"].includes(
-      membership.data.role,
-    )
+    !membershipGrade
   ) {
     resetLogin();
     notice(t("このアカウントには運営メンバーのアクセス権がありません。"), true);
     return;
   }
   const unchanged =
-    role === membership.data.role &&
+    role === membershipGrade &&
     userId === data.user.id &&
     !$("#workspace").hidden;
   const currentView = staffAuth?.currentView();
   const preserveMigration = preserveForms && Boolean(identity) && identity?.identity_enrolled === false &&
-    role === membership.data.role && userId === data.user.id &&
+    role === membershipGrade && userId === data.user.id &&
     previousView?.panel === "migration" && previousView.userId === data.user.id &&
     currentView?.panel === "migration" && currentView.userId === data.user.id;
-  if (role && role !== membership.data.role) resetLogin(false);
-  role = membership.data.role as StaffRole;
+  if (role && role !== membershipGrade) resetLogin(false);
+  role = membershipGrade;
   userId = data.user.id;
   ownIdentity = identity;
   // 등록한 이름과 운영진의 실명 확인은 별개입니다. 확인 전에도 서버에 저장한 이름·아이디를 표시합니다.
@@ -427,7 +432,7 @@ async function authenticate(preserveForms = false) {
   );
   staffIdentityAvailable = staffIdentityUiEnabled && staffIdentityDatabaseEnabled;
   navigation();
-  await show("dashboard");
+  await show(role === "player" ? "player_portal" : "dashboard");
 }
 function navigation() {
   const navigation = $("#admin-navigation");
@@ -436,19 +441,21 @@ function navigation() {
     const section = node("div", "", "office-nav-group");
     section.append(node("p", group));
     for (const name of [
-      "dashboard",
-      ...(scheduleEnabled ? ["schedule"] : []),
+      ...(role === "player" ? ["player_portal"] : ["dashboard"]),
+      ...(scheduleEnabled && role !== "player" ? ["schedule"] : []),
       ...(staffIdentityAvailable ? staffOfficePages : []),
       ...Object.keys(resources),
     ] as OfficePage[]) {
       const info = officePages[name];
       const staffPage = isStaffOfficePage(name);
       const permitted = staffPage
-        ? Boolean(role) && (name !== "staff_applications" || role === "owner")
+        ? Boolean(role) && (role !== "player" || name === "staff_account") && (name !== "staff_applications" || role === "owner")
         : name === "dashboard"
-          ? Boolean(role)
+          ? Boolean(role) && role !== "player"
+          : name === "player_portal"
+            ? role === "player"
           : name === "schedule"
-            ? Boolean(role) && ["owner", "administrator", "coach"].includes(role!)
+            ? Boolean(role) && ["owner", "staff"].includes(role!)
             : Boolean(role) && resourceAvailable(name) && resources[name].roles.includes(role!);
       if (
         name === "public_player_profiles" ||
@@ -460,6 +467,8 @@ function navigation() {
       const label =
         staffPage
           ? staffOfficeTitle(name)
+          : name === "player_portal"
+          ? t("選手ホーム")
           : name === "dashboard"
           ? t("ダッシュボード")
           : name === "schedule"
@@ -483,7 +492,7 @@ function navigation() {
   }
 }
 async function publicationStatus(version = requestId) {
-  if (!client) return;
+  if (!client || role === "player") return;
   const state = await result(
     client
       .from("publication_state")
@@ -530,6 +539,7 @@ async function publicationStatus(version = requestId) {
   }
   if (version !== requestId || !role) return;
   const element = $("#publication-status");
+  element.hidden = false;
   element.dataset.state = status;
   element.replaceChildren(
     icon(status === "synced" ? "check" : "clock"),
@@ -550,6 +560,11 @@ async function show(
   resetPage = true,
   initialFilter?: ListFilter,
 ) {
+  if (resource === "player_portal") {
+    await showPlayerPortal();
+    return;
+  }
+  if (role === "player" && resource !== "staff_account") return;
   if (isStaffOfficePage(resource)) {
     await showStaffPage(resource);
     return;
@@ -567,7 +582,7 @@ async function show(
     !client ||
     !role ||
     (resource === "schedule"
-      ? !scheduleEnabled || !["owner", "administrator", "coach"].includes(role)
+      ? !scheduleEnabled || !["owner", "staff"].includes(role)
       : resource !== "dashboard" &&
         (!resourceAvailable(resource) ||
           !resources[resource].roles.includes(role)))
@@ -659,6 +674,7 @@ async function show(
     const list = createList({
       client,
       resource,
+      role,
       base,
       initialFilter,
       isCurrent: () =>
@@ -701,8 +717,38 @@ async function show(
   await publicationStatus(version);
   $("#resource-title").focus();
 }
+async function showPlayerPortal() {
+  if (!client || role !== "player" || !userId) return;
+  currentStaff?.dispose();
+  currentStaff = null;
+  currentList?.dispose();
+  const version = ++requestId;
+  current = "player_portal";
+  const title = t("選手ホーム");
+  $("#resource-title").textContent = title;
+  $("#header-page-title").textContent = title;
+  $("#page-eyebrow").textContent = "OVERVIEW / PLAYER HOME";
+  $("#page-description").textContent = officePages.player_portal.description;
+  $("#new-button").hidden = true;
+  $("#publication-status").replaceChildren();
+  $("#publication-status").hidden = true;
+  $("#admin-navigation").querySelectorAll<HTMLElement>("[data-resource]").forEach((button) => {
+    if (button.dataset.resource === "player_portal") button.setAttribute("aria-current", "page");
+    else button.removeAttribute("aria-current");
+  });
+  const accountId = userId;
+  const portal = createPlayerPortal({
+    client, userId: accountId,
+    isCurrent: () => version === requestId && role === "player" && userId === accountId && current === "player_portal",
+  });
+  currentList = portal;
+  $("#admin-content").replaceChildren(portal.element);
+  await portal.refresh();
+  if (version === requestId && role === "player") $("#resource-title").focus();
+}
 async function showStaffPage(page: StaffOfficePage) {
   if (!client || !role || !userId || !staffIdentityAvailable ||
+      (role === "player" && page !== "staff_account") ||
       (page === "staff_applications" && role !== "owner")) return;
   currentList?.dispose();
   currentList = null;
@@ -718,6 +764,7 @@ async function showStaffPage(page: StaffOfficePage) {
   $("#page-description").textContent = info.description;
   $("#new-button").hidden = true;
   $("#publication-status").replaceChildren();
+  $("#publication-status").hidden = true;
   $("#admin-navigation").querySelectorAll<HTMLElement>("[data-resource]").forEach((button) => {
     if (button.dataset.resource === page) button.setAttribute("aria-current", "page");
     else button.removeAttribute("aria-current");
@@ -892,10 +939,11 @@ async function openEditor(
   row: Row | null,
   context: EditorContext | null = null,
 ) {
-  if (!client || !role || !userId || current === "dashboard" || current === "schedule" || isStaffOfficePage(current))
+  if (!client || !role || !userId || current === "dashboard" || current === "schedule" || current === "player_portal" || isStaffOfficePage(current))
     return;
   const resource = context?.resource ?? current;
   if (!resources[resource].roles.includes(role)) return;
+  const readOnly = role !== "owner" && isPublicOfficeRecord(row);
   resetEditorSaving();
   const generation = ++editorGeneration;
   const openingUser = userId;
@@ -1319,8 +1367,16 @@ async function openEditor(
     button.dataset.saveStatus = "draft";
     actions.append(button);
   }
+  if (readOnly) {
+    // 공개 자료의 값은 확인할 수 있지만 저장·업로드·공개 취소 도구는 제공하지 않습니다.
+    fields.querySelectorAll<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement | HTMLButtonElement>("input,select,textarea,button").forEach((control) => { control.disabled = true; });
+    actions.replaceChildren(node("p", publicReadOnlyMessage(), "admin-help"));
+  } else if (role !== "owner") {
+    fields.querySelectorAll<HTMLInputElement>('[name="is_public"]').forEach((control) => { control.checked = false; control.disabled = true; });
+    actions.append(node("p", t("スタッフは下書き・承認待ちで保存できます。公開は統括が承認します。"), "admin-help"));
+  }
   if (!editor.open) editor.showModal();
-  if (contentEnabled && userId && contentResources.includes(resource)) {
+  if (!readOnly && contentEnabled && userId && contentResources.includes(resource)) {
     contentEditor = attachContentEditor({
       client,
       userId,
@@ -1328,7 +1384,8 @@ async function openEditor(
       row,
       form: editorForm,
       container: $("#editor-content-tools"),
-      publisher: publisherEnabled,
+      publisher: publisherEnabled && role === "owner",
+      canPublish: role === "owner",
       changed: markEditorDirty,
       isCurrent: () => isCurrentEditor() && editor.open,
       error: (error) => { if (isCurrentEditor() && editor.open) notice(message(error), true); },
@@ -1358,7 +1415,7 @@ async function openEditor(
     });
   }
   $("#editor-preview-actions").replaceChildren();
-  if (resource === "articles")
+  if (resource === "articles" && !readOnly)
     $("#editor-preview-actions").append(
       action(
         t("公開前プレビュー"),
@@ -1419,6 +1476,10 @@ async function uploadPhoto(input: HTMLInputElement) {
 async function save(event: SubmitEvent) {
   event.preventDefault();
   if (!client || !role || !editResource) return;
+  if (role !== "owner" && (isPublicOfficeRecord(editing) || ["published", "scheduled"].includes((event.submitter as HTMLButtonElement | null)?.dataset.saveStatus ?? ""))) {
+    notice(publicReadOnlyMessage(), true);
+    return;
+  }
   if (editorUploads.has(editorGeneration)) {
     notice(t("写真をアップロードしています。完了してから保存してください。"));
     return;
@@ -1930,7 +1991,7 @@ if (!client) {
 }
 $("#new-button").addEventListener("click", () => {
   if (isStaffOfficePage(current)) return;
-  if (current === "admin_roles") return;
+  if (current === "admin_roles" || current === "player_portal") return;
   void run(() => openEditor(null));
 });
 editorForm.addEventListener("submit", (event) => {
