@@ -153,6 +153,70 @@ test("menu, normalized search, filters, keyboard tabs and photo expansion work t
   dom.window.close();
 });
 
+test("Escape from an open mobile navigation restores focus to its toggle in all three languages", async () => {
+  for (const locale of ["ja", "ko", "en"]) {
+    const prefix = locale === "ja" ? "" : locale + "/";
+    const dom = await interactive(prefix + "index.html", "https://kansaiunited.com/" + prefix);
+    try {
+      const { document, KeyboardEvent } = dom.window;
+      const toggle = document.querySelector(".mobile-menu-toggle");
+      const navigation = document.querySelector("#mobile-navigation");
+      const link = navigation.querySelector("a");
+      toggle.focus();
+      toggle.click();
+      link.focus();
+      assert.equal(document.activeElement, link);
+      link.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+      assert.equal(navigation.hidden, true);
+      assert.equal(toggle.getAttribute("aria-expanded"), "false");
+      assert.equal(document.activeElement, toggle);
+    } finally { dom.window.close(); }
+  }
+});
+
+test("closing mobile navigation for a link or search preserves the destination focus", async () => {
+  const dom = await interactive("index.html");
+  try {
+    const { document } = dom.window;
+    const toggle = document.querySelector(".mobile-menu-toggle");
+    const navigation = document.querySelector("#mobile-navigation");
+    const link = navigation.querySelector("a");
+    toggle.click();
+    link.focus();
+    // 문서 이동만 막아 메뉴 닫기 자체가 포커스를 가로채는지 검사합니다.
+    link.addEventListener("click", event => event.preventDefault(), { once: true });
+    link.click();
+    assert.equal(navigation.hidden, true);
+    assert.equal(document.activeElement, link);
+    toggle.click();
+    link.focus();
+    document.querySelector(".search-open").click();
+    assert.equal(navigation.hidden, true);
+    assert.equal(document.querySelector(".search-dialog").open, true);
+    assert.equal(document.activeElement, document.querySelector("#news-search"));
+  } finally { dom.window.close(); }
+});
+
+test("Escape in another dialog or with the mobile menu already closed does not redirect focus", async () => {
+  const dom = await interactive("index.html");
+  try {
+    const { document, KeyboardEvent } = dom.window;
+    const toggle = document.querySelector(".mobile-menu-toggle");
+    const navigation = document.querySelector("#mobile-navigation");
+    toggle.click();
+    document.querySelector("[data-lightbox]").click();
+    const dialogButton = document.querySelector(".photo-dialog [data-close-dialog]");
+    dialogButton.focus();
+    assert.equal(document.querySelector(".photo-dialog").open, true);
+    dialogButton.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+    assert.equal(navigation.hidden, true);
+    assert.equal(document.activeElement, dialogButton);
+    dialogButton.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+    assert.equal(toggle.getAttribute("aria-expanded"), "false");
+    assert.equal(document.activeElement, dialogButton);
+  } finally { dom.window.close(); }
+});
+
 test("home keeps all three match cards visible and announces undetermined fixtures", async () => {
   const dom = new JSDOM(await file("index.html"));
   try {

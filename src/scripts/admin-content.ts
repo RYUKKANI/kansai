@@ -25,6 +25,7 @@ export function attachContentEditor(options: {
   container: HTMLElement;
   publisher: boolean;
   changed: () => void;
+  isCurrent: () => boolean;
   restore: (row: Row) => Promise<void>;
   error: (error: unknown) => void;
 }): ContentEditor {
@@ -36,6 +37,8 @@ export function attachContentEditor(options: {
   );
   const expected = row?.updated_at ? String(row.updated_at) : null;
   let disposed = false;
+  const active = () => !disposed && options.isCurrent();
+  const reportError = (error: unknown) => { if (active()) options.error(error); };
   let timer: ReturnType<typeof setTimeout> | undefined;
   let dirty = false;
   let refreshId = 0;
@@ -161,6 +164,7 @@ export function attachContentEditor(options: {
   const history = node("div", "", "office-content-history");
   section.append(history);
   async function refreshHistory() {
+    if (!active()) return;
     if (!row) {
       history.replaceChildren(
         node(
@@ -179,7 +183,7 @@ export function attachContentEditor(options: {
       p_entity: resource,
       p_id: String(row.id),
     });
-    if (disposed || version !== refreshId) return;
+    if (!active() || version !== refreshId) return;
     if (response.error) {
       history.replaceChildren(
         node("p", t("修正履歴を取得できませんでした。"), "admin-help"),
@@ -222,14 +226,16 @@ export function attachContentEditor(options: {
           );
         history.append(
           action(t("予約を取り消す"), "admin-secondary", () => {
+            if (!active()) return;
             void (async () => {
               const response = await client.rpc("cancel_content_release", {
                 p_entity: resource,
                 p_id: String(row.id),
               });
+              if (!active()) return;
               if (response.error) throw response.error;
               await refreshHistory();
-            })().catch(options.error);
+            })().catch(reportError);
           }),
         );
       }
@@ -267,6 +273,7 @@ export function attachContentEditor(options: {
         ),
       );
       const ask = action(t("この版を下書きに復元"), "admin-secondary", () => {
+        if (!active()) return;
         const confirmation = node("div", "", "office-restore-confirm");
         confirmation.append(
           node(
@@ -278,18 +285,22 @@ export function attachContentEditor(options: {
           ),
         );
         const confirm = action(t("復元を確定"), "admin-danger", () => {
+          if (!active()) return;
           confirm.disabled = true;
           void (async () => {
             const response = await client.rpc("restore_content_revision", {
               p_revision: revision.id,
               p_expected: expected,
             });
+            // 이미 폐기된 화면의 응답은 같은 키로 새로 쓴 초안·새 계정 화면을 건드리지 않습니다.
+            if (!active()) return;
             if (response.error) throw response.error;
             clear();
             await options.restore(response.data as Row);
           })().catch((error) => {
+            if (!active()) return;
             confirm.disabled = false;
-            options.error(error);
+            reportError(error);
           });
         });
         confirmation.append(
@@ -339,7 +350,7 @@ export function attachContentEditor(options: {
   form.addEventListener("input", changed);
   form.addEventListener("change", changed);
   window.addEventListener("beforeunload", flush);
-  void refreshHistory().catch(options.error);
+  void refreshHistory().catch(reportError);
   return {
     clear,
     flush,

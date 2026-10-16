@@ -257,7 +257,18 @@ export function createGateway(deps: GatewayDependencies): (request: Request) => 
         if (identity.error) return fail("service_unavailable", 503);
         if (!identity.data || !identity.data.user_id || !identity.data.email || ["suspended", "rejected"].includes(identity.data.approval_status)) return fail("invalid_credentials", 401);
         const result = await auth.auth.signInWithPassword({ email: identity.data.email, password: secret, options: { captchaToken } });
-        if (result.error || result.data?.user?.id !== identity.data.user_id) return fail("invalid_credentials", 401);
+        if (result.error) {
+          // 잘못된 자격과 Auth의 제한·통신 장애를 구분합니다. 공급자 원문이나
+          // 계정 정보를 반환하지 않고, 장애 때문에 올바른 비밀번호를 재설정하게 하지 않습니다.
+          const error = result.error;
+          if (error.status === 429 || ["rate_limited", "over_request_rate_limit", "over_email_send_rate_limit"].includes(error.code))
+            return fail("rate_limited", 429);
+          if (error.status === 0 || error.status === 408 || error.status >= 500 ||
+            ["AuthRetryableFetchError", "AuthUnknownError"].includes(error.name))
+            return fail("service_unavailable", 503);
+          return fail("invalid_credentials", 401);
+        }
+        if (result.data?.user?.id !== identity.data.user_id) return fail("invalid_credentials", 401);
         return reply({ session: sessionOnly(result.data.session) });
       }
       if (action === "register") {

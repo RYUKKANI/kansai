@@ -273,7 +273,30 @@ export function mountStaffAuth({ client, notice, refresh }: StaffAuthOptions) {
   portal.querySelector("#staff-account-enroll")?.addEventListener("click", () => { if (ownState) controller.showMigration(ownState); });
   portal.querySelector("#staff-enroll-back")?.addEventListener("click", () => void run(portal, async () => { await refresh(); }));
   const controller = {
-    showLogin() { ownState = null; show("login", false); },
+    // 화면 상태는 입력 보존에만 사용합니다. 접근 권한은 상위 화면이 Auth·DB에서 다시 확인합니다.
+    currentView() {
+      if (portal.hidden) return null;
+      const panel = [...portal.querySelectorAll<HTMLElement>("[data-staff-panel]")].find((panel) => !panel.hidden);
+      return panel ? { panel: panel.dataset.staffPanel, userId: ownState?.user_id ?? null } : null;
+    },
+    refreshMigrationState(state: StaffAccountState) {
+      const view = controller.currentView();
+      if (view?.panel !== "migration" || view.userId !== state.user_id) return;
+      ownState = state;
+      // 이미 연결된 아이디는 최신 서버 값으로 맞추되, 작성 중인 실명·업무·확인란은 보존합니다.
+      if (state.username) {
+        field(form("enroll"), "username").value = state.username;
+        field(form("enroll"), "username").readOnly = true;
+      }
+    },
+    showLogin() {
+      ownState = null;
+      // 실제 로그아웃·권한 상실·계정 교체 뒤에는 숨겨진 이전 계정의 프로필도 남기지 않습니다.
+      form("enroll").reset();
+      field(form("enroll"), "username").readOnly = false;
+      portal.querySelector("#staff-account-state")?.replaceChildren();
+      show("login", false);
+    },
     showAccount(state: StaffAccountState) {
       ownState = state;
       show("account", false);

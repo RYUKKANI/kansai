@@ -99,6 +99,7 @@ let authenticationVersion = 0;
 let editorBaseline = "";
 let editorDirty = false;
 let editorSaving = false;
+let editorSaveVersion = 0;
 let contentEditor: ContentEditor | null = null;
 let playerEditor: PlayerEditor | null = null;
 let playerEditorRequest = 0;
@@ -111,6 +112,9 @@ type EditorContext = {
   locked?: Row;
 };
 let editorContext: EditorContext | null = null;
+// 일반 콘텐츠 양식도 비동기 선택지·업로드가 시작된 편집 인스턴스에만 응답을 적용합니다.
+let editorGeneration = 0;
+const editorUploads = new Map<number, number>();
 let pendingEditorAction: (() => Promise<void>) | null = null;
 let editResource: Resource | null = null;
 let removing: Row | null = null;
@@ -272,10 +276,18 @@ async function result<T extends { error: unknown }>(
   if (response.error) throw response.error;
   return response;
 }
+function resetEditorSaving() {
+  // 저장 요청은 계속될 수 있어도 이전 편집 인스턴스의 잠금은 새 양식으로 넘기지 않습니다.
+  editorSaveVersion++;
+  editorSaving = false;
+  editorForm.inert = false;
+  editorForm.removeAttribute("aria-busy");
+}
 // 로그아웃·권한 상실 시 비공개 DOM과 열린 편집 화면을 함께 정리합니다.
 function resetLogin(invalidateRequests = true) {
   // 로그아웃 직전에 시작한 비동기 권한 조회가 비공개 화면을 다시 열지 못하게 합니다.
   if (invalidateRequests) authenticationVersion++;
+  resetEditorSaving();
   currentStaff?.dispose();
   currentStaff = null;
   ownIdentity = null;
@@ -335,12 +347,20 @@ function resetLogin(invalidateRequests = true) {
   drawerOpen = false;
   syncSidebar();
 }
-async function authenticate() {
+async function authenticate(preserveForms = false) {
   if (!client) return;
   const attempt = ++authenticationVersion;
+  const previousView = staffAuth?.currentView();
   const { data, error } = await client.auth.getUser();
   if (attempt !== authenticationVersion) return;
   if (error || !data.user) {
+    // 창 복귀는 로그아웃이 아닙니다. 비공개 화면이 없는 무세션 입력 양식은 그대로 둡니다.
+    const currentView = staffAuth?.currentView();
+    const hasPrivateView = Boolean(role || userId || ownIdentity || currentStaff || currentList || editor.open ||
+      !$("#workspace").hidden || !$("#header-account").hidden ||
+      $("#admin-content").childElementCount || $("#admin-navigation").childElementCount);
+    if (preserveForms && !hasPrivateView &&
+        (!staffIdentityUiEnabled || currentView?.panel === "login" || currentView?.panel === "signup")) return;
     resetLogin();
     return;
   }
@@ -391,6 +411,11 @@ async function authenticate() {
     role === membership.data.role &&
     userId === data.user.id &&
     !$("#workspace").hidden;
+  const currentView = staffAuth?.currentView();
+  const preserveMigration = preserveForms && Boolean(identity) && identity?.identity_enrolled === false &&
+    role === membership.data.role && userId === data.user.id &&
+    previousView?.panel === "migration" && previousView.userId === data.user.id &&
+    currentView?.panel === "migration" && currentView.userId === data.user.id;
   if (role && role !== membership.data.role) resetLogin(false);
   role = membership.data.role as StaffRole;
   userId = data.user.id;
@@ -411,6 +436,12 @@ async function authenticate() {
     .toUpperCase();
   $("#header-account").hidden = false;
   $("#office-breadcrumb").hidden = false;
+  // 같은 UUID·역할의 프로필 등록은 재검증만 하고, 저장·취소 전에는 작성 화면을 닫지 않습니다.
+  if (preserveMigration && identity) {
+    staffAuth?.refreshMigrationState(identity);
+    syncSidebar();
+    return;
+  }
   document.body.dataset.authenticated = "true";
   $("#login-panel").hidden = true;
   $("#workspace").hidden = false;
@@ -852,6 +883,8 @@ async function choices(field: Field) {
 // 선수 등록·사진·프로필은 같은 창과 하나의 저장 처리를 사용합니다.
 async function openUnifiedPlayer(row: Row | null) {
   if (!client || !role || !userId) return;
+  resetEditorSaving();
+  editorGeneration++;
   const version = ++playerEditorRequest;
   playerEditor?.dispose();
   playerEditor = null;
@@ -903,22 +936,46 @@ async function openEditor(
   row: Row | null,
   context: EditorContext | null = null,
 ) {
-  if (!client || !role || current === "dashboard" || current === "schedule" || isStaffOfficePage(current))
+  if (!client || !role || !userId || current === "dashboard" || current === "schedule" || isStaffOfficePage(current))
     return;
   const resource = context?.resource ?? current;
   if (!resources[resource].roles.includes(role)) return;
+  resetEditorSaving();
+  const generation = ++editorGeneration;
+  const openingUser = userId;
+  const openingRole = role;
+  const openingPage = current;
+  const openingPageVersion = requestId;
+  const isCurrentEditor = () =>
+    generation === editorGeneration &&
+    userId === openingUser &&
+    role === openingRole &&
+    current === openingPage &&
+    requestId === openingPageVersion;
+  async function editorRequest<T>(request: PromiseLike<T>): Promise<T | null> {
+    try {
+      return await request;
+    } catch (error) {
+      // 폐기된 양식의 오류로 새 계정이나 새 편집 화면에 권한 오류를 띄우지 않습니다.
+      if (isCurrentEditor()) throw error;
+      return null;
+    }
+  }
   if (isPlayerResource(resource)) {
     // 대시보드의 프로필 승인 항목도 같은 선수 양식으로 연결합니다.
     const selected =
       resource === "public_player_profiles" && row
-        ? await result(
-            client
-              .from("players")
-              .select(selectFields("players"))
-              .eq("id", row.player_id)
-              .single(),
+        ? await editorRequest(
+            result(
+              client
+                .from("players")
+                .select(selectFields("players"))
+                .eq("id", row.player_id)
+                .single(),
+            ),
           )
         : null;
+    if (!isCurrentEditor()) return;
     await openUnifiedPlayer(selected ? (selected.data as unknown as Row) : row);
     return;
   }
@@ -993,12 +1050,12 @@ async function openEditor(
     ...config.fields.filter((field) => !groupByField.has(field.name)),
   );
   const choiceCache = new Map<string, ReturnType<typeof choices>>();
-  const editorChoices = (field: Field) => {
+  const editorChoices = async (field: Field) => {
     const key = ["media", "gallery", "player-photo"].includes(field.type ?? "")
       ? "approved-photos-" + field.type + "-" + (field.mediaCategory ?? "all")
       : field.name;
     if (!choiceCache.has(key)) choiceCache.set(key, choices(field));
-    return choiceCache.get(key)!;
+    return (await editorRequest(choiceCache.get(key)!)) ?? [];
   };
   for (const field of orderedFields) {
     if (row?.legacy_path && field.name === "consent_confirmed") continue;
@@ -1029,7 +1086,9 @@ async function openEditor(
       const selected = Array.isArray(row?.[field.name])
         ? (values[field.name] as string[])
         : [];
-      for (const option of await editorChoices(field)) {
+      const options = await editorChoices(field);
+      if (!isCurrentEditor()) return;
+      for (const option of options) {
         const checkbox = node("input");
         checkbox.type = "checkbox";
         checkbox.name = field.name;
@@ -1039,6 +1098,27 @@ async function openEditor(
         item.append(checkbox, node("span", option.label));
         group.append(item);
       }
+      // 공개 철회는 기사 자체를 비공개로 바꾸지만 사진 연결은 남깁니다. 현재 후보에서
+      // 빠진 사진도 명시적으로 해제할 때까지 초안에 보존하고, 공개 가능 여부는 DB가 검사합니다.
+      const offered = new Set(options.map((option) => option.value));
+      for (const path of new Set(selected.filter((path) => !offered.has(path)))) {
+        const checkbox = node("input");
+        checkbox.type = "checkbox";
+        checkbox.name = field.name;
+        checkbox.value = path;
+        checkbox.checked = true;
+        const item = node("label", "", "admin-checkbox");
+        item.append(checkbox, node("span", t("現在の写真（選択候補外）")));
+        group.append(item);
+      }
+      if (selected.some((path) => !offered.has(path)))
+        group.append(
+          node(
+            "p",
+            t("選択候補にない写真が含まれています。下書きには保持できます。発行前に写真を確認するか、選択を外してください。"),
+            "admin-help",
+          ),
+        );
       if (!group.children.length)
         group.append(
           node("p", t("先に写真を登録して発行してください。"), "admin-help"),
@@ -1054,7 +1134,9 @@ async function openEditor(
           empty.value = "";
           input.append(empty);
         }
-        for (const option of await editorChoices(field)) {
+        const options = await editorChoices(field);
+        if (!isCurrentEditor()) return;
+        for (const option of options) {
           const item = node("option", option.label);
           item.value = option.value;
           if ("assetId" in option)
@@ -1130,13 +1212,18 @@ async function openEditor(
       const select = container.querySelector<HTMLSelectElement>("select")!;
       const preview = node("div", "", "office-selected-photo");
       const selectedOptions = await editorChoices(field);
-      const sources = await imageSources(
-        client,
-        selectedOptions.map((option) =>
-          "path" in option ? option.path : option.value,
+      if (!isCurrentEditor()) return;
+      const loadedSources = await editorRequest(
+        imageSources(
+          client,
+          selectedOptions.map((option) =>
+            "path" in option ? option.path : option.value,
+          ),
+          base,
         ),
-        base,
       );
+      if (!isCurrentEditor() || !loadedSources) return;
+      const sources = loadedSources;
       function refreshPhoto() {
         preview.replaceChildren();
         const option = select.selectedOptions[0];
@@ -1287,16 +1374,30 @@ async function openEditor(
       container: $("#editor-content-tools"),
       publisher: publisherEnabled,
       changed: markEditorDirty,
-      error: (error) => notice(message(error), true),
+      isCurrent: () => isCurrentEditor() && editor.open,
+      error: (error) => { if (isCurrentEditor() && editor.open) notice(message(error), true); },
       restore: async (restored) => {
+        if (!isCurrentEditor() || !editor.open) return;
+        let restoringGeneration = generation;
+        let restoringPageVersion = requestId;
+        const stillRestoring = () =>
+          userId === openingUser && role === openingRole && current === openingPage &&
+          editorGeneration === restoringGeneration && requestId === restoringPageVersion && editor.open;
         editorDirty = false;
-        await show(resource, false);
-        await openEditor(restored);
-        notice(
-          t(
-            "履歴から下書きとして復元しました。公開する内容を再確認してください。",
-          ),
-        );
+        try {
+          // 이 복원이 직접 시작한 목록 갱신의 세대 변경만 허용합니다. 다른 화면·세션은 계속 차단합니다.
+          const listing = show(resource, false);
+          restoringPageVersion = requestId;
+          await listing;
+          if (!stillRestoring()) return;
+          const reopening = openEditor(restored);
+          restoringGeneration = editorGeneration;
+          await reopening;
+          if (!stillRestoring()) return;
+          notice(t("履歴から下書きとして復元しました。公開する内容を再確認してください。"));
+        } catch (error) {
+          if (stillRestoring()) notice(message(error), true);
+        }
       },
     });
   }
@@ -1319,32 +1420,85 @@ async function openEditor(
 }
 async function uploadPhoto(input: HTMLInputElement) {
   if (!client || !userId || !input.files?.[0]) return;
+  const generation = editorGeneration;
+  const owner = userId;
+  const openingRole = role;
+  const openingPage = current;
+  const openingPageVersion = requestId;
+  const pathField = $<HTMLInputElement>("#field-storage_path");
+  const kindField = $<HTMLSelectElement>("#field-kind");
+  const isCurrentUpload = () =>
+    generation === editorGeneration &&
+    userId === owner &&
+    role === openingRole &&
+    current === openingPage &&
+    requestId === openingPageVersion &&
+    editor.open &&
+    input.isConnected &&
+    pathField.isConnected &&
+    kindField.isConnected;
+  editorUploads.set(generation, (editorUploads.get(generation) ?? 0) + 1);
   input.disabled = true;
+  notice(t("写真をアップロードしています。完了してから保存してください。"));
   try {
-    const path = await uploadOfficePhoto(client, userId, input.files[0]);
-    $<HTMLInputElement>("#field-storage_path").value = path;
-    $<HTMLSelectElement>("#field-kind").value = "photo";
+    const path = await uploadOfficePhoto(client, owner, input.files[0]);
+    if (!isCurrentUpload()) return;
+    pathField.value = path;
+    kindField.value = "photo";
     markEditorDirty();
     notice(
       t(
         "写真をアップロードしました。説明と掲載確認を入力し、保存してください。",
       ),
     );
+  } catch (error) {
+    if (isCurrentUpload()) throw error;
   } finally {
+    const remaining = (editorUploads.get(generation) ?? 1) - 1;
+    if (remaining) editorUploads.set(generation, remaining);
+    else editorUploads.delete(generation);
     input.disabled = false;
   }
 }
 async function save(event: SubmitEvent) {
   event.preventDefault();
   if (!client || !role || !editResource) return;
+  if (editorUploads.has(editorGeneration)) {
+    notice(t("写真をアップロードしています。完了してから保存してください。"));
+    return;
+  }
+  const generation = editorGeneration;
+  const savingUser = userId;
+  const savingRole = role;
+  const savingPageVersion = requestId;
+  const isCurrentSave = () =>
+    generation === editorGeneration &&
+    userId === savingUser &&
+    role === savingRole &&
+    requestId === savingPageVersion;
+  async function saveResult<T extends { error: unknown }>(request: PromiseLike<T>) {
+    try {
+      return await result(request);
+    } catch (error) {
+      if (isCurrentSave()) throw error;
+      return null;
+    }
+  }
   const resource = editResource;
   const status =
     (event.submitter as HTMLButtonElement | null)?.dataset.saveStatus ?? "";
   if (resource === "players") {
     if (!playerEditor) throw new Error(t("管理画面を読み直してください。"));
-    await playerEditor.save(status);
+    const prepared = playerEditor;
+    try {
+      await prepared.save(status);
+    } catch (error) {
+      if (isCurrentSave()) throw error;
+      return;
+    }
+    if (!isCurrentSave()) return;
     editorDirty = false;
-    playerEditor.dispose();
+    prepared.dispose();
     playerEditor = null;
     editor.close();
     notice(
@@ -1432,7 +1586,7 @@ async function save(event: SubmitEvent) {
       throw new Error(
         t("予約発行する未来の日時を日本時間で入力してください。"),
       );
-    await result(
+    await saveResult(
       client.rpc("save_office_content", {
         p_entity: resource,
         p_id: editing ? String(editing[config.key]) : null,
@@ -1450,7 +1604,7 @@ async function save(event: SubmitEvent) {
     !editing &&
     Number(data.get("_repeat_count")) > 1
   ) {
-    await result(
+    await saveResult(
       client.rpc("create_training_series", {
         p_template: payload,
         p_interval_weeks: Number(data.get("_repeat_weeks")),
@@ -1458,7 +1612,7 @@ async function save(event: SubmitEvent) {
       }),
     );
   } else if (scheduleEnabled && resource === "training_sessions" && editing) {
-    await result(
+    await saveResult(
       client.rpc("update_training_occurrences", {
         p_id: editing.id,
         p_expected: editing.updated_at,
@@ -1467,16 +1621,30 @@ async function save(event: SubmitEvent) {
       }),
     );
   } else if (editing) {
-    await result(
+    const expected = editing.updated_at;
+    const conflict = () => ({
+      code: "40001",
+      message: "content changed; reload before saving",
+    });
+    if (typeof expected !== "string" || !Number.isFinite(Date.parse(expected)))
+      throw conflict();
+    // 경기·행사도 읽었던 버전과 같은 행만 원자적으로 수정합니다. 0행 응답을 성공으로
+    // 표시하지 않으며, 실제 권한 오류는 원래 코드로 유지합니다.
+    await saveResult(
       client
         .from(resource)
         .update(payload)
         .eq(config.key, editing[config.key])
+        .eq("updated_at", expected)
         .select(selectFields(resource))
-        .single(),
+        .single()
+        .then((response) => {
+          if (response.error?.code === "PGRST116") throw conflict();
+          return response;
+        }),
     );
   } else {
-    await result(
+    await saveResult(
       client
         .from(resource)
         .insert(payload)
@@ -1484,6 +1652,7 @@ async function save(event: SubmitEvent) {
         .single(),
     );
   }
+  if (!isCurrentSave()) return;
   editorDirty = false;
   contentEditor?.clear();
   editor.close();
@@ -1643,6 +1812,10 @@ editor.addEventListener("cancel", (event) => {
   closeEditor();
 });
 editor.addEventListener("close", () => {
+  // close 이벤트는 비동기로 도착할 수 있으므로 이미 다시 연 새 양식을 폐기하지 않습니다.
+  if (editor.open) return;
+  resetEditorSaving();
+  editorGeneration++;
   playerEditor?.dispose();
   playerEditor = null;
 });
@@ -1825,7 +1998,7 @@ if (!client) {
     }
     authPending = true;
     setTimeout(() => {
-      void run(authenticate).finally(() => {
+      void run(() => authenticate(true)).finally(() => {
         authPending = false;
         if (authRefreshQueued) {
           authRefreshQueued = false;
@@ -1844,7 +2017,8 @@ if (!client) {
         "USER_UPDATED",
       ].includes(event)
     ) {
-      if (userId && session?.user.id && userId !== session.user.id) resetLogin();
+      const knownUserId = userId ?? ownIdentity?.user_id ?? staffAuth?.currentView()?.userId;
+      if (knownUserId && session?.user.id && knownUserId !== session.user.id) resetLogin();
       refresh();
     }
   });
@@ -1867,19 +2041,23 @@ editorForm.addEventListener("submit", (event) => {
     event.preventDefault();
     return;
   }
+  const saveVersion = ++editorSaveVersion;
   editorSaving = true;
   editorForm.inert = true;
   editorForm.setAttribute("aria-busy", "true");
   const buttons = editorForm.querySelectorAll<HTMLButtonElement>("button");
+  const disabled = [...buttons].map((button) => button.disabled);
   buttons.forEach((b) => {
     b.disabled = true;
   });
   void run(() => save(event)).finally(() => {
+    // 로그아웃·다른 양식·새 저장이 시작된 뒤의 finally는 현재 양식의 잠금을 해제하지 않습니다.
+    if (saveVersion !== editorSaveVersion) return;
     editorSaving = false;
     editorForm.inert = false;
     editorForm.removeAttribute("aria-busy");
-    buttons.forEach((b) => {
-      b.disabled = false;
+    buttons.forEach((b, index) => {
+      b.disabled = disabled[index] ?? false;
     });
     updateProfileApproval();
   });

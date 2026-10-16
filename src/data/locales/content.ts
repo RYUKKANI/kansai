@@ -23,7 +23,8 @@ export function hasOriginalText(content: PublicContent): boolean {
       item.introduction,
       ...item.paragraphs,
     ]),
-    ...content.players.flatMap((item) => [item.name, item.bio]),
+    // 실명은 어느 언어에서도 원문으로 표시하므로 이름만으로 번역 누락을 안내하지 않습니다.
+    ...content.players.map((item) => item.bio),
     ...content.fixtures.flatMap((item) => [
       item.opponent,
       item.competition,
@@ -47,7 +48,7 @@ export function hasOriginalText(content: PublicContent): boolean {
       typeof value === "string" && /[\u3040-\u30ff\u3400-\u9fff]/.test(value),
   );
 }
-// 공개 승인된 문자열만 번역합니다. UUID·슬러그·사진·링크·상태·수치와 내부 데이터는 변경하지 않습니다.
+// 공개 승인된 설명·문구만 번역합니다. 선수 이름·UUID·슬러그·사진·링크·상태·수치와 내부 데이터는 변경하지 않습니다.
 export function localizeContent(
   content: PublicContent,
   locale: Locale,
@@ -99,7 +100,6 @@ export function localizeContent(
     }),
     players: content.players.map((player) => ({
       ...player,
-      name: t(player.name),
       bio: player.bio
         .split(/\n\s*\n/)
         .map(t)

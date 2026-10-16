@@ -268,6 +268,48 @@ test("file upload waits for save and is reused when an atomic save fails", async
     ctx.dom.window.close();
   }
 });
+
+test("logout while a player photo uploads prevents the old form from dispatching a save RPC", async () => {
+  const calls = [];
+  let waiting = false;
+  let release;
+  const uploaded = new Promise((resolve) => { release = resolve; });
+  const ctx = await app("owner", undefined, {
+    rpc: (name, values) => {
+      if (name === "save_player_office") calls.push(values);
+      return { player_id: values.p_player_id };
+    },
+  });
+  const original = ctx.window.fetch;
+  ctx.window.fetch = async (input, options) => {
+    if (String(input).includes("/storage/v1/object/kansai-media/")) {
+      waiting = true;
+      await uploaded;
+      return Response.json({ Key: "kansai-media/test-only.jpg" });
+    }
+    return original(input, options);
+  };
+  try {
+    const d = await open(ctx);
+    set(ctx.window, "internal_name", "Test internal");
+    set(ctx.window, "display_name", "Test public");
+    set(ctx.window, "position", "MF");
+    chooseFile(ctx);
+    d.querySelector('[data-save-status="draft"]').click();
+    await eventually(() => waiting);
+    // 다른 탭에서 세션이 종료된 경우와 같은 Auth 상태 변경을 발생시킵니다.
+    d.querySelector("#logout-button").click();
+    await eventually(() => d.querySelector("#workspace").hidden);
+    release();
+    await eventually(() => !d.querySelector("#editor-form").inert);
+    assert.equal(calls.length, 0);
+    assert.equal(d.querySelector("#editor-dialog").open, false);
+    assert.doesNotMatch(d.querySelector("#admin-notice").textContent, /保存しました|発行しました/);
+  } finally {
+    release();
+    ctx.dom.window.close();
+  }
+});
 test("coach uses the full form without upload or approval access", async () => {
   const calls = [];
   const ctx = await app(
