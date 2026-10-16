@@ -4654,5 +4654,41 @@
   "関係者情報の登録と案内の確認が未完了です。登録を完了しても、現在のアカウントと権限は変わりません。": {
     "ko": "관계자 정보 등록과 안내 확인이 완료되지 않았습니다. 등록을 완료해도 현재 계정과 권한은 유지됩니다.",
     "en": "Staff details and notice confirmation are incomplete. Completing registration preserves your current account and permissions."
+  },
+  "初代統括の登録確認": {
+    "ko": "최초 총괄 등록 확인",
+    "en": "Initial Lead registration confirmed"
+  },
+  "他の関係者による確認ではありません": {
+    "ko": "다른 관계자가 확인한 기록이 아닙니다",
+    "en": "No independent staff verification recorded"
+  },
+  "初代統括としての登録を確認した記録です。他の関係者が本人確認した記録ではありません。": {
+    "ko": "최초 총괄 등록을 확인한 기록입니다. 다른 관계자가 본인을 확인한 기록은 아닙니다.",
+    "en": "This records confirmation of the initial Lead's registration. It does not record identity verification by another staff member."
+  },
+  "初代統括の登録設定": {
+    "ko": "최초 총괄 등록 설정",
+    "en": "Initial Lead registration setup"
+  },
+  "初代統括の登録を確定": {
+    "ko": "최초 총괄 등록 확정",
+    "en": "Initial Lead registration finalized"
+  },
+  "実名確認の方法": {
+    "ko": "실명 확인 방식",
+    "en": "Name verification method"
+  },
+  "関係者による実名確認": {
+    "ko": "관계자가 실명 확인",
+    "en": "Name verified by a staff member"
+  },
+  "本人による関係者情報の登録と案内の確認を完了してから、実名確認を記録してください。": {
+    "ko": "본인이 관계자 정보 등록과 안내 확인을 완료한 뒤 실명 확인을 기록해 주세요.",
+    "en": "Have the member complete their staff profile and notice acknowledgment before recording name verification."
+  },
+  "アカウント情報を保存しました。実名確認は未完了です。": {
+    "ko": "계정 정보를 저장했습니다. 실명 확인은 아직 완료되지 않았습니다.",
+    "en": "Account details saved. Name verification remains incomplete."
   }
 }
