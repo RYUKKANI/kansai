@@ -33,7 +33,7 @@ async function until(check) {
 }
 function app(options = {}) {
   const dom = new JSDOM("<main></main><button id='outside'>Outside</button>", {
-    url: "https://kansaiunited.com/admin/",
+    url: "https://kansaiunited.com/admin/" + (options.lang ? "?lang=" + options.lang : ""),
     runScripts: "outside-only",
     pretendToBeVisual: true,
   });
@@ -246,6 +246,63 @@ test("Owner details load only when opened and display safe names and an explicit
     }
   }
 });
+
+// 최초 총괄의 초기 설정은 다른 관계자가 이름을 확인한 기록으로 바꾸어 표시하지 않습니다.
+for (const [lang, label, disclaimer] of [
+  ["ja", "初代統括の登録確認", "他の関係者による確認ではありません"],
+  ["ko", "최초 총괄 등록 확인", "다른 관계자가 확인한 기록이 아닙니다"],
+  ["en", "Initial Lead registration confirmed", "No independent staff verification recorded"],
+]) {
+  test(`initial Owner origin stays distinct from a human review in the ${lang} account window`, async () => {
+    const context = app({ lang, targetUserId: ownerId, account: {
+      user_id: ownerId, real_name: "李 Ana-María", approved_real_name: "李 Ana-María",
+      name_verified_at: "2026-10-17T05:00:00Z", name_verified_by: null,
+      name_verified_by_name: "must-not-claim-a-human-reviewer",
+      name_verification_source: "initial_owner_setup", profile_enrollment_pending: false,
+      identity_enrolled: true, can_edit_real_name: false,
+    } });
+    try {
+      await context.open();
+      const details = context.dialog.querySelector(".owner-account-details");
+      assert.equal(details.dataset.nameVerificationSource, "initial_owner_setup");
+      assert.equal(details.querySelector("[data-owner-name-state]").textContent, label);
+      assert.ok(details.textContent.includes(disclaimer));
+      assert.equal(details.textContent.includes("must-not-claim-a-human-reviewer"), false);
+      assert.equal(context.dialog.querySelector('[data-owner-form="identity"] [name="real_name"]').readOnly, true);
+      assert.deepEqual(context.calls.map(call => call.name), ["office_owner_account"]);
+    } finally { context.close(); }
+  });
+}
+
+for (const source of ["staff_review", null]) {
+  test(`normal human verification remains distinct from initial setup for ${source ?? "a historical null source"}`, async () => {
+    const context = app({ targetUserId: ownerId, account: { user_id: ownerId,
+      name_verified_at: "2026-10-17T05:00:00Z", name_verified_by: targetId,
+      name_verified_by_name: "確認した関係者", name_verification_source: source, can_edit_real_name: false,
+    } });
+    try {
+      await context.open();
+      const details = context.dialog.querySelector(".owner-account-details");
+      assert.equal(details.querySelector("[data-owner-name-state]").textContent, "確認済み");
+      assert.ok(details.textContent.includes("確認した関係者"));
+      assert.equal(details.textContent.includes("初代統括の登録確認"), false);
+      assert.equal(details.textContent.includes("他の関係者による確認ではありません"), false);
+    } finally { context.close(); }
+  });
+}
+
+test("an initial setup source without its server timestamp cannot make an unverified self name appear confirmed", async () => {
+  const context = app({ targetUserId: ownerId, account: { user_id: ownerId,
+    name_verified_at: null, name_verified_by: null, name_verification_source: "initial_owner_setup", can_edit_real_name: true,
+  } });
+  try {
+    await context.open();
+    const details = context.dialog.querySelector(".owner-account-details");
+    assert.equal(details.querySelector("[data-owner-name-state]").textContent, "未確認");
+    assert.equal(context.dialog.querySelector('[data-owner-form="identity"] [name="real_name"]').readOnly, false);
+    assert.equal(context.calls.some(call => /initial_owner|verify_staff/.test(call.name ?? "")), false);
+  } finally { context.close(); }
+});
 test("server denial displays no editable account fields", async () => {
   const context = app({
     read: () => ({
@@ -344,7 +401,7 @@ test("an unverified legacy Owner can update their saved Unicode name and refresh
       context.dialog.querySelector('[name="real_name"]').value,
       "カン・ギ Ana-María",
     );
-    assert.equal(context.notices[0][0], "アカウント情報を保存しました。");
+    assert.equal(context.notices[0][0], "アカウント情報を保存しました。実名確認は未完了です。");
     assert.match(context.notices.at(-1)[0], /変更は保存されましたが/);
     assert.equal(
       context.notices.some(([message]) => /保存できませんでした/.test(message)),
@@ -354,6 +411,35 @@ test("an unverified legacy Owner can update their saved Unicode name and refresh
     context.close();
   }
 });
+
+for (const self of [true, false]) {
+  test(`saving the same unverified name for ${self ? "oneself" : "a peer"} only edits the account and never claims a name review`, async () => {
+    const userId = self ? ownerId : targetId;
+    const context = app({ targetUserId: userId, account: {
+      user_id: userId, real_name: "李 Ana-María", approved_real_name: null,
+      name_verified_at: null, name_verified_by: null, name_verification_source: null,
+      identity_enrolled: true, profile_enrollment_pending: false, can_edit_real_name: true,
+    } });
+    try {
+      await context.open();
+      const form = context.dialog.querySelector('[data-owner-form="identity"]');
+      assert.equal(form.elements.namedItem("real_name").readOnly, false);
+      assert.equal(form.elements.namedItem("name_change_acknowledged").required, false);
+      form.elements.namedItem("username").value = "renamed.member";
+      form.elements.namedItem("reason").value = "実名を変えずにログインIDのみ訂正";
+      context.submit(form);
+      await until(() => context.counts().changed === 1);
+      const mutation = context.calls.find(call => call.name === "office_owner_update_identity");
+      assert.deepEqual(mutation.args, { p_user_id: userId, p_username: "renamed.member",
+        p_real_name: "李 Ana-María", p_reason: "実名を変えずにログインIDのみ訂正" });
+      assert.match(context.dialog.querySelector(".owner-account-details").textContent, /未確認/);
+      assert.equal(context.dialog.querySelector('[data-owner-form="identity"] [name="real_name"]').readOnly, false);
+      assert.equal(context.calls.some(call => /verify_staff|review_staff|initial_owner/.test(call.name ?? "")), false);
+      assert.equal(context.calls.some(call => call.kind === "edge"), false);
+      assert.equal(context.notices.some(([message]) => /確認を記録しました|本人確認済み/.test(message)), false);
+    } finally { context.close(); }
+  });
+}
 test("a failed header refresh does not reverse a confirmed save or prevent the directory refresh", async () => {
   const context = app({
     targetUserId: ownerId,

@@ -76,6 +76,45 @@ test("header uses server username for missing name and hides unverified label on
   } finally { await dispose(context); }
 });
 
+// 초기 설정은 기존 세션을 유지한 서버 상태 갱신으로 반영합니다. 사람 확인자의 이름은 만들지 않습니다.
+for (const [lang, label, disclaimer] of [
+  ["ja", "初代統括の登録確認", "他の関係者による確認ではありません"],
+  ["ko", "최초 총괄 등록 확인", "다른 관계자가 확인한 기록이 아닙니다"],
+  ["en", "Initial Lead registration confirmed", "No independent staff verification recorded"],
+]) {
+  test(`same-name initial Owner setup clears the stale unverified header on refresh in ${lang}`, { skip: !enabled }, async () => {
+    let account = { ...owner, name_verification_source: null };
+    const context = await helper.app("owner", `https://kansaiunited.com/admin/?lang=${lang}`, {
+      initialSession: true, staffIdentity: true, accountState: () => ({ ...account }),
+    });
+    try {
+      await ready(context);
+      const document = context.window.document;
+      assert.equal(document.querySelector("#account-name-status").hidden, false);
+      const originalView = document.querySelector("#admin-content").firstElementChild;
+      const before = context.requests.filter(request => name(request) === "office_account_state").length;
+      account = { ...owner, identity_enrolled: true, profile_enrollment_pending: false,
+        name_edit_mode: "review_required", can_edit_real_name: false,
+        approved_real_name: owner.real_name, name_verified_at: now, name_verified_by: null,
+        name_verification_source: "initial_owner_setup" };
+      context.window.dispatchEvent(new context.window.Event("focus"));
+      await helper.eventually(() => document.querySelector("#account-name-status").hidden &&
+        context.requests.filter(request => name(request) === "office_account_state").length > before);
+      assert.equal(document.querySelector("#account-name-status").textContent, "");
+      assert.equal(document.querySelector("#account-email").textContent, owner.real_name);
+      assert.equal(document.querySelector("#admin-content").firstElementChild, originalView);
+      document.querySelector('[data-resource="staff_account"]').click();
+      await helper.eventually(() => Boolean(document.querySelector('#admin-content [data-name-verification-source="initial_owner_setup"]')));
+      const details = document.querySelector('#admin-content [data-name-verification-source="initial_owner_setup"] .staff-details');
+      assert.ok(details.textContent.includes(label));
+      assert.ok(details.textContent.includes(disclaimer));
+      assert.equal(details.textContent.includes(uid), true, "the account keeps its original UUID");
+      assert.equal(account.name_verified_by, null);
+      assert.equal(context.requests.some(request => ["staff-auth", "token", "logout"].includes(name(request))), false);
+    } finally { await dispose(context); }
+  });
+}
+
 test("header change respects server role instead of Auth user metadata and renders name as text", { skip: !enabled }, async () => {
   const account = { ...owner, role: "staff", real_name: '<img src=x onerror="throw 1"> 李' };
   const context = await helper.app("staff", undefined, {
