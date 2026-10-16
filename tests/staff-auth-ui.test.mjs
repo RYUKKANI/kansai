@@ -22,7 +22,8 @@ const defines = {
 const [portalBundle, helpBundle, languageBundle] = await Promise.all([
   build({ entryPoints: ["src/scripts/staff-auth.ts"], bundle: true, write: false, format: "iife", globalName: "StaffAuth", define: defines }),
   build({ entryPoints: ["src/scripts/staff-auth-help.ts"], bundle: true, write: false, format: "iife", globalName: "StaffHelp", define: defines }),
-  build({ entryPoints: ["src/scripts/languages.ts"], bundle: true, write: false, format: "iife", globalName: "StaffLanguages", define: defines }),
+  // 관리자 진입점과 같은 전체 사전 번역 함수를 전달합니다. 공개 언어 메뉴는 작은 사전을 기본 사용합니다.
+  build({ stdin: { contents: 'export { initLanguageSwitcher } from "./src/scripts/languages"; export { text } from "./src/lib/i18n";', resolveDir: process.cwd() }, bundle: true, write: false, format: "iife", globalName: "StaffLanguages", define: defines }),
 ]);
 async function eventually(condition) {
   for (let n = 0; n < 100; n++) {
@@ -67,7 +68,7 @@ function application({ help = false, invoke, getUser, getClaims, initialize, rec
       onAuthStateChange(listener) { authListener = listener; return { data: { subscription: { unsubscribe() {} } } }; },
     },
   };
-  window.eval(languageBundle.outputFiles[0].text + "\nStaffLanguages.initLanguageSwitcher(true);");
+  window.eval(languageBundle.outputFiles[0].text + "\nStaffLanguages.initLanguageSwitcher(true, StaffLanguages.text);");
   window.eval((help ? helpBundle : portalBundle).outputFiles[0].text + `\nwindow.__staffModule = ${help ? "StaffHelp" : "StaffAuth"};`);
   const controller = help
     ? window.__staffModule.mountStaffAuthHelp({ root: window.document.querySelector("#staff-auth-help"), client })
@@ -166,7 +167,7 @@ test("registration checks confirmation and sends Unicode real names without gran
     for (const key of ["email", "role", "actor_id", "user_id", "approval_status", "desired_role"]) assert.equal(key in body, false);
     assert.equal(app.sessions.length, 0);
     assert.equal(app.document.querySelector("#staff-signup-password").value, "");
-    assert.match(app.document.querySelector("#staff-auth-message").textContent, /承認状態をご確認/);
+    assert.match(app.document.querySelector("#staff-auth-message").textContent, /承認状況をご確認/);
     assert.equal(app.document.querySelector('[name="email"]'), null);
     assert.doesNotMatch(app.document.querySelector("#staff-auth-message").textContent, /確認メールをご確認/);
   } finally { app.dom.window.close(); }
@@ -404,7 +405,7 @@ test("an active recovery form clears when refreshed authentication becomes stale
     app.emit("TOKEN_REFRESHED");
     await eventually(() => app.document.querySelector("#staff-new-password-panel").hidden);
     assert.equal(app.document.querySelector("#staff-new-password").value, "");
-    assert.match(app.document.querySelector("#staff-help-message").textContent, /同じブラウザー/);
+    assert.match(app.document.querySelector("#staff-help-message").textContent, /リンクを申請したブラウザー/);
   } finally { app.dom.window.close(); }
 });
 
@@ -414,7 +415,7 @@ test("callback with missing verifier or failed initialization directs to adminis
     try {
       await eventually(() => app.document.querySelector("#staff-help-message").dataset.error === "true");
       const notice = app.document.querySelector("#staff-help-message");
-      assert.match(notice.textContent, /最新のリンク.*同じブラウザー/);
+      assert.match(notice.textContent, /リンクを申請したブラウザー.*最高管理者.*復旧/);
       assert.doesNotMatch(notice.textContent, /sensitive-code|callback detail/);
       assert.equal(app.window.location.search.includes("code="), false);
       assert.equal(app.document.querySelector("#staff-new-password-panel").hidden, true);
@@ -555,7 +556,7 @@ test("a known unavailable registration is not accepted and can be corrected expl
   } finally { app.dom.window.close(); }
 });
 
-for (const [language, expected] of [["ja", /管理画面から対応/], ["ko", /관리자 화면에서 처리/], ["en", /manage it from the admin page/]]) {
+for (const [language, expected] of [["ja", /管理画面から対応/], ["ko", /관리자 화면에서 처리/], ["en", /help through the admin page/]]) {
   test(`the ${language} help directs to account management without email fields or mail actions`, async () => {
     const app = application({ help: true, language });
     try {

@@ -248,7 +248,7 @@ test("actual browser callback without a PKCE verifier surfaces a safe explanatio
   try {
     await until(() => app.window.document.querySelector("#staff-help-message").dataset.error === "true");
     const notice = app.window.document.querySelector("#staff-help-message");
-    assert.match(notice.textContent, /最新のリンク.*同じブラウザー/);
+    assert.match(notice.textContent, /リンクを申請したブラウザー/);
     assert.doesNotMatch(notice.textContent, /fake-other-browser-code/);
     assert.equal(app.window.document.querySelector("#staff-new-password-panel").hidden, true);
     assert.equal(app.window.location.search, "?lang=ja");
@@ -268,7 +268,7 @@ test("actual browser initialization error from an expired exchange is shown with
   try {
     await until(() => app.window.document.querySelector("#staff-help-message").dataset.error === "true");
     const notice = app.window.document.querySelector("#staff-help-message");
-    assert.match(notice.textContent, /同じブラウザー/);
+    assert.match(notice.textContent, /リンクを申請したブラウザー/);
     assert.doesNotMatch(notice.textContent, /provider detail|fake-expired-code/);
     assert.equal(requests.filter(path => path === "/auth/v1/token").length, 1);
     assert.equal(app.window.document.querySelector("#staff-new-password-panel").hidden, true);
@@ -359,14 +359,14 @@ test("signup and help need no email and direct account recovery to verified admi
   const help = new JSDOM(helpHtml).window.document;
   const signup = portal.querySelector('[data-staff-panel="signup"]');
   assert.match(signup.textContent, /メールアドレスは不要/);
-  assert.match(signup.textContent, /Ownerが本人と関係者であることを確認/);
+  assert.match(signup.textContent, /最高管理者が本人と関係者であることを確認/);
   assert.equal(signup.querySelector('[name="email"], input[type="email"]'), null);
   for (const field of signup.querySelectorAll('[autocomplete="new-password"]')) assert.equal(field.maxLength, 72);
   const options = help.querySelector("#staff-help-options");
   assert.match(options.textContent, /本人と既存アカウントを確認.*管理画面から対応/);
   assert.equal(options.querySelector("#staff-recovery-form, #staff-help-legacy, input[type=email]"), null);
   assert.equal(options.textContent.includes("reset-staff-password.mjs"), false);
-  assert.match(supportSource, /Ownerアカウントの復旧/);
-  assert.match(supportSource, /申請だけでは権限は得られません/);
+  assert.match(supportSource, /最高管理者アカウントの復旧/);
+  assert.match(supportSource, /申請だけではログインや権限の変更はできません/);
   assert.equal(supportSource.includes('type="email"'), false);
 });

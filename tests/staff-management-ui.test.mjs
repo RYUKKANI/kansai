@@ -201,7 +201,7 @@ test("Owner reset audit distinguishes the authenticated requester from the serve
     before_values: { password: "must-not-render" }, after_values: { password: "must-not-render" } }] });
   try {
     assert.match(context.container.textContent, /実名確認前のアカウント/);
-    assert.match(context.container.textContent, /Ownerによるアカウント管理/);
+    assert.match(context.container.textContent, /最高管理者によるアカウント管理/);
     assert.match(context.container.textContent, /staff_auth_edge_function/);
     assert.ok(context.container.textContent.includes(ownerId));
     assert.equal(context.container.textContent.includes("must-not-render"), false);
@@ -718,3 +718,27 @@ test("confirmed profile save remains saved when the header refresh later fails",
     assert.match(context.notices[1][0], /変更は保存されましたが/);
   } finally { context.controller.dispose(); context.dom.window.close(); }
 });
+
+// 표시용 이름만 번역하며 원래 필드·값을 이용한 민감 정보 제한은 그대로 검사합니다.
+for (const [lang, labels] of [
+  ["ja", ["タイトル", "実名", "承認状況"]],
+  ["ko", ["제목", "실명", "승인 상태"]],
+  ["en", ["Title", "Real name", "Approval status"]],
+]) {
+  test(`audit field labels use office terminology without revealing masked values in ${lang}`, async () => {
+    const context = await app("staff_audit", { office_staff_audit: [{
+      source: "human", actor_id: ownerId, actor_name: owner.real_name, actor_name_status: "verified",
+      entity: "staff_accounts", record_id: peerId, action: "update", occurred_at: now,
+      changed_fields: ["title", "real_name", "approval_status", "email", "private_unknown_field"],
+      before_values: { real_name: "田中 旧名", email: "must-not-render@example.invalid", private_unknown_field: "must-not-render" },
+      after_values: { title: "Test title", real_name: "田中 新名", approval_status: "approved", email: "must-not-render@example.invalid" },
+    }] }, { lang });
+    try {
+      assert.deepEqual([...context.container.querySelectorAll(".staff-audit-fields strong")].map(item => item.textContent), labels);
+      assert.match(context.container.textContent, /田中 旧名 → 田中 新名/);
+      assert.equal(context.container.textContent.includes("must-not-render"), false);
+      assert.equal(context.container.textContent.includes("private_unknown_field"), false);
+      assert.equal(context.calls.every(call => ["office_account_state", "office_staff_audit"].includes(call.name)), true);
+    } finally { context.controller.dispose(); context.dom.window.close(); }
+  });
+}

@@ -13,6 +13,41 @@ const { draftKey, readDraft, writeDraft, clearUserDrafts } = await import(
   "data:text/javascript;base64," +
     Buffer.from(compiled.outputFiles[0].text).toString("base64")
 );
+
+// 브라우저 저장소의 상세 오류 대신 선택 언어의 다음 행동을 안내하고 작성값은 보존합니다.
+for (const [locale, expected] of [
+  ["ja", "一時保存できません。下書き保存をご利用ください。"],
+  ["ko", "임시 저장할 수 없습니다. 초안 저장을 이용하세요."],
+  ["en", "Local draft could not be saved. Save a server draft instead."],
+]) {
+  test(`storage failure keeps unsaved input and shows translated guidance (${locale})`, async () => {
+    const context = await app("owner", `https://kansaiunited.com/admin/?lang=${locale}`, { content: true });
+    try {
+      await login(context.window);
+      const document = context.window.document;
+      document.querySelector('[data-resource="articles"]').click();
+      await eventually(() => document.querySelector(".admin-list-row"));
+      document.querySelector(".admin-list-row button").click();
+      await eventually(() => document.querySelector(".office-content-tools"));
+      const original = context.window.Storage.prototype.setItem;
+      context.window.Storage.prototype.setItem = function (key, value) {
+        if (key.startsWith("kansai-office-draft:")) throw new context.window.Error("INTERNAL_STORAGE_DIAGNOSTIC");
+        return original.call(this, key, value);
+      };
+      const input = document.querySelector("#field-title");
+      input.value = "Keep my unfinished text";
+      input.dispatchEvent(new context.window.Event("input", { bubbles: true }));
+      context.window.dispatchEvent(new context.window.Event("beforeunload"));
+      const feedback = document.querySelector('.office-content-tools [role="status"]').textContent;
+      assert.equal(feedback, expected);
+      assert.equal(input.value, "Keep my unfinished text");
+      assert.equal(document.querySelector("#editor-dialog").open, true);
+      assert.ok(!feedback.includes("INTERNAL_STORAGE_DIAGNOSTIC"));
+    } finally {
+      context.dom.window.close();
+    }
+  });
+}
 function memoryStorage() {
   const values = new Map();
   return {
