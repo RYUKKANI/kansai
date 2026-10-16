@@ -51,10 +51,10 @@ const options = (...values: string[]) =>
     label: t(
       (
         {
-          owner: "Owner",
-          administrator: "Administrator",
-          editor: "Editor",
-          coach: "Coach",
+          owner: "最高管理者",
+          administrator: "管理者",
+          editor: "編集者",
+          coach: "コーチ",
         } as Record<string, string>
       )[value] ?? value,
     ),
@@ -63,10 +63,10 @@ const slug: Field = {
   name: "slug",
   label: t("記事・プロフィールのURL"),
   required: true,
-  hint: t("半角英数字とハイフン。初回発行後は変更できません。"),
+  hint: t("半角英数字とハイフン。初回公開後は変更できません。"),
 };
 const title: Field = { name: "title", label: t("タイトル"), required: true };
-const statusHint = t("発行後、次回のサイト再構築で反映されます。");
+const statusHint = t("公開後、次回のサイト再構築で反映されます。");
 
 export const resources: Record<Resource, ResourceConfig> = {
   articles: {
@@ -181,7 +181,7 @@ export const resources: Record<Resource, ResourceConfig> = {
     fields: [
       {
         name: "player_id",
-        label: t("選手UUID"),
+        label: t("選手の識別番号"),
         type: "select",
         required: true,
         hint: t("登録済み選手の変わらない識別子です。"),
@@ -411,7 +411,7 @@ export const resources: Record<Resource, ResourceConfig> = {
         name: "consent_confirmed",
         label: t("写真・動画の掲載権限と本人の同意を確認済み"),
         type: "checkbox",
-        hint: t("確認前の素材は発行できません。"),
+        hint: t("確認前の素材は公開できません。"),
       },
     ],
   },
@@ -451,10 +451,10 @@ export const resources: Record<Resource, ResourceConfig> = {
         label: t("権限"),
         type: "select",
         options: [
-          { value: "owner", label: "Owner" },
-          { value: "administrator", label: "Administrator" },
-          { value: "editor", label: "Editor" },
-          { value: "coach", label: "Coach" },
+          { value: "owner", label: t("最高管理者") },
+          { value: "administrator", label: t("管理者") },
+          { value: "editor", label: t("編集者") },
+          { value: "coach", label: t("コーチ") },
         ],
       },
       {
