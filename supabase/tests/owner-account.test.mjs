@@ -227,5 +227,122 @@ try {
   await privileged("service_role"); await reject("select public.staff_auth_owner_password_claim($1,$2)",[user(660),user(1)]);
   await privileged();
   check(await value("select count(*)=0 as value from public.audit_logs where (before_values::text||after_values::text) like '%TEST ONLY fixture value%'"),"no fixture credential value enters audit history");
-  console.log(`PostgreSQL Owner accounts: ${checks} identity, live session, MFA, reset and audit checks passed.`);
 } finally { await db.close(); }
+
+// 초기 총괄 등록은 위의 일반 계정 변경 시험과 분리한 격리 DB에서만 실행합니다.
+// 실제 계정/이름/비밀번호를 쓰지 않으며 이미 존재하는 UUID와 권한의 유지 여부를 비교합니다.
+{
+  const { db: setupDb, as: setupAs, user: setupUser } = await officeDatabase();
+  const setupSQL = "select private.initialize_legacy_owner_identity($1,$2,$3,$4,$5,$6) as value";
+  const setupArgs = [setupUser(1), "initial.owner", "TEST Initial Owner", true, "TEST delegated request reference", "TEST explicit delegated internal-notice acknowledgment; no browser checkbox claimed"];
+  const read = async (sql, params = []) => (await setupDb.query(sql, params)).rows[0]?.value;
+  const deny = async (sql, params = []) => { await assert.rejects(setupDb.query(sql, params)); checks++; };
+  const maintenance = async (role = null) => {
+    await setupDb.exec(role ? `set role ${role}` : "reset role");
+    await setupDb.query("select set_config('request.jwt.claim.sub','',false)");
+  };
+  const initialize = (args = setupArgs) => read(setupSQL, args);
+  const setupCount = () => read("select count(*)::int as value from private.initial_owner_identity_setup");
+  const logCount = () => read("select count(*)::int as value from public.audit_logs");
+  const temporaryDenial = async (mutation, params = []) => {
+    await setupDb.exec("begin");
+    try { await setupDb.query(mutation, params); await deny(setupSQL, setupArgs); }
+    finally { await setupDb.exec("rollback"); }
+  };
+  try {
+    await maintenance("service_role");
+    await setupDb.query("select public.staff_auth_bootstrap_owner($1,'initial.owner')", [setupUser(1)]);
+    await setupAs(1);
+    await setupDb.query("select public.office_owner_update_identity($1,'initial.owner','TEST Initial Owner','TEST provided existing name')", [setupUser(1)]);
+    await maintenance();
+    check(await read("select not prosecdef as value from pg_proc where oid='private.initialize_legacy_owner_identity(uuid,text,text,boolean,text,text)'::regprocedure"), "initial registration is SECURITY INVOKER rather than a privileged client RPC");
+    for (const role of ["anon", "authenticated", "service_role"]) {
+      check(!await read("select has_function_privilege($1,'private.initialize_legacy_owner_identity(uuid,text,text,boolean,text,text)','execute') as value", [role]), `${role} has no initializer EXECUTE grant`);
+      await maintenance(role);
+      await deny(setupSQL, setupArgs);
+      await deny("select * from private.initial_owner_identity_setup");
+      await deny("insert into private.initial_owner_identity_setup(user_id,username_at_setup,real_name_at_setup,setup_at,notice_acknowledgment,request_reference,reason) values($1,'forged','Forged',now(),'delegated_account_holder_request','forged','forged')", [setupUser(1)]);
+      await maintenance();
+    }
+    check(await read("select count(*)=0 as value from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.proname='initialize_legacy_owner_identity'"), "no exposed initializer wrapper exists");
+    await setupDb.query("select set_config('request.jwt.claim.sub',$1,false)", [setupUser(1)]);
+    await deny(setupSQL, setupArgs);
+    await maintenance();
+    const beforeFailures = await logCount();
+    for (const [index, invalid] of [[0, setupUser(2)], [0, setupUser(99)], [1, "wrong.owner"], [2, "Different name"], [2, null], [3, false], [3, null], [4, ""], [4, "bad\nreference"], [5, ""]]) {
+      const args = [...setupArgs]; args[index] = invalid;
+      await deny(setupSQL, args);
+    }
+    await temporaryDenial("update auth.users set banned_until=now()+interval '1 hour' where id=$1", [setupUser(1)]);
+    await temporaryDenial("update auth.sessions set not_after=now()-interval '1 second' where user_id=$1", [setupUser(1)]);
+    await temporaryDenial("update public.admin_roles set role='owner' where user_id=$1", [setupUser(2)]);
+    await setupDb.exec("begin");
+    await setupDb.query("update public.admin_roles set role='owner' where user_id=$1", [setupUser(2)]);
+    await setupDb.query("update auth.users set banned_until=now()+interval '1 hour' where id=$1", [setupUser(2)]);
+    await deny(setupSQL, setupArgs);
+    await setupDb.exec("rollback");
+    await setupDb.exec("begin");
+    await setupDb.query("update public.admin_roles set role='owner' where user_id=$1", [setupUser(2)]);
+    await setupDb.query("update private.staff_accounts set approval_status='suspended' where user_id=$1", [setupUser(1)]);
+    await deny(setupSQL, setupArgs);
+    await setupDb.exec("rollback");
+    check(await setupCount() === 0 && await logCount() === beforeFailures, "denied initialization creates neither ledger proof nor successful audit");
+    await setupDb.exec("begin");
+    const rolledBack = await initialize();
+    check(rolledBack.name_verification_source === "initial_owner_setup" && await setupCount() === 1, "valid maintenance initialization creates its exact proof atomically");
+    await setupDb.exec("rollback");
+    check(await setupCount() === 0 && await logCount() === beforeFailures && await read("select name_verified_at is null as value from private.staff_accounts where user_id=$1", [setupUser(1)]), "rollback removes account stamp, ledger and initial audit together");
+    const unchangedSQL = "select jsonb_build_object('auth',(select jsonb_agg(to_jsonb(u) order by id) from auth.users u),'sessions',(select jsonb_agg(to_jsonb(s) order by id) from auth.sessions s),'roles',(select jsonb_agg(to_jsonb(r) order by user_id) from public.admin_roles r),'players',(select count(*) from public.players),'articles',(select count(*) from public.articles)) as value";
+    const unchangedBefore = await read(unchangedSQL);
+    const initialized = await initialize();
+    check(initialized.user_id === setupUser(1) && initialized.name_verified_by === null && initialized.profile_enrollment_pending === false, "initial registration never invents a human verifier or changes target UUID");
+    assert.deepEqual(await read(unchangedSQL), unchangedBefore); checks++;
+    const row = await read("select to_jsonb(a) as value from private.staff_accounts a where user_id=$1", [setupUser(1)]);
+    check(row.username === "initial.owner" && row.real_name === "TEST Initial Owner" && row.department === "" && row.notice_accepted_at && row.name_verified_at && row.name_verification_source === "initial_owner_setup" && row.name_verified_by === null && !row.profile_enrollment_pending, "only delegated notice/profile completion and source-specific initial stamp are stored; no affiliation is guessed");
+    const proof = await read("select to_jsonb(s) as value from private.initial_owner_identity_setup s");
+    check(proof.user_id === setupUser(1) && proof.username_at_setup === row.username && proof.real_name_at_setup === row.real_name && proof.setup_at === row.name_verified_at && proof.request_reference === setupArgs[4] && proof.notice_acknowledgment === "delegated_account_holder_request", "immutable proof binds exact initial UUID/name/time/request and acknowledgment provenance");
+    const setupAudit = await read("select to_jsonb(l) as value from public.audit_logs l where action='initial_owner_identity_initialized'");
+    check(await logCount() === beforeFailures + 1 && setupAudit.actor_id === null && setupAudit.actor_name === null && setupAudit.actor_role === null && setupAudit.actor_name_status === "system" && setupAudit.requested_by === setupUser(1) && setupAudit.source === "initial_owner_setup" && setupAudit.executor === "ai_assisted_database_maintenance", "exactly one committed initial audit separates requesting target from automated maintenance executor");
+    check(!JSON.stringify([setupAudit.before_values, setupAudit.after_values, setupAudit.reason]).includes("TEST Initial Owner") && !JSON.stringify(setupAudit).includes(setupArgs[4]), "public audit diffs contain no name or private request reference");
+    await deny(setupSQL, setupArgs);
+    await deny(setupSQL, [setupUser(2), ...setupArgs.slice(1)]);
+    await deny("update private.initial_owner_identity_setup set request_reference='rewrite'");
+    await deny("delete from private.initial_owner_identity_setup");
+    await deny("truncate private.initial_owner_identity_setup");
+    await deny("update private.staff_accounts set real_name='Forged stamped name' where user_id=$1", [setupUser(1)]);
+    check(await logCount() === beforeFailures + 1 && await setupCount() === 1, "replay, rewrite and retained-stamp name forgery create no misleading success");
+    await setupAs(1);
+    const own = await read("select public.office_account_state() as value");
+    check(own.approved_real_name === row.real_name && own.identity_enrolled && own.name_edit_mode === "review_required" && own.name_verification_source === "initial_owner_setup" && own.name_verified_by_name === null, "own state exposes initial source and blocks self correction without claiming a human verifier");
+    const detail = await read("select public.office_owner_account($1) as value", [setupUser(1)]);
+    const applications = await read("select public.office_staff_applications() as value");
+    check(detail.name_verification_source === "initial_owner_setup" && detail.can_edit_real_name === false && applications.find((a) => a.user_id === setupUser(1)).profile_enrollment_pending === false, "Owner detail and member applications expose consistent initial completion source");
+    await deny("select public.office_update_unverified_name('Self changed','TEST self')");
+    await deny("select public.office_owner_update_identity($1,'initial.owner','Self changed','TEST self')", [setupUser(1)]);
+    await deny("select public.office_verify_staff_identity($1,'TEST Initial Owner','TEST self')", [setupUser(1)]);
+    await deny("select public.office_enroll_identity('initial.owner','Self changed','',true)");
+    await setupDb.query("select public.office_owner_update_identity($1,'initial.renamed','TEST Initial Owner','TEST legitimate ID change')", [setupUser(1)]);
+    check((await read("select public.office_account_state() as value")).name_verification_source === "initial_owner_setup", "later legitimate username change does not invalidate immutable initial name proof");
+    await setupDb.query("select public.office_request_name_change('TEST Requested Later Name','TEST correction requires independent review')");
+    check((await read("select public.office_account_state() as value")).real_name === row.real_name, "name correction request retains the initial name until separate approval");
+    await setupAs(2);
+    await setupDb.query("select public.office_enroll_identity('review.owner','TEST Other Owner','',true)");
+    await maintenance();
+    await deny("update private.staff_accounts set name_verification_source='initial_owner_setup',name_verified_at=now() where user_id=$1", [setupUser(2)]);
+    await setupAs(1);
+    await setupDb.query("select public.office_set_staff_access($1,'owner',true,'TEST independently assigned second Owner')", [setupUser(2)]);
+    await setupAs(2);
+    await setupDb.query("select public.office_verify_staff_identity($1,'TEST Initial Owner','TEST actual later independent review')", [setupUser(1)]);
+    const reviewed = await read("select public.office_owner_account($1) as value", [setupUser(1)]);
+    check(reviewed.name_verification_source === "staff_review" && reviewed.name_verified_by === setupUser(2), "later different Owner can confirm the same initial name and changes source to independent staff review");
+    const reviewAudit = (await read("select public.office_staff_audit(100,null) as value")).find((entry) => entry.action === "identity_verified" && entry.record_id === setupUser(1));
+    check(reviewAudit.source === "human" && reviewAudit.after_values.name_verification_source === "staff_review" && !JSON.stringify(reviewAudit).includes(setupArgs[4]), "later human verification audit preserves the safe source enum without leaking the private initial request");
+    await deny("select public.office_verify_staff_identity($1,'TEST Initial Owner','TEST duplicate')", [setupUser(1)]);
+    await setupDb.query("select public.office_owner_update_identity($1,'initial.renamed','TEST Other Owner Corrected','TEST actual reviewed name correction')", [setupUser(1)]);
+    check((await read("select public.office_owner_account($1) as value", [setupUser(1)])).name_verification_source === "staff_review", "later real name correction retains normal other-Owner review semantics");
+    await maintenance();
+    assert.deepEqual(await read("select to_jsonb(s) as value from private.initial_owner_identity_setup s"), proof); checks++;
+    assert.deepEqual(await read("select to_jsonb(l) as value from public.audit_logs l where action='initial_owner_identity_initialized'"), setupAudit); checks++;
+  } finally { await setupDb.close(); }
+}
+console.log(`PostgreSQL Owner accounts: ${checks} identity, live session, MFA, reset, initial registration and audit checks passed.`);
