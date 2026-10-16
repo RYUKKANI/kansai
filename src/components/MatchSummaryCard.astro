@@ -27,9 +27,12 @@ const target = fixture
   : kind === "last"
     ? "results-panel"
     : "schedule-panel";
-// [편집 안내] 세 카드는 같은 구성을 사용합니다. 팀·시간·점수는 CMS의 실제 공개 정보만 표시합니다.
+// [편집 안내] 세 카드는 같은 구성을 사용합니다. 공개된 경기가 없을 때만 빈 목록 문구를 표시합니다.
+// 날짜가 미정인 등록 경기는 위쪽 날짜 영역에서 안내하고, 공개 준비·발표 예정이라고 추측하지 않습니다.
 const emptyMessage =
-  kind === "last" ? t("試合結果は未発表です") : t("試合はまだ未定です");
+  kind === "last"
+    ? t("現在、公開中の試合結果はありません。")
+    : t("現在、公開中の試合日程はありません。");
 ---
 
 <article class="match-summary" data-match-slot={kind}>
@@ -102,9 +105,6 @@ const emptyMessage =
     <div class="match-summary-information">
       {fixture ? (
         <>
-          {!fixture.kickoff && !completed && (
-            <p class="match-summary-pending">{emptyMessage}</p>
-          )}
           <p class="match-summary-competition">
             {fixture.competition || t("大会名未発表")}
           </p>
