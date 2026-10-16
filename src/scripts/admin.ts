@@ -83,7 +83,10 @@ const client =
           storageKey: "kansai-admin-session",
           persistSession: true,
           autoRefreshToken: true,
-          detectSessionInUrl: true,
+          // 일반 관리 화면은 URL 토큰·코드로 계정을 바꾸지 않습니다. SDK 생성 시점부터
+          // 차단해야 저장된 본인 세션을 보존할 수 있습니다. 복구 콜백은 help 전용입니다.
+          detectSessionInUrl: false,
+          flowType: "pkce",
         },
       })
     : null;

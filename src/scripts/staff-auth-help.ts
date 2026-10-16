@@ -11,7 +11,7 @@ export function recoveryCallbackState(address: string): RecoveryCallback {
   const url = new URL(address);
   const fragment = new URLSearchParams(url.hash.slice(1));
   return {
-    hasCode: ["code", "access_token", "refresh_token", "token_hash"].some(key => url.searchParams.has(key) || fragment.has(key)),
+    hasCode: ["code", "access_token", "refresh_token", "token_hash", "token", "id_token"].some(key => url.searchParams.has(key) || fragment.has(key)),
     hasError: ["error", "error_code", "error_description"].some(key => url.searchParams.has(key) || fragment.has(key)),
   };
 }
@@ -35,6 +35,10 @@ export function mountStaffAuthHelp({ root, client, callback = recoveryCallbackSt
   let checkingRecovery = false;
   let destroyed = false;
   const callbackPresent = callback.hasCode || callback.hasError;
+  // URL에 세션 토큰이 있어도 SDK는 읽지 않습니다. 복구 중에는 초기 저장 세션 이벤트를
+  // 보류하고, 이 브라우저 verifier로 코드 교환을 마친 세션만 복구 검증에 넘깁니다.
+  const callbackUrl = new URL(window.location.href);
+  let callbackInitializing = callbackPresent;
   const callbackFailure = () => message(t("確認リンクを読み取れませんでした。リンクを申請したブラウザーで開くか、最高管理者に復旧をご相談ください。"), true);
   function message(value: string, error = false) {
     if (destroyed) return;
@@ -132,10 +136,10 @@ export function mountStaffAuthHelp({ root, client, callback = recoveryCallbackSt
     });
   });
   function cleanCallbackAddress() {
-    // SDK가 콜백 토큰을 읽은 뒤 주소창에서 제거합니다. 언어 값 등 일반 쿼리는 유지합니다.
+    // 코드 교환·거절 후 주소창의 인증 값을 제거합니다. 언어 값 등 일반 쿼리는 유지합니다.
     const url = new URL(window.location.href);
     url.hash = "";
-    for (const key of ["code", "token_hash", "token", "access_token", "refresh_token", "type", "sb_flow_id", "error", "error_code", "error_description"]) url.searchParams.delete(key);
+    for (const key of ["code", "token_hash", "token", "access_token", "refresh_token", "id_token", "type", "sb_flow_id", "error", "error_code", "error_description"]) url.searchParams.delete(key);
     history.replaceState(null, "", url.pathname + url.search);
   }
   function invalidateRecovery() {
@@ -181,6 +185,7 @@ export function mountStaffAuthHelp({ root, client, callback = recoveryCallbackSt
     if (!preserveInput) panel.querySelector<HTMLElement>("h2")?.focus();
   }
   const { data: listener } = client.auth.onAuthStateChange((event, session) => {
+    if (callbackInitializing) return;
     if (passwordOutcome !== "idle") {
       if (event === "SIGNED_OUT" || (["SIGNED_IN", "INITIAL_SESSION", "TOKEN_REFRESHED"].includes(event) && session?.user?.id !== savingUserId)) {
         authContextVersion++;
@@ -209,9 +214,10 @@ export function mountStaffAuthHelp({ root, client, callback = recoveryCallbackSt
       }); }, 0);
     } else if (event === "SIGNED_OUT" || event === "SIGNED_IN") { authContextVersion++; invalidateRecovery(); }
   });
-  // SDK의 자동 콜백 오류는 일반 getSession 응답에 남지 않을 수 있으므로 초기화 결과를 별도로 확인합니다.
-  // 검증기가 없는 ?code 콜백은 SDK가 교환 자체를 생략합니다. 이 경우에도 복구 실패 안내를 표시합니다.
-  void client.auth.initialize().then(({ error }) => {
+  // [편집 안내] URL 자동 세션 채택은 생성 옵션에서 차단합니다. PKCE는 공식 SDK의
+  // 명시 교환만 사용합니다. 선택한 flow의 로컬 verifier가 없으면 SDK가 네트워크 요청 전에 거절합니다.
+  // flow ID 없는 예전 단일 verifier 링크와 개별 flow ID 링크를 모두 유지합니다.
+  void client.auth.initialize().then(async ({ error }) => {
     if (destroyed) return;
     if (error) {
       invalidateRecovery();
@@ -219,12 +225,33 @@ export function mountStaffAuthHelp({ root, client, callback = recoveryCallbackSt
       callbackFailure();
       return;
     }
-    setTimeout(() => {
-      if (!destroyed && passwordOutcome === "idle" && callbackPresent && !verifiedRecovery && !checkingRecovery) {
+    if (callbackPresent) {
+      const fragment = new URLSearchParams(callbackUrl.hash.slice(1));
+      const codes = callbackUrl.searchParams.getAll("code");
+      const flows = callbackUrl.searchParams.getAll("sb_flow_id");
+      const implicitToken = ["access_token", "refresh_token", "token_hash", "token", "id_token"]
+        .some(key => callbackUrl.searchParams.has(key) || fragment.has(key));
+      if (callback.hasError || implicitToken || fragment.has("code") || codes.length !== 1 ||
+          !codes[0]?.trim() || codes[0].length > 4096 || flows.length > 1 ||
+          flows.length === 1 && !/^[A-Za-z0-9_-]{8,64}$/.test(flows[0] ?? "")) {
+        invalidateRecovery();
         cleanCallbackAddress();
         callbackFailure();
+        return;
       }
-    }, 0);
+      const exchange = await client.auth.exchangeCodeForSession(codes[0], flows[0] ? { flowId: flows[0] } : undefined);
+      if (destroyed) return;
+      cleanCallbackAddress();
+      if (exchange.error || !exchange.data.session?.access_token) {
+        invalidateRecovery();
+        callbackFailure();
+        return;
+      }
+      callbackInitializing = false;
+      const generation = ++verificationGeneration;
+      checkingRecovery = true;
+      await verifyRecovery(generation, exchange.data.session.access_token, null);
+    }
   }).catch(() => {
     if (!destroyed) { invalidateRecovery(); cleanCallbackAddress(); callbackFailure(); }
   });
@@ -246,7 +273,7 @@ if (root?.dataset.enabled === "true" && url && key?.startsWith("sb_publishable_"
   // 메인 페이지와 같은 저장 키를 사용하되, 한 페이지에서 클라이언트를 중복 생성하지 않습니다.
   const client = createClient(url, key, {
     auth: {
-      storageKey: "kansai-admin-session", persistSession: true, autoRefreshToken: true, detectSessionInUrl: true, flowType: "pkce",
+      storageKey: "kansai-admin-session", persistSession: true, autoRefreshToken: true, detectSessionInUrl: false, flowType: "pkce",
       // 이전에 발급된 링크의 개별 verifier를 계속 읽습니다. 새 이메일 발송 양식은 제공하지 않습니다.
       experimental: { appendPkceFlowIdToRedirects: true },
     },
