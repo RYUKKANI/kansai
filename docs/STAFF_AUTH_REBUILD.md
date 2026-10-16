@@ -67,7 +67,7 @@ Auth 변경과 감사 DB는 서로 다른 트랜잭션입니다. 프로젝트 �
 
 ## 전환과 복구 순서
 
-1. 실제 저장소·배포 주소·Supabase 프로젝트, 기존 UUID/Owner 수/콘텐츠 수를 읽기 전용으로 확인합니다. 이전 migration을 다시 적용하지 않습니다.
+1. 실제 저장소·배포 주소·Supabase 프로젝트, 기존 UUID/Owner 수/콘텐츠 수를 읽기 전용으로 확인합니다. **같은 배포 트리의 PR 검사와 실제 네이티브 Auth 통합이 모두 성공한 뒤에만 DB·Edge·UI 변경을 시작합니다.** 이전 migration을 다시 적용하지 않습니다.
 2. 새 migration 세 개를 순서대로 적용합니다: live session authorization → device-bound owner recovery → registration reservation release. 로컬 파일 시각과 MCP 기록 시각이 다를 수 있으므로 이름과 내용을 함께 대조합니다.
 3. 같은 커밋의 `staff-auth`와 상대 모듈 전체를 배포합니다. 기존 공개 동작 때문에 `verify_jwt=false`는 유지하되 각 비공개 작업의 검증을 그대로 둡니다. 새 서버 비밀키는 필요 없습니다.
 4. PR 검사와 네이티브 통합이 성공한 동일 트리의 정적 UI를 배포합니다. 실제 Site URL이 현재 도메인인지, 고정 도움말 복귀 주소와 origin 설정이 맞는지 확인합니다.
