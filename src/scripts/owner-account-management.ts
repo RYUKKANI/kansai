@@ -64,10 +64,10 @@ function safeIdentityError(error: unknown): string {
   if (code === "23505" || /username.*(unavailable|duplicate)/i.test(code))
     return t("このログインIDは利用できません。別のIDをご確認ください。");
   if (/self_verified_name_requires_review/.test(detail))
-    return t("確認済みの自分の実名は、別のOwnerに訂正を依頼してください。");
+    return t("確認済みの自分の実名は、別の最高管理者に訂正を依頼してください。");
   if (detail === "owner_mfa_required")
     return t(
-      "ログアウトして再認証してからお試しください。MFAを設定しているアカウントはMFA認証も完了してください。",
+      "ログインし直してからお試しください。多要素認証を設定している場合は、その認証も完了してください。",
     );
   if (code === "identity_save_uncertain")
     return t(
@@ -75,7 +75,7 @@ function safeIdentityError(error: unknown): string {
     );
   if (code === "42501")
     return t(
-      "現在のOwner権限を確認できません。画面を閉じてログインし直してください。",
+      "最高管理者の権限を確認できません。この画面を閉じ、ログインし直してください。",
     );
   return t(
     "アカウント情報を保存できませんでした。入力内容と現在の権限をご確認ください。",
@@ -238,7 +238,7 @@ export function renderOwnerAccountManagement(
   function renderAccount(account: Row) {
     const information = node("dl", "", "staff-details owner-account-details");
     for (const [label, value] of [
-      [t("アカウントUUID"), targetUserId],
+      [t("アカウント識別番号"), targetUserId],
       [t("ログインID"), text(account.username) || "—"],
       [t("実名"), text(account.real_name) || "—"],
       [
@@ -307,7 +307,7 @@ export function renderOwnerAccountManagement(
       identity.append(
         node(
           "p",
-          t("確認済みの自分の実名は、別のOwnerに訂正を依頼してください。"),
+          t("確認済みの自分の実名は、別の最高管理者に訂正を依頼してください。"),
           "owner-account-help",
         ),
       );
@@ -485,7 +485,7 @@ export function renderOwnerAccountManagement(
         node(
           "p",
           format(
-            "結果を確認できない操作があります。再設定を繰り返さず、Ownerに確認してください。操作ID: {0}",
+            "変更結果を確認できません。再設定を繰り返さず、最高管理者に確認してください。操作番号: {0}",
             uncertainOperation,
           ),
           "owner-account-help",
@@ -612,23 +612,23 @@ export function renderOwnerAccountManagement(
           }
           const explanation = uncertain
             ? format(
-                "結果を確認できない操作があります。再設定を繰り返さず、Ownerに確認してください。操作ID: {0}",
+                "変更結果を確認できません。再設定を繰り返さず、最高管理者に確認してください。操作番号: {0}",
                 operationId,
               )
             : code === "owner_password_reset_failed"
               ? t(
-                  "パスワードの再設定は拒否されました。成功として記録していません。入力条件をご確認ください。",
+                  "パスワードを再設定できませんでした。入力条件を確認してから、もう一度お試しください。",
                 )
               : code === "reauthentication_required"
                 ? t(
-                    "ログアウトして再認証してからお試しください。MFAを設定しているアカウントはMFA認証も完了してください。",
+                    "ログインし直してからお試しください。多要素認証を設定している場合は、その認証も完了してください。",
                   )
                 : code === "rate_limited"
                   ? t(
                       "試行回数が制限されています。少し時間をおいてから再度お試しください。",
                     )
                   : t(
-                      "現在のOwner権限を確認できません。画面を閉じてログインし直してください。",
+                      "最高管理者の権限を確認できません。この画面を閉じ、ログインし直してください。",
                     );
           notice(explanation, true);
           if (visible(version)) showMessage(explanation, true, true);
@@ -667,7 +667,7 @@ export function renderOwnerAccountManagement(
       showMessage(
         detail === "owner_mfa_required"
           ? safeIdentityError(error)
-          : t("アカウント情報を取得できません。現在のOwner権限をご確認ください。"),
+          : t("アカウント情報を取得できません。最高管理者の権限を確認し、画面を開き直してください。"),
         true,
         true,
       );

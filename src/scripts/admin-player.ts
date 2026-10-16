@@ -439,7 +439,7 @@ export async function attachPlayerEditor(
       node(
         "p",
         t(
-          "コーチは公開承認済みの選手写真を選べます。新しい写真の登録・承認はOwnerまたはAdministratorが行います。",
+          "コーチは公開承認済みの選手写真を選べます。新しい写真の登録・承認は、最高管理者または管理者に依頼してください。",
         ),
         "admin-help",
       ),
@@ -469,11 +469,11 @@ export async function attachPlayerEditor(
       player?.[name] ?? false,
     );
   }
-  meta.append(node("h3", t("保存と発行")), badge(profile?.status ?? "draft"));
+  meta.append(node("h3", t("保存と公開")), badge(profile?.status ?? "draft"));
   const consentState = node("p", "", "admin-help");
   consentState.id = "profile-consent-state";
   meta.append(
-    node("p", t("選手UUID：") + id, "admin-help"),
+    node("p", t("選手の識別番号：") + id, "admin-help"),
     consentState,
     node(
       "p",
@@ -482,7 +482,7 @@ export async function attachPlayerEditor(
     ),
     node(
       "p",
-      t("保存・発行後、公開サイトの反映状態を別途ご確認ください。"),
+      t("保存・公開後、公開サイトの反映状態を別途ご確認ください。"),
       "admin-help",
     ),
   );
@@ -501,12 +501,12 @@ export async function attachPlayerEditor(
     actions.append(button);
   };
   if (profile?.status === "published" && canApprove) {
-    submit(t("更新して発行"), "published");
+    submit(t("更新して公開"), "published");
     submit(t("非公開で保存"), "draft", "admin-secondary");
   } else {
     submit(t("選手・プロフィール・写真を保存"), "draft");
     submit(t("承認待ちで保存"), "pending", "admin-secondary");
-    if (canApprove) submit(t("発行する"), "published");
+    if (canApprove) submit(t("公開する"), "published");
   }
   if (profile?.status === "published")
     actions.append(
@@ -527,7 +527,7 @@ export async function attachPlayerEditor(
     consentState.textContent = approved
       ? t("選手の公開同意は確認済みです。公開内容をご確認ください。")
       : t(
-          "この画面でプロフィールと写真の公開同意を確認すると発行できます。保存だけでは公開されません。",
+          "この画面でプロフィールと写真の公開同意を確認すると公開できます。保存だけでは公開されません。",
         );
     const publish = actions.querySelector<HTMLButtonElement>(
       '[data-save-status="published"]',

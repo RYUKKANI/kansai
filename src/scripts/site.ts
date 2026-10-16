@@ -1,4 +1,4 @@
-import { text as t, format } from "../lib/i18n";
+import { publicText as t, publicFormat as format } from "../lib/public-i18n";
 import { initLanguageSwitcher } from "./languages";
 // [편집 안내] 메뉴 → 뉴스 필터 → 탭 → 검색 → 사진 확대 → 대화상자 순서입니다.
 // 화면 문구는 Astro 파일에서, 버튼·패널을 연결하는 동작은 이 파일에서 편집합니다.

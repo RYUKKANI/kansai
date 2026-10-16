@@ -25,10 +25,10 @@ export interface StaffOfficeController {
 const roles: StaffRole[] = ["owner", "administrator", "editor", "coach"];
 const roleText = (value: unknown) =>
   ({
-    owner: t("Owner"),
-    administrator: t("Administrator"),
-    editor: t("Editor"),
-    coach: t("Coach"),
+    owner: t("最高管理者"),
+    administrator: t("管理者"),
+    editor: t("編集者"),
+    coach: t("コーチ"),
   })[String(value) as StaffRole] ?? t("未設定");
 function element<K extends keyof HTMLElementTagNameMap>(
   tag: K,
@@ -58,7 +58,7 @@ function state(value: unknown): string {
     {
       pending: t("承認待ち"),
       approved: t("承認済み"),
-      rejected: t("申請却下"),
+      rejected: t("承認見送り"),
       active: t("活動中"),
       inactive: t("活動休止"),
       suspended: t("利用停止"),
@@ -151,7 +151,7 @@ function safeError(error: unknown): string {
   if (string(value.code) === "response_unconfirmed")
     return t("保存結果を確認できませんでした。一覧を更新して現在の情報を確認してから、再度操作してください。");
   if (raw === "self_verified_name_requires_review")
-    return t("確認済みの自分の実名は、別のOwnerに訂正を依頼してください。");
+    return t("確認済みの自分の実名は、別の最高管理者に訂正を依頼してください。");
   if (raw === "owner_mfa_required")
     return t("多要素認証を完了してから、もう一度お試しください。");
   if (raw === "invalid_real_name")
@@ -159,7 +159,7 @@ function safeError(error: unknown): string {
   if (raw === "identity_change_reason_required")
     return t("変更理由を入力してください。");
   if (/last.*owner|final.*owner/i.test(raw))
-    return t("最後の有効なOwnerは停止・降格できません。");
+    return t("最後の有効な最高管理者は、利用停止や権限の引き下げができません。");
   if (/self|own.*(approv|role|identity)/i.test(raw))
     return t("自分自身の承認・本人確認・権限変更はできません。");
   if (raw === "manual_contact_check_required" || /email.*confirm/i.test(raw))
@@ -173,10 +173,10 @@ function safeError(error: unknown): string {
     /permission|denied|active staff/i.test(raw)
   )
     return t(
-      "この操作に必要な権限がありません。最新の申請状態を確認してください。",
+      "この操作に必要な権限がありません。最新の承認状況を確認してください。",
     );
   return t(
-    "操作を完了できませんでした。変更は成功として扱っていません。再読み込みしてご確認ください。",
+    "操作の完了を確認できません。一覧を更新して現在の状態を確認してください。",
   );
 }
 
@@ -238,6 +238,63 @@ const visibleAuditFields = new Set([
   "approved_at",
   "rejected_at",
 ]);
+// 기록의 필드 이름은 업무 화면과 같은 문구로만 바꿔 표시합니다. 공개 허용 목록과 민감 정보 마스킹은 위 규칙을 그대로 따릅니다.
+const auditFieldLabels: Record<string, string> = {
+  title: "タイトル",
+  slug: "記事・プロフィールのURL",
+  summary: "概要",
+  body: "本文",
+  category: "カテゴリー",
+  status: "公開状態",
+  published_at: "掲載日",
+  featured: "トップの注目記事にする",
+  activity_date: "活動日",
+  opponent: "対戦相手",
+  competition: "大会名",
+  home_away: "ホーム・アウェイ",
+  kickoff_at: "キックオフ（日本時間）",
+  venue: "会場",
+  match_status: "試合の状態",
+  own_score: "得点（関西）",
+  opponent_score: "得点（相手）",
+  report: "試合レポート",
+  starts_at: "開始（日本時間）",
+  ends_at: "終了（日本時間）",
+  session_status: "状態",
+  is_public: "公式サイトに日程を公開する",
+  public_description: "公開する案内",
+  cover_path: "代表写真",
+  cover_alt: "写真の説明（代替テキスト）",
+  gallery_paths: "記事内の写真",
+  album_id: "アルバム",
+  image_path: "写真",
+  video_url: "動画URL",
+  kind: "種類",
+  alt: "写真の説明（代替テキスト）",
+  caption: "写真のキャプション",
+  description: "説明",
+  player_id: "選手の識別番号",
+  display_name: "公開する名前",
+  romanized_name: "ローマ字表記",
+  jersey_number: "背番号",
+  position: "ポジション",
+  photo_path: "プロフィール写真",
+  bio: "選手紹介",
+  display_order: "表示順（小さい順）",
+  activity_status: "活動状態",
+  profile_consent: "プロフィールの公開同意を確認済み",
+  photo_consent: "写真の公開同意を確認済み",
+  approval_status: "承認状況",
+  role: "権限",
+  active: "利用を許可",
+  real_name: "実名",
+  department: "所属・担当業務",
+  verified_at: "本人確認日時",
+  name_verified_at: "実名確認日時",
+  name_verified_by: "実名の確認者",
+  approved_at: "承認日時",
+  rejected_at: "見送り日時",
+};
 const forbiddenField =
   /password|token|secret|key|email|phone|address|health|medical|injur|contact|notes|metadata/i;
 function auditValue(value: unknown): string {
@@ -274,18 +331,18 @@ function auditAction(row: Row): string {
     support_password_reset_succeeded: t("パスワード支援の完了"),
     support_password_reset_failed: t("パスワード支援の失敗"),
     support_password_reset_indeterminate: t("パスワード支援の結果未確認"),
-    owner_identity_updated: t("OwnerによるID・実名の変更"),
-    owner_password_reset_requested: t("Ownerによるパスワード再設定の受付"),
-    owner_password_reset_succeeded: t("Ownerによるパスワード再設定の完了"),
-    owner_password_reset_failed: t("Ownerによるパスワード再設定の失敗"),
-    owner_password_reset_uncertain: t("Ownerによるパスワード再設定の結果未確認"),
+    owner_identity_updated: t("最高管理者によるID・実名の変更"),
+    owner_password_reset_requested: t("最高管理者によるパスワード再設定の受付"),
+    owner_password_reset_succeeded: t("最高管理者によるパスワード再設定の完了"),
+    owner_password_reset_failed: t("最高管理者によるパスワード再設定の失敗"),
+    owner_password_reset_uncertain: t("最高管理者によるパスワード再設定の結果未確認"),
     application_approved: t("加入申請の承認"),
-    application_rejected: t("加入申請の却下"),
+    application_rejected: t("加入申請の見送り"),
     access_changed: t("権限・アクセスの変更"),
     identity_verified: t("実名の確認"),
     name_change_requested: t("実名訂正の申請"),
     name_change_approved: t("実名訂正の承認"),
-    name_change_rejected: t("実名訂正の却下"),
+    name_change_rejected: t("実名訂正の見送り"),
     unverified_name_updated: t("未確認の実名を変更"),
     name_request_withdrawn: t("実名訂正の申請を取下げ"),
   };
@@ -323,13 +380,13 @@ export function renderStaffAuditEntry(row: Row): HTMLElement {
   card.append(
     header,
     details([
-      [t("作業者アカウントUUID"), valueOrDash(row.actor_id)],
+      [t("作業者のアカウント識別番号"), valueOrDash(row.actor_id)],
       [t("作業時の権限"), roleText(row.actor_role)],
       [t("実行主体"), valueOrDash(row.executor)],
       [
         t("処理区分"),
         source === "owner_password_reset"
-          ? t("Ownerによるアカウント管理")
+          ? t("最高管理者によるアカウント管理")
           : source === "human"
           ? t("認証済みアカウントの操作")
           : source === "system_support"
@@ -347,7 +404,7 @@ export function renderStaffAuditEntry(row: Row): HTMLElement {
   );
   if (string(row.requested_by))
     card.append(
-      note(format("確認済みの依頼者UUID: {0}", string(row.requested_by))),
+      note(format("確認済みの依頼者の識別番号: {0}", string(row.requested_by))),
     );
   if (string(row.reason))
     card.append(note(format("理由: {0}", string(row.reason))));
@@ -375,7 +432,7 @@ export function renderStaffAuditEntry(row: Row): HTMLElement {
       if (!visibleAuditFields.has(name) || forbiddenField.test(name)) {
         item.textContent = t("非公開項目を変更（値は表示しません）");
       } else {
-        item.append(element("strong", name));
+        item.append(element("strong", t(auditFieldLabels[name] ?? name)));
         if (Object.hasOwn(before, name) || Object.hasOwn(after, name)) {
           item.append(
             element(
@@ -479,11 +536,11 @@ export async function renderStaffOffice(
     section.append(
       title(t("自分の申請とアカウント")),
       details([
-        [t("アカウントUUID"), string(account.user_id) || userId],
+        [t("アカウント識別番号"), string(account.user_id) || userId],
         [t("ログインID"), valueOrDash(account.login_id ?? account.username)],
         [t("実名"), valueOrDash(account.real_name)],
         [t("所属・担当業務"), valueOrDash(account.department)],
-        [t("申請状態"), state(account.approval_status)],
+        [t("承認状況"), state(account.approval_status)],
         [t("活動状態"), account.active === true ? t("活動中") : t("利用停止")],
         [t("現在の権限"), roleText(account.role)],
         [
@@ -515,7 +572,7 @@ export async function renderStaffOffice(
       section.append(
         note(
           t(
-            "運営責任者の承認後にご利用いただけます。承認前は自分の申請状態のみ確認できます。",
+            "運営責任者の承認後にご利用いただけます。承認前は自分の承認状況のみ確認できます。",
           ),
         ),
       );
@@ -523,7 +580,7 @@ export async function renderStaffOffice(
     }
     section.append(note(t("実名とログインIDは別の情報です。実名の確認状態は、表示名や権限とは別に管理します。")));
     if (account.profile_enrollment_pending === true || account.identity_enrolled === false)
-      section.append(note(t("所属・担当業務と案内確認の登録が未完了です。登録を完了しても、現在のアカウントUUIDと権限は維持されます。")));
+      section.append(note(t("所属・担当業務の入力と案内の確認が未完了です。登録を完了しても、現在のアカウントと権限は変わりません。")));
     if (account.name_edit_mode === "unverified_edit") {
       // 미확인 이름의 수정은 본인 확인 승인이 아닙니다. 확인된 이름의 변경은 별도로 심사합니다.
       section.append(title(t("未確認の実名を編集")), note(t("未確認の実名は編集できます。保存しても実名確認済みにはなりません。")));
@@ -546,7 +603,7 @@ export async function renderStaffOffice(
     section.append(
       note(
         t(
-          "確認済みの実名を変更する場合は、正しい氏名と理由を入力して訂正を申請してください。以前の作業記録とアカウントUUIDは維持されます。",
+          "確認済みの実名を変更する場合は、正しい氏名と理由を入力して訂正を申請してください。過去の作業記録とアカウントのつながりは維持されます。",
         ),
       ),
     );
@@ -648,7 +705,7 @@ export async function renderStaffOffice(
           [t("希望する役割"), valueOrDash(member.requested_role)],
           [t("現在の権限"), roleText(member.role)],
           [t("活動状態"), member.active === true ? t("活動中") : t("利用停止")],
-          [t("アカウントUUID"), id || "—"],
+          [t("アカウント識別番号"), id || "—"],
           [
             t("本人確認"),
             member.verified_at || member.name_verified_at
@@ -670,7 +727,7 @@ export async function renderStaffOffice(
       // 가입·승인은 아이디·실명·소속으로 심사합니다. 기존 연락처와 내부 인증 주소는 표시하지 않습니다.
       if (self)
         card.append(
-          note(t("自分自身の承認・本人確認・権限変更は別のOwnerに依頼してください。")),
+          note(t("自分自身の承認・本人確認・権限変更は、別の最高管理者に依頼してください。")),
         );
       else if (
         id &&
@@ -709,7 +766,7 @@ export async function renderStaffOffice(
           choice.name = "decision";
           for (const [value, label] of [
             ["approved", t("承認")],
-            ["rejected", t("反映しない・却下")],
+            ["rejected", t("承認しない")],
           ] as const) {
             if (manual && !owner && value === "approved") continue;
             const option = element("option", label);
@@ -824,8 +881,8 @@ export async function renderStaffOffice(
           ],
           [t("訂正理由"), valueOrDash(request.reason)],
           [t("申請日時"), date(request.created_at)],
-          [t("アカウントUUID"), valueOrDash(request.user_id)],
-          [t("申請状態"), state(request.status)],
+          [t("アカウント識別番号"), valueOrDash(request.user_id)],
+          [t("承認状況"), state(request.status)],
         ]),
       );
       if (request.status !== "pending") {
@@ -840,7 +897,7 @@ export async function renderStaffOffice(
         result.name = "approve";
         for (const [value, label] of [
           ["true", t("承認")],
-          ["false", t("反映しない・却下")],
+          ["false", t("承認しない")],
         ] as const) {
           const option = element("option", label);
           option.value = value;
@@ -862,7 +919,7 @@ export async function renderStaffOffice(
               p_reason: reason.value.trim(),
             }),
           t(
-            "実名訂正の審査結果を保存しました。過去の作業者UUIDは維持されます。",
+            "実名訂正の審査結果を保存しました。過去の作業記録とアカウントのつながりは維持されます。",
           ),
         );
         card.append(form);

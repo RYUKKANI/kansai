@@ -192,7 +192,7 @@ export async function buildDashboard({
     stats.append(card);
   }
   if (allowed("articles"))
-    stat(t("公開ニュース"), news.count ?? 0, t("発行済みの記事"), "news", () =>
+    stat(t("公開ニュース"), news.count ?? 0, t("公開済みの記事"), "news", () =>
       go("articles", { status: "published" }),
     );
   if (allowed("players"))
@@ -401,9 +401,9 @@ export async function buildDashboard({
       const resource = String(item.entity) as Resource;
       if (resources[resource] && allowed(resource))
         requiredRow(
-          format("{0}の予約発行", resources[resource].label),
+          format("{0}の予約公開", resources[resource].label),
           t(
-            "発行できなかった予約、または予約時刻を過ぎた項目を確認してください。",
+            "公開できなかった予約、または予約時刻を過ぎた項目を確認してください。",
           ),
           Number(item.total),
           () => go(resource),

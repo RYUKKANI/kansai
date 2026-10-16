@@ -76,9 +76,9 @@ export function staffAuthError(error: unknown): string {
   if (code === "enrollment_unavailable")
     return t("登録を完了できませんでした。IDを確認し、必要な場合は運営責任者にご相談ください。");
   if (code === "registration_unavailable")
-    return t("登録を完了できませんでした。同じIDを使った申請がある場合は、ログインするか運営責任者にご確認ください。登録を繰り返さないでください。");
+    return t("登録を完了できませんでした。申請済みの場合はログインをお試しください。解決しない場合は、再申請せず最高管理者にご相談ください。");
   if (code === "registration_uncertain")
-    return t("登録結果を確認できません。アカウントが作成された可能性があります。この画面から再申請せず、ログインまたは復旧を確認し、利用できない場合は運営責任者にご相談ください。");
+    return t("登録結果を確認できません。再申請せず、入力したIDとパスワードでログインをお試しください。ログインできない場合は最高管理者にご相談ください。");
   if (code === "password_update_failed")
     return t("パスワードを設定できませんでした。ログイン状態を確認するか、運営責任者にご相談ください。");
   if (code === "same_password")
@@ -92,7 +92,7 @@ export function staffAuthError(error: unknown): string {
   if (code === "password_update_uncertain")
     return t("保存結果を確認できません。パスワードは変更された可能性があります。再設定を繰り返さず、入力した新しいパスワードでログインを確認し、利用できない場合は運営責任者にご相談ください。");
   if (code === "feature_unavailable")
-    return t("新しいログイン方式は移行準備中です。現在のログイン画面をご利用ください。");
+    return t("このログイン機能は現在利用できません。ログイン画面に戻るか、最高管理者にご相談ください。");
   return t("操作を完了できませんでした。時間をおいて再度お試しください。");
 }
 
@@ -243,7 +243,7 @@ export function mountStaffAuth({ client, notice, refresh }: StaffAuthOptions) {
     if (generation !== viewGeneration) return;
     element.reset();
     show("login", false);
-    message(t("アカウントを作成しました。入力したIDとパスワードでログインして承認状態をご確認ください。"));
+    message(t("アカウントを作成しました。入力したIDとパスワードでログインして承認状況をご確認ください。"));
   });
   bind("enroll", async (element) => {
     const generation = viewGeneration;
@@ -303,13 +303,13 @@ export function mountStaffAuth({ client, notice, refresh }: StaffAuthOptions) {
       const list = portal.querySelector<HTMLDListElement>("#staff-account-state")!;
       list.replaceChildren();
       const status = {
-        legacy: "移行前のアカウント", pending: "承認待ち", approved: "承認済み", rejected: "申請見送り", suspended: "利用停止",
+        legacy: "移行前のアカウント", pending: "承認待ち", approved: "承認済み", rejected: "承認見送り", suspended: "利用停止",
       } as const;
       const rows = [
         [t("ログインID"), state.username ?? t("未登録")],
         [t("実名"), state.real_name ?? t("未登録")],
         [t("所属・担当業務"), state.department ?? t("未登録")],
-        [t("承認状態"), t(status[state.approval_status] ?? "承認待ち")],
+        [t("承認状況"), t(status[state.approval_status] ?? "承認待ち")],
         [t("実名確認"), t(state.name_verified_at ? "確認済み" : "未確認")],
       ];
       for (const [label, value] of rows) {

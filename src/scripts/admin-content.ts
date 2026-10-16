@@ -44,7 +44,7 @@ export function attachContentEditor(options: {
   let refreshId = 0;
   const status = node(
     "p",
-    t("このブラウザ内の一時保存：変更待ち"),
+    t("このブラウザー内の一時保存：変更待ち"),
     "admin-help",
   );
   status.setAttribute("role", "status");
@@ -56,7 +56,7 @@ export function attachContentEditor(options: {
     stored = readDraft(localStorage, key);
   } catch {
     status.textContent = t(
-      "このブラウザでは一時保存を利用できません。下書き保存をご利用ください。",
+      "このブラウザーでは一時保存を利用できません。下書き保存をご利用ください。",
     );
   }
   if (stored) {
@@ -127,13 +127,13 @@ export function attachContentEditor(options: {
     node(
       "p",
       t(
-        "自動保存はこのブラウザ内だけです。サーバーへの下書き保存・発行は上のボタンで行います。7日間有効で、期限切れは次回表示時、ログアウト時はその場で削除されます。",
+        "自動保存はこのブラウザー内に限られます。下書きの保存・公開は上のボタンで行ってください。一時保存の有効期間は7日間です。期限切れの内容は次回表示時、ログアウト時はすぐに削除されます。",
       ),
       "admin-help",
     ),
   );
   if (options.publisher) {
-    const label = node("label", t("予約発行（日本時間）"));
+    const label = node("label", t("予約公開（日本時間）"));
     const input = node("input");
     input.type = "datetime-local";
     input.name = "_publish_at";
@@ -148,7 +148,7 @@ export function attachContentEditor(options: {
       node(
         "p",
         t(
-          "予約日時以降に内容を確認して発行します。公式サイトへの反映は次の再構築後です。公開中の記事を予約すると一旦非公開になります。",
+          "予約日時以降に公開条件を確認し、自動で公開処理を行います。サイトへの反映には時間がかかる場合があります。公開中の記事を予約すると、一度非公開になります。",
         ),
         "admin-help",
       ),
@@ -157,7 +157,7 @@ export function attachContentEditor(options: {
     section.append(
       node(
         "p",
-        t("予約発行は運営責任者による公開処理の有効化後に利用できます。"),
+        t("予約公開は運営責任者による公開処理の有効化後に利用できます。"),
         "admin-help",
       ),
     );
@@ -197,9 +197,9 @@ export function attachContentEditor(options: {
       const release = data.release;
       const labels: Record<string, string> = {
         queued: t("予約済み"),
-        published: t("発行済み"),
+        published: t("公開済み"),
         cancelled: t("予約取消"),
-        failed: t("発行できませんでした"),
+        failed: t("公開できませんでした"),
       };
       history.append(
         node(
@@ -279,7 +279,7 @@ export function attachContentEditor(options: {
           node(
             "p",
             t(
-              "現在の編集を置き換え、この版を非公開の下書きとして保存します。発行には再確認が必要です。",
+              "現在の編集を置き換え、この版を非公開の下書きとして保存します。公開には再確認が必要です。",
             ),
             "admin-help",
           ),
@@ -323,20 +323,19 @@ export function attachContentEditor(options: {
       );
       writeDraft(localStorage, key, { savedAt: Date.now(), expected, values });
       status.textContent =
-        t("このブラウザ内に一時保存済み：") +
+        t("このブラウザー内に一時保存済み：") +
         dateLabel(new Date(), true) +
         t("（サーバー未送信）");
       dirty = false;
-    } catch (error) {
-      status.textContent =
-        error instanceof Error
-          ? error.message
-          : t("一時保存できません。下書き保存をご利用ください。");
+    } catch {
+      // 저장 공간 제한 등의 예외 원문 대신 선택 언어로 다음 작업을 안내합니다.
+      // 작성 중인 양식과 dirty 상태는 유지하므로 오류를 성공한 저장으로 표시하지 않습니다.
+      status.textContent = t("一時保存できません。下書き保存をご利用ください。");
     }
   }
   function changed() {
     dirty = true;
-    status.textContent = t("このブラウザ内に一時保存中…");
+    status.textContent = t("このブラウザー内に一時保存中…");
     clearTimeout(timer);
     timer = setTimeout(flush, 700);
   }
