@@ -229,6 +229,15 @@ async function main() {
     });
     return { status: response.status, body: await response.json().catch(() => null) };
   }
+  // 실제 GoTrue JWT를 PostgREST에 그대로 전달합니다. 서비스 키 조회는 검증용 DB 상태
+  // 비교에만 쓰며, 업무 요청을 서비스 권한으로 대신 실행해 RLS 검사를 건너뛰지 않습니다.
+  async function rest(resource, token, { method = "GET", body } = {}) {
+    const response = await localFetch(`${api}/rest/v1/${resource}`, {
+      method, headers: { apikey: publicKey, Authorization: `Bearer ${token}`, "Content-Type": "application/json", Prefer: "return=representation" },
+      ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+    });
+    return { status: response.status, body: await response.json().catch(() => null) };
+  }
   async function idLogin(username, password) {
     const result = await gateway({ action: "login", username, password });
     verify(result.status === 200 && typeof result.body.session?.access_token === "string", "gateway_login_failed_" + safeFailure(result.status, result.body.error));
@@ -260,7 +269,8 @@ async function main() {
   const initialToken = data(await initialOwner.auth.getSession(), "initial_owner_session_missing").session?.access_token;
   verify(initialToken && data(await initialOwner.auth.getUser(), "initial_owner_user_failed").user.id === owner.id, "initial_owner_uuid_mismatch");
   const ownerState = await rpc("office_account_state", {}, initialToken);
-  verify(ownerState.status === 200 && ownerState.body.role === "owner", "native_owner_role_missing");
+  verify(ownerState.status === 200 && ownerState.body.role === "owner" && ownerState.body.member_grade === "owner" && ownerState.body.user_id === owner.id,
+    "native_owner_role_missing");
 
   stage = "unverified legacy Owner name update and trusted audit actor";
   verify(ownerState.body.profile_enrollment_pending === true && ownerState.body.name_edit_mode === "unverified_edit" && ownerState.body.can_edit_real_name === true,
@@ -362,7 +372,7 @@ async function main() {
   const mailCountBeforeSignup = await mailboxCount();
   const pendingPassword = randomBytes(24).toString("base64url");
   const registered = await gateway({ action: "register", username: "native.pending", password: pendingPassword, password_confirmation: pendingPassword,
-    real_name: "隔離テスト 담당", department: "CI only", notice_accepted: true });
+    real_name: "隔離テスト 담당", requested_grade: "owner", department: "CI only", notice_accepted: true });
   verify(registered.status === 200 && registered.body.code === "registration_received", "pending_registration_failed");
   verify(!JSON.stringify(registered.body).includes("@"), "registration_exposed_technical_address");
   const pending = await idLogin("native.pending", pendingPassword);
@@ -373,6 +383,7 @@ async function main() {
   verify(await mailboxCount() === mailCountBeforeSignup, "signup_sent_unrequested_email");
   const pendingState = await rpc("office_account_state", {}, pendingToken);
   verify(pendingState.status === 200 && pendingState.body.approval_status === "pending" && pendingState.body.role === null && pendingState.body.active === false &&
+    pendingState.body.requested_grade === "owner" && pendingState.body.member_grade === null &&
     pendingState.body.email_confirmation_required === false && pendingState.body.email_confirmed === false, "pending_received_internal_role");
   const recoveredOwnerToken = data(await recoveredOwner.auth.getSession(), "recovered_owner_session_missing").session?.access_token;
   const technicalContact = await rpc("office_staff_application_contact", { p_user_id: pendingAuth.id }, recoveredOwnerToken);
@@ -424,6 +435,208 @@ async function main() {
   verify(["requested", "approved", "executing", "succeeded"].every(state => supportAudit.some(row => row.action === "project_admin_recovery_" + state)), "support_audit_state_missing");
   verify(![initialPassword, recoveredPassword, supportedPassword, replayPassword, deviceSecret, beforeSupportSession.access_token, beforeSupportSession.refresh_token].some(secret => auditText.includes(secret)), "support_audit_contains_secret");
   report("approved support changes the same UUID once, preserves Owner, revokes old sessions and rejects proof/replay attacks");
+
+  stage = "three member grades through real native JWTs and direct APIs";
+  // 세 가입 희망 등급 모두 승인 전에는 역할이 없습니다. 이미 만든 총괄 희망 계정도
+  // 실제 부여 등급과 분리하며, 검사용 계정/선수는 이 일회용 DB 안에서만 생성합니다.
+  const playersBeforeGradeSignup = await sql("select count(*) from public.players;");
+  const mailCountBeforeGradeSignup = await mailboxCount();
+  const gradeAccounts = [];
+  for (const requestedGrade of ["staff", "player"]) {
+    const username = `native.${requestedGrade}`;
+    const password = randomBytes(24).toString("base64url");
+    const registration = await gateway({ action: "register", username, password, password_confirmation: password,
+      real_name: `CI ${requestedGrade} 同名 담당`, requested_grade: requestedGrade, department: "CI only", notice_accepted: true });
+    verify(registration.status === 200 && registration.body.code === "registration_received", "grade_registration_failed");
+    const accountClient = await idLogin(username, password);
+    const session = data(await accountClient.auth.getSession(), "grade_pending_session_missing").session;
+    verify(session?.access_token && session.user.id, "grade_pending_identity_missing");
+    const state = await rpc("office_account_state", {}, session.access_token);
+    verify(state.status === 200 && state.body.user_id === session.user.id && state.body.approval_status === "pending" &&
+      state.body.requested_grade === requestedGrade && state.body.role === null && state.body.member_grade === null && state.body.active === false,
+      "requested_grade_granted_authority");
+    gradeAccounts.push({ requestedGrade, client: accountClient, userId: uuid(session.user.id), token: session.access_token });
+  }
+  verify(await sql("select count(*) from public.players;") === playersBeforeGradeSignup, "signup_automatically_created_player");
+  verify(await mailboxCount() === mailCountBeforeGradeSignup, "grade_signup_sent_unrequested_email");
+  const [staffGrade, playerGrade] = gradeAccounts;
+  const allPending = [{ userId: pendingAuth.id, token: pendingToken }, ...gradeAccounts];
+  for (const account of allPending) {
+    const requestedApproval = await rpc("office_review_staff", { p_user_id: account.userId, p_decision: "approved", p_role: "owner", p_reason: "CI forbidden self approval" }, account.token);
+    verify(requestedApproval.status >= 400, "pending_self_approval_succeeded");
+    for (const name of ["office_staff_directory", "office_staff_applications", "office_player_portal"]) {
+      verify((await rpc(name, {}, account.token)).status >= 400, "pending_accessed_grade_rpc");
+    }
+    const rows = await rest("players?select=*", account.token);
+    verify(rows.status === 200 && Array.isArray(rows.body) && rows.body.length === 0, "pending_grade_read_internal_players");
+    const mutation = await rest("articles", account.token, { method: "POST", body: { slug: `pending-${randomBytes(5).toString("hex")}`, title: "CI forbidden pending draft", status: "draft" } });
+    verify(mutation.status >= 400, "pending_grade_created_business_content");
+  }
+  for (const account of gradeAccounts) {
+    verify((await rpc("office_review_staff", { p_user_id: account.userId, p_decision: "approved", p_role: account.requestedGrade, p_reason: "CI native grade approval" }, currentToken)).status === 200,
+      "owner_grade_approval_failed");
+    // 새 로그인이나 토큰 갱신 없이 같은 세션이 DB의 승인 결과를 읽어야 합니다.
+    const state = await rpc("office_account_state", {}, account.token);
+    verify(state.status === 200 && state.body.user_id === account.userId && state.body.role === account.requestedGrade &&
+      state.body.member_grade === account.requestedGrade && state.body.approval_status === "approved" && state.body.active === true,
+      "same_native_jwt_did_not_gain_approved_grade");
+  }
+  verify(await sql("select count(*) from public.players;") === playersBeforeGradeSignup, "approval_automatically_created_player");
+  const retainedOwner = await rpc("office_account_state", {}, currentToken);
+  verify(retainedOwner.status === 200 && retainedOwner.body.user_id === owner.id && retainedOwner.body.role === "owner" && retainedOwner.body.member_grade === "owner",
+    "grade_approval_changed_existing_owner");
+
+  // 수정 가능한 user_metadata에 다른 UUID와 총괄 등급을 넣은 실제 서명 JWT로도
+  // 서버의 현재 권한·감사 작업자를 바꿀 수 없어야 합니다. 입력/토큰은 출력하지 않습니다.
+  data(await staffGrade.client.auth.updateUser({ data: { actor_id: owner.id, real_name: "CI forged Owner", role: "owner", member_grade: "owner" } }), "grade_forged_metadata_update_failed");
+  data(await staffGrade.client.auth.refreshSession(), "grade_forged_metadata_refresh_failed");
+  staffGrade.token = data(await staffGrade.client.auth.getSession(), "grade_staff_session_missing").session?.access_token;
+  verify(staffGrade.token, "grade_staff_token_missing");
+  const metadataClaims = JSON.parse(Buffer.from(staffGrade.token.split(".")[1], "base64url").toString("utf8"));
+  verify(metadataClaims.sub === staffGrade.userId && metadataClaims.user_metadata?.actor_id === owner.id && metadataClaims.user_metadata?.role === "owner",
+    "grade_forged_metadata_not_present_in_native_jwt");
+  const staffState = await rpc("office_account_state", {}, staffGrade.token);
+  verify(staffState.status === 200 && staffState.body.role === "staff" && staffState.body.member_grade === "staff", "editable_metadata_changed_member_grade");
+  for (const request of [
+    ["office_review_staff", { p_user_id: pendingAuth.id, p_decision: "approved", p_role: "player", p_reason: "CI forbidden staff approval" }],
+    ["office_set_staff_access", { p_user_id: staffGrade.userId, p_role: "owner", p_active: true, p_reason: "CI forbidden staff promotion" }],
+    ["office_set_staff_access", { p_user_id: playerGrade.userId, p_role: "owner", p_active: true, p_reason: "CI forbidden role grant" }],
+    ["office_owner_account", { p_user_id: owner.id }],
+  ]) verify((await rpc(request[0], request[1], staffGrade.token)).status >= 400, "staff_accessed_owner_only_rpc");
+
+  const articleId = randomUUID();
+  const draft = { id: articleId, slug: `native-grade-${randomBytes(5).toString("hex")}`, title: "CI native staff draft", summary: "CI summary", body: "CI body", cover_alt: "CI cover", status: "draft" };
+  const createdDraft = await rest("articles", staffGrade.token, { method: "POST", body: draft });
+  verify(createdDraft.status === 201 && createdDraft.body?.[0]?.id === articleId && createdDraft.body[0].status === "draft", "staff_direct_draft_creation_failed");
+  const savedDraft = await rest(`articles?id=eq.${articleId}`, staffGrade.token, { method: "PATCH", body: { title: "CI updated native staff draft" } });
+  verify(savedDraft.status === 200 && savedDraft.body?.[0]?.title === "CI updated native staff draft", "staff_direct_draft_update_failed");
+  const draftAuditBeforeFailure = await sql(`select count(*) from public.audit_logs where entity='articles' and record_id=${sqlLiteral(articleId)};`);
+  verify((await rest(`articles?id=eq.${articleId}`, staffGrade.token, { method: "PATCH", body: { status: "published" } })).status >= 400, "staff_direct_publish_succeeded");
+  verify((await rpc("save_office_content", { p_entity: "articles", p_id: articleId, p_expected: savedDraft.body[0].updated_at,
+    p_values: { title: "CI forbidden scheduled draft" }, p_publish_at: new Date(Date.now() + 3600000).toISOString() }, staffGrade.token)).status >= 400,
+    "staff_scheduled_publication_succeeded");
+  verify(await sql(`select count(*) from public.audit_logs where entity='articles' and record_id=${sqlLiteral(articleId)};`) === draftAuditBeforeFailure,
+    "failed_staff_publication_created_success_audit");
+  const publishedArticle = randomUUID();
+  const ownerPublication = await rest("articles", currentToken, { method: "POST", body: { ...draft, id: publishedArticle, slug: `native-public-${randomBytes(5).toString("hex")}`, title: "CI Owner published article", status: "published" } });
+  verify(ownerPublication.status === 201 && ownerPublication.body?.[0]?.status === "published", "owner_direct_publication_failed");
+  const publicArticleBefore = await sql(`select to_jsonb(a)::text from public.articles a where id=${sqlLiteral(publishedArticle)}::uuid;`);
+  const publicAuditBefore = await sql(`select count(*) from public.audit_logs where entity='articles' and record_id=${sqlLiteral(publishedArticle)};`);
+  for (const change of [{ method: "PATCH", body: { title: "CI forbidden public edit" } }, { method: "PATCH", body: { status: "draft" } }, { method: "DELETE" }]) {
+    verify((await rest(`articles?id=eq.${publishedArticle}`, staffGrade.token, change)).status >= 400, "staff_changed_published_article");
+  }
+  verify(await sql(`select to_jsonb(a)::text from public.articles a where id=${sqlLiteral(publishedArticle)}::uuid;`) === publicArticleBefore &&
+    await sql(`select count(*) from public.audit_logs where entity='articles' and record_id=${sqlLiteral(publishedArticle)};`) === publicAuditBefore,
+    "failed_public_article_change_mutated_data_or_audit");
+  const draftAudit = JSON.parse(await sql(`select coalesce(jsonb_agg(jsonb_build_object('actor_id',actor_id,'requested_by',requested_by,'actor_role',actor_role,'actor_name',actor_name,'source',source,'action',action)),'[]'::jsonb)::text from public.audit_logs where entity='articles' and record_id=${sqlLiteral(articleId)};`));
+  verify(draftAudit.length === 2 && draftAudit.every(row => row.actor_id === staffGrade.userId && row.requested_by === staffGrade.userId && row.actor_role === "staff" && row.actor_name === "CI staff 同名 담당" && row.source === "human"),
+    "native_staff_audit_trusted_forged_actor_or_grade");
+  const disposableDraft = randomUUID();
+  verify((await rest("articles", staffGrade.token, { method: "POST", body: { id: disposableDraft, slug: `native-remove-${randomBytes(5).toString("hex")}`, title: "CI removable draft", status: "draft" } })).status === 201,
+    "staff_removable_draft_creation_failed");
+  const deletedDraft = await rest(`articles?id=eq.${disposableDraft}`, staffGrade.token, { method: "DELETE" });
+  verify(deletedDraft.status === 200 && deletedDraft.body?.[0]?.id === disposableDraft &&
+    await sql(`select count(*) from public.articles where id=${sqlLiteral(disposableDraft)}::uuid;`) === "0" &&
+    await sql(`select count(*) from public.audit_logs where entity='articles' and record_id=${sqlLiteral(disposableDraft)} and action='delete' and actor_id=${sqlLiteral(staffGrade.userId)}::uuid and actor_role='staff';`) === "1",
+    "staff_draft_delete_or_server_audit_failed");
+  report("Owner grants three-grade access; pending requests grant no authority, staff can save drafts, and forged metadata cannot grant approval or public-write rights");
+
+  stage = "player links and targetless safe portal with native JWT";
+  const unlinkedPortal = await rpc("office_player_portal", {}, playerGrade.token);
+  verify(unlinkedPortal.status === 200 && unlinkedPortal.body.user_id === playerGrade.userId && unlinkedPortal.body.linked === false && unlinkedPortal.body.player_id === null && unlinkedPortal.body.player === null,
+    "unlinked_player_portal_created_or_guessed_record");
+  const linkedPlayer = randomUUID();
+  const otherPlayer = privatePlayer;
+  await sql(`insert into public.players(id,internal_name,profile_consent,consent_note) values(${sqlLiteral(linkedPlayer)}::uuid,'CI internal own name',true,'CI PRIVATE OWN CONSENT NOTE');
+    update public.players set consent_note='CI PRIVATE OTHER CONSENT NOTE' where id=${sqlLiteral(otherPlayer)}::uuid;
+    insert into public.public_player_profiles(player_id,slug,display_name,position,bio,status) values(${sqlLiteral(linkedPlayer)}::uuid,'ci-native-own-profile','CI safe own display','MF','CI safe own bio','draft');
+    insert into private.player_contacts(player_id,contact_data) values(${sqlLiteral(linkedPlayer)}::uuid,'{"ci_private_contact":"CI SECRET OWN CONTACT"}'::jsonb),(${sqlLiteral(otherPlayer)}::uuid,'{"ci_private_contact":"CI SECRET OTHER CONTACT"}'::jsonb);`);
+  const playersBeforeLink = await sql("select count(*) from public.players;");
+  verify((await rpc("office_owner_set_player_link", { p_user_id: playerGrade.userId, p_player_id: playerGrade.userId, p_reason: "CI Auth UUID is not a player UUID" }, currentToken)).status >= 400,
+    "auth_uuid_accepted_as_missing_player_record");
+  verify((await rpc("office_owner_set_player_link", { p_user_id: staffGrade.userId, p_player_id: linkedPlayer, p_reason: "CI staff must not gain player link" }, currentToken)).status >= 400,
+    "staff_grade_received_player_link");
+  verify((await rpc("office_owner_set_player_link", { p_user_id: playerGrade.userId, p_player_id: otherPlayer, p_reason: "CI forbidden player relink" }, playerGrade.token)).status >= 400,
+    "player_changed_own_link");
+  const linked = await rpc("office_owner_set_player_link", { p_user_id: playerGrade.userId, p_player_id: linkedPlayer, p_reason: "CI explicit existing player link" }, currentToken);
+  verify(linked.status === 200 && linked.body.user_id === playerGrade.userId && linked.body.player_id === linkedPlayer, "owner_explicit_player_link_failed");
+  verify(await sql("select count(*) from public.players;") === playersBeforeLink, "player_link_created_extra_player");
+  // 총괄을 희망했어도 운영자가 부여한 선수 권한만 생깁니다. 동명이인/UUID 연결도
+  // 신청 이름이나 Auth UUID를 추측하지 않고 명시한 기존 선수 행의 고유 제약을 따릅니다.
+  verify((await rpc("office_review_staff", { p_user_id: pendingAuth.id, p_decision: "approved", p_role: "player", p_reason: "CI requested grade is only a preference" }, currentToken)).status === 200,
+    "owner_override_of_requested_grade_failed");
+  const formerOwnerRequest = await rpc("office_account_state", {}, pendingToken);
+  verify(formerOwnerRequest.status === 200 && formerOwnerRequest.body.requested_grade === "owner" && formerOwnerRequest.body.member_grade === "player" && formerOwnerRequest.body.role === "player",
+    "requested_owner_grade_overrode_approved_player_grade");
+  verify((await rpc("office_owner_set_player_link", { p_user_id: pendingAuth.id, p_player_id: linkedPlayer, p_reason: "CI duplicate player link" }, currentToken)).status >= 400,
+    "duplicate_account_player_link_accepted");
+  verify((await rpc("office_owner_set_player_link", { p_user_id: pendingAuth.id, p_player_id: otherPlayer, p_reason: "CI other existing player link" }, currentToken)).status === 200,
+    "owner_second_player_link_failed");
+  const ownPortal = await rpc("office_player_portal", {}, playerGrade.token);
+  verify(ownPortal.status === 200 && ownPortal.body.user_id === playerGrade.userId && ownPortal.body.player_id === linkedPlayer && ownPortal.body.linked === true &&
+    ownPortal.body.player?.player_id === linkedPlayer && ownPortal.body.player.public_profile?.display_name === "CI safe own display",
+    "player_portal_did_not_return_linked_self");
+  const portalText = JSON.stringify(ownPortal.body);
+  verify(![otherPlayer, "internal_name", "consent_note", "contact_data", "approved_by", "CI SECRET", "CI PRIVATE"].some(value => portalText.includes(value)),
+    "player_portal_leaked_private_or_other_player_data");
+  for (const forgedTarget of [{ p_user_id: pendingAuth.id }, { p_player_id: otherPlayer }]) {
+    verify((await rpc("office_player_portal", forgedTarget, playerGrade.token)).status >= 400, "player_portal_accepted_other_target");
+  }
+  for (const resource of ["players", "public_player_profiles", "articles", "fixtures", "training_sessions", "training_series", "club_events", "media_assets", "audit_logs"]) {
+    const hidden = await rest(`${resource}?select=*`, playerGrade.token);
+    verify(hidden.status === 200 && Array.isArray(hidden.body) && hidden.body.length === 0, "player_read_internal_business_table");
+  }
+  for (const name of ["office_staff_directory", "office_staff_applications"]) verify((await rpc(name, {}, playerGrade.token)).status >= 400, "player_read_staff_management_rpc");
+  const playerAudit = await rpc("office_staff_audit", {}, playerGrade.token);
+  verify(playerAudit.status >= 400 || Array.isArray(playerAudit.body) && playerAudit.body.length === 0, "player_read_staff_audit_rpc");
+  const playerCreate = await rest("players", playerGrade.token, { method: "POST", body: { internal_name: "CI forbidden player create" } });
+  verify(playerCreate.status >= 400 && await sql("select count(*) from public.players;") === playersBeforeLink, "player_created_internal_record");
+  report("player signup creates no player record; Owner links existing player UUIDs explicitly and the targetless portal hides other players, contacts and audit data");
+
+  stage = "safe public schedule and same-JWT grade revocation";
+  const privateTraining = randomUUID();
+  const publicTraining = randomUUID();
+  const startsAt = new Date(Date.now() + 86400000).toISOString();
+  verify((await rest("training_sessions", staffGrade.token, { method: "POST", body: { id: privateTraining, title: "CI private training", starts_at: startsAt, notes: "CI SECRET PRIVATE NOTES", is_public: false } })).status === 201,
+    "staff_private_training_create_failed");
+  verify((await rest(`training_sessions?id=eq.${privateTraining}`, staffGrade.token, { method: "PATCH", body: { is_public: true } })).status >= 400,
+    "staff_published_training");
+  verify((await rest("training_sessions", currentToken, { method: "POST", body: { id: publicTraining, title: "CI public training", starts_at: startsAt, notes: "CI SECRET PUBLIC SOURCE NOTES", public_description: "CI safe published description", is_public: true } })).status === 201,
+    "owner_public_training_create_failed");
+  for (const change of [{ method: "PATCH", body: { title: "CI forbidden public training edit" } }, { method: "PATCH", body: { is_public: false } }, { method: "DELETE" }]) {
+    verify((await rest(`training_sessions?id=eq.${publicTraining}`, staffGrade.token, change)).status >= 400, "staff_changed_public_training");
+  }
+  const publicSchedule = await rest("published_schedule?select=*", playerGrade.token);
+  verify(publicSchedule.status === 200 && Array.isArray(publicSchedule.body) && publicSchedule.body.some(row => row.id === publicTraining && row.description === "CI safe published description") &&
+    !publicSchedule.body.some(row => row.id === privateTraining) && !JSON.stringify(publicSchedule.body).includes("CI SECRET") && !JSON.stringify(publicSchedule.body).includes('"notes"'),
+    "player_schedule_exposed_nonpublic_source");
+  const staffJwtBeforeGradeChange = staffGrade.token;
+  verify((await rpc("office_set_staff_access", { p_user_id: staffGrade.userId, p_role: "player", p_active: true, p_reason: "CI same JWT grade downgrade" }, currentToken)).status === 200,
+    "owner_grade_downgrade_failed");
+  const downgraded = await rpc("office_account_state", {}, staffJwtBeforeGradeChange);
+  verify(downgraded.status === 200 && downgraded.body.role === "player" && downgraded.body.member_grade === "player", "existing_jwt_kept_old_staff_grade");
+  const downgradedRead = await rest("articles?select=id", staffJwtBeforeGradeChange);
+  verify(downgradedRead.status === 200 && downgradedRead.body?.length === 0, "downgraded_jwt_read_business_content");
+  verify((await rest("articles", staffJwtBeforeGradeChange, { method: "POST", body: { slug: "ci-forbidden-downgraded", title: "CI forbidden downgraded write", status: "draft" } })).status >= 400,
+    "downgraded_jwt_created_business_content");
+  verify((await rpc("office_player_portal", {}, staffJwtBeforeGradeChange)).status === 200, "downgraded_player_portal_not_available");
+  verify((await rpc("office_set_staff_access", { p_user_id: staffGrade.userId, p_role: "staff", p_active: true, p_reason: "CI restore before suspension test" }, currentToken)).status === 200,
+    "owner_staff_restore_failed");
+  verify((await rpc("office_set_staff_access", { p_user_id: staffGrade.userId, p_role: "staff", p_active: false, p_reason: "CI same JWT suspension" }, currentToken)).status === 200,
+    "owner_staff_suspension_failed");
+  const suspended = await rpc("office_account_state", {}, staffJwtBeforeGradeChange);
+  verify(suspended.status === 200 && suspended.body.role === null && suspended.body.active === false && suspended.body.approval_status === "suspended", "suspended_jwt_kept_staff_authority");
+  const suspendedRead = await rest("articles?select=id", staffJwtBeforeGradeChange);
+  verify(suspendedRead.status === 200 && suspendedRead.body?.length === 0, "suspended_jwt_read_business_content");
+  verify((await rest("articles", staffJwtBeforeGradeChange, { method: "POST", body: { slug: "ci-forbidden-suspended", title: "CI forbidden suspended write", status: "draft" } })).status >= 400,
+    "suspended_jwt_created_business_content");
+  verify((await rpc("office_player_portal", {}, staffJwtBeforeGradeChange)).status >= 400, "suspended_jwt_retained_player_portal");
+  verify((await rpc("office_set_staff_access", { p_user_id: playerGrade.userId, p_role: "player", p_active: false, p_reason: "CI same player JWT suspension" }, currentToken)).status === 200,
+    "owner_player_suspension_failed");
+  verify((await rpc("office_player_portal", {}, playerGrade.token)).status >= 400, "suspended_player_jwt_retained_portal");
+  const preservedDraftAudit = JSON.parse(await sql(`select coalesce(jsonb_agg(jsonb_build_object('actor_id',actor_id,'actor_role',actor_role)),'[]'::jsonb)::text from public.audit_logs where entity='articles' and record_id=${sqlLiteral(articleId)};`));
+  verify(preservedDraftAudit.length === 2 && preservedDraftAudit.every(row => row.actor_id === staffGrade.userId && row.actor_role === "staff"), "later_grade_changes_rewrote_historical_audit_actor");
+  report("public schedules expose only safe fields; existing JWTs immediately lose business or portal access after grade change and suspension, while historical actor grades stay unchanged");
 
   stage = "native email resend failure is surfaced honestly";
   // 기존 실제 이메일 계정의 복구 호환성은 보존합니다. 새 무메일 가입과 분리한 일회용
