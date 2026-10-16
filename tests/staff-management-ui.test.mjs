@@ -100,27 +100,19 @@ const manualApplicant = { user_id: peerId, username: "peer.staff", real_name: "�
   department: "コーチ", approval_status: "pending", email_confirmed: false,
   email_confirmation_required: false, email_verification_status: "not_required" };
 
-test("Owner reviews one pending manual contact and explicitly checks it before approval", async () => {
+test("Owner approves an ID-only applicant after checking real name, login ID and club relationship", async () => {
   const context = await app("staff_applications", {
-    office_staff_applications: [manualApplicant], office_staff_name_requests: [],
-    office_staff_application_contact: { user_id: peerId, email: "verified-externally@example.invalid" },
-    office_review_staff: null,
+    office_staff_applications: [{ ...manualApplicant, email: "opaque-token@accounts.kansai.invalid" }],
+    office_staff_name_requests: [], office_review_staff: null,
   });
   try {
     const form = context.container.querySelector("form");
-    const save = form.querySelector('[data-staff-action="review"]');
-    assert.equal(save.disabled, true);
-    assert.equal(context.calls.some(call => call.name === "office_staff_application_contact"), false);
-    assert.equal(context.container.textContent.includes("verified-externally"), false);
-    assert.match(context.container.textContent, /確認不要（メール所有未確認）/);
+    assert.equal(form.querySelector('[data-staff-action="review"]').disabled, false);
+    assert.equal(context.container.querySelector('[data-staff-action="contact"]'), null);
+    assert.doesNotMatch(context.container.textContent, /メール確認|メールアドレス|accounts\.kansai\.invalid/);
+    assert.match(context.container.textContent, /実名・ログインID・関係者であることを確認しました/);
     assert.ok(context.container.textContent.includes("peer.staff"));
-    form.querySelector('[data-staff-action="contact"]').click();
-    await eventually(() => context.container.textContent.includes("verified-externally@example.invalid"));
-    const contactRequest = context.calls.find(call => call.name === "office_staff_application_contact").args;
-    assert.equal(contactRequest.p_user_id, peerId);
-    assert.deepEqual(Object.keys(contactRequest), ["p_user_id"]);
-    assert.equal(form.querySelector('[name="identity_confirmed"]').checked, false);
-    form.querySelector('[name="reason"]').value = "Existing club contact and applicant ID checked";
+    form.querySelector('[name="reason"]').value = "Real name, applicant ID and club role checked";
     send(context.window, form);
     assert.equal(context.calls.some(call => call.name === "office_review_staff"), false);
     form.querySelector('[name="identity_confirmed"]').checked = true;
@@ -128,44 +120,32 @@ test("Owner reviews one pending manual contact and explicitly checks it before a
     await eventually(() => context.calls.some(call => call.name === "office_review_staff"));
     const payload = context.calls.find(call => call.name === "office_review_staff").args;
     assert.equal(payload.p_decision, "approved");
-    assert.equal(Object.hasOwn(payload, "email"), false);
-    assert.equal(Object.hasOwn(payload, "actor_id"), false);
+    for (const privateKey of ["email", "actor_id", "actor_name", "identity_confirmed"])
+      assert.equal(Object.hasOwn(payload, privateKey), false);
+    assert.equal(context.calls.some(call => call.name === "office_staff_application_contact"), false);
   } finally { context.controller.dispose(); context.dom.window.close(); }
 });
 
-test("a delayed failed contact lookup blocks review and still allows a retry after both failures", async () => {
+test("failed ID-only approval retains review input and enables retry without an email lookup", async () => {
   let settle;
-  let lookupCount = 0;
   const context = await app("staff_applications", {
     office_staff_applications: [manualApplicant], office_staff_name_requests: [],
-    office_staff_application_contact: () => ++lookupCount === 1
-      ? new Promise(resolve => { settle = resolve; })
-      : { data: { user_id: peerId, email: "retry@example.invalid" }, error: null },
-    office_review_staff: () => ({ data: null, error: { code: "42501" } }),
+    office_review_staff: () => new Promise(resolve => { settle = resolve; }),
   });
   try {
     const form = context.container.querySelector("form");
-    const contact = form.querySelector('[data-staff-action="contact"]');
     const save = form.querySelector('[data-staff-action="review"]');
-    const decision = form.querySelector('[name="decision"]');
-    contact.click();
-    decision.value = "rejected";
-    decision.dispatchEvent(new context.window.Event("change", { bubbles: true }));
-    form.querySelector('[name="reason"]').value = "Check again";
+    form.querySelector('[name="identity_confirmed"]').checked = true;
+    form.querySelector('[name="reason"]').value = "Confirmed club role";
+    send(context.window, form); send(context.window, form);
     assert.equal(save.disabled, true);
-    send(context.window, form);
-    assert.equal(context.calls.some(call => call.name === "office_review_staff"), false);
+    assert.equal(context.calls.filter(call => call.name === "office_review_staff").length, 1);
     settle({ data: null, error: { code: "42501" } });
-    await eventually(() => !contact.disabled);
-    send(context.window, form);
-    await eventually(() => context.calls.some(call => call.name === "office_review_staff") && !form.hasAttribute("aria-busy"));
-    assert.equal(contact.disabled, false);
-    decision.value = "approved";
-    decision.dispatchEvent(new context.window.Event("change", { bubbles: true }));
-    contact.click();
-    await eventually(() => context.container.textContent.includes("retry@example.invalid") && !contact.disabled);
-    assert.equal(save.disabled, false);
-    assert.equal(form.querySelector('[name="identity_confirmed"]').checked, false);
+    await eventually(() => !save.disabled && context.notices.length === 1);
+    assert.equal(form.querySelector('[name="reason"]').value, "Confirmed club role");
+    assert.equal(form.querySelector('[name="identity_confirmed"]').checked, true);
+    assert.equal(context.notices[0][1], true);
+    assert.equal(context.calls.some(call => call.name === "office_staff_application_contact"), false);
   } finally { context.controller.dispose(); context.dom.window.close(); }
 });
 
@@ -182,18 +162,21 @@ test("Administrator cannot open member management even with an Owner caller hint
   } finally { context.controller.dispose(); context.dom.window.close(); }
 });
 
-test("contact lookup arriving after logout cannot render the email or notify the old session", async () => {
+test("ID-only review response arriving after logout cannot restore private data or notify the old session", async () => {
   let settle;
   const context = await app("staff_applications", {
     office_staff_applications: [manualApplicant], office_staff_name_requests: [],
-    office_staff_application_contact: () => new Promise(resolve => { settle = resolve; }),
+    office_review_staff: () => new Promise(resolve => { settle = resolve; }),
   });
   try {
-    context.container.querySelector('[data-staff-action="contact"]').click();
-    context.logout();
-    settle({ data: { user_id: peerId, email: "late-private@example.invalid" }, error: null });
+    const form = context.container.querySelector('form');
+    form.querySelector('[name="identity_confirmed"]').checked = true;
+    form.querySelector('[name="reason"]').value = "Club member identity checked";
+    send(context.window, form);
+    context.logout(); context.container.replaceChildren();
+    settle({ data: null, error: null });
     await new Promise(resolve => setTimeout(resolve, 10));
-    assert.equal(context.container.textContent.includes("late-private"), false);
+    assert.equal(context.container.textContent, "");
     assert.equal(context.notices.length, 0);
   } finally { context.controller.dispose(); context.dom.window.close(); }
 });
@@ -249,7 +232,7 @@ test("pending and suspended staff only receive their own application state on ev
         );
         assert.match(
           context.container.textContent,
-          /メール確認と運営責任者の承認は別々/,
+          /運営責任者の承認後にご利用/,
         );
         assert.equal(context.container.querySelectorAll("form").length, 0);
         assert.equal(

@@ -3882,5 +3882,49 @@
   "選択候補にない写真が含まれています。下書きには保持できます。発行前に写真を確認するか、選択を外してください。": {
     "ko": "선택 후보에 없는 사진이 포함돼 있습니다. 초안에는 유지할 수 있습니다. 발행 전에 사진을 확인하거나 선택을 해제해주세요.",
     "en": "Some photos are not in the selection list. They can remain in the draft. Review them or remove the selection before publishing."
+  },
+  "メールアドレスは不要です。Ownerが本人と関係者であることを確認し、承認後にご利用いただけます。": {
+    "ko": "이메일 주소는 필요하지 않습니다. 최고 관리자가 본인과 구단 관계자 여부를 확인하고 승인하면 이용할 수 있습니다.",
+    "en": "No email address is needed. The Owner verifies your identity and club affiliation before approving access."
+  },
+  "ログインIDが不明な場合やパスワードを再設定する場合は、運営責任者（Owner）にご相談ください。本人と既存アカウントを確認したうえで管理画面から対応します。": {
+    "ko": "로그인 아이디를 모르거나 비밀번호를 재설정하려면 최고 관리자에게 문의해 주세요. 본인과 기존 계정을 확인한 뒤 관리자 화면에서 처리합니다.",
+    "en": "If you do not know your login ID or need a password reset, contact the Owner. They will verify your identity and existing account, then manage it from the admin page."
+  },
+  "復旧の申請だけではパスワードや権限は変更されません。本人確認と管理者の承認が必要です。": {
+    "ko": "복구 신청만으로 비밀번호나 권한은 변경되지 않습니다. 본인 확인과 관리자의 승인이 필요합니다.",
+    "en": "Submitting a recovery request does not change a password or permissions. Identity verification and administrator approval are required."
+  },
+  "登録を完了できませんでした。同じIDを使った申請がある場合は、ログインするか運営責任者にご確認ください。登録を繰り返さないでください。": {
+    "ko": "가입을 완료하지 못했습니다. 같은 아이디로 신청한 적이 있다면 로그인하거나 구단 운영 책임자에게 확인해 주세요. 반복해서 가입하지 마세요.",
+    "en": "Registration could not be completed. If you have applied with this ID, try logging in or contact the club administrator. Do not register repeatedly."
+  },
+  "アカウントを作成しました。入力したIDとパスワードでログインして承認状態をご確認ください。": {
+    "ko": "계정을 만들었습니다. 입력한 아이디와 비밀번호로 로그인하여 승인 상태를 확인해 주세요.",
+    "en": "Your account has been created. Log in with your ID and password to check its approval status."
+  },
+  "確認リンクを読み取れませんでした。最新のリンクを申請した同じブラウザーで開くか、運営責任者に復旧をご相談ください。": {
+    "ko": "확인 링크를 읽을 수 없습니다. 최신 링크를 신청한 브라우저에서 열거나 구단 운영 책임자에게 복구를 문의해 주세요.",
+    "en": "The verification link could not be read. Open the latest link in the browser that requested it, or contact the club administrator for recovery."
+  },
+  "パスワード変更の認証を確認できません。運営責任者に復旧をご相談ください。": {
+    "ko": "비밀번호 변경 인증을 확인할 수 없습니다. 구단 운영 책임자에게 복구를 문의해 주세요.",
+    "en": "Authorization to change the password could not be verified. Contact the club administrator for recovery."
+  },
+  "Ownerアカウントの復旧": {
+    "ko": "최고 관리자 계정 복구",
+    "en": "Owner account recovery"
+  },
+  "実名・ログインID・関係者であることを確認しました。": {
+    "ko": "실명·로그인 아이디·구단 관계자 여부를 확인했습니다.",
+    "en": "I have verified the real name, login ID, and club affiliation."
+  },
+  "実名・ログインID・所属を確認してから承認してください。": {
+    "ko": "실명·로그인 아이디·소속을 확인한 뒤 승인해 주세요.",
+    "en": "Verify the real name, login ID, and affiliation before approving."
+  },
+  "運営責任者の承認後にご利用いただけます。承認前は自分の申請状態のみ確認できます。": {
+    "ko": "구단 운영 책임자가 승인하면 이용할 수 있습니다. 승인 전에는 본인의 신청 상태만 확인할 수 있습니다.",
+    "en": "You can use the account after approval by the club administrator. Until then, you can only check your own application status."
   }
 }

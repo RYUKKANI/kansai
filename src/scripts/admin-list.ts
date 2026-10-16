@@ -279,10 +279,16 @@ export function createList(options: Options): ListController {
     } else wrapper.append(icon(officePages[resource].icon));
     return wrapper;
   }
+  function recordTitle(row: Row): string {
+    const title = String(row[config.titleField] ?? "");
+    // 비상용 이전 권한 화면에서도 서버가 만든 인증용 주소를 연락처나 이름으로 보여 주지 않습니다.
+    return resource === "admin_roles" && /@accounts\.kansai\.invalid$/i.test(title)
+      ? String(row.user_id ?? "") : title;
+  }
   function titleCell(row: Row): HTMLElement {
     const title = node("div", "", "office-record-title");
     const copy = node("div");
-    copy.append(node("h2", String(row[config.titleField] ?? "")));
+    copy.append(node("h2", recordTitle(row)));
     const detail =
       row.summary ??
       row.description ??

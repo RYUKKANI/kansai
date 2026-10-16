@@ -76,7 +76,7 @@ export function staffAuthError(error: unknown): string {
   if (code === "enrollment_unavailable")
     return t("登録を完了できませんでした。IDを確認し、必要な場合は運営責任者にご相談ください。");
   if (code === "registration_unavailable")
-    return t("登録を完了できませんでした。同じID・メールを使った申請がある場合は、ログインまたは復旧をご利用ください。登録を繰り返さず、運営責任者にご確認ください。");
+    return t("登録を完了できませんでした。同じIDを使った申請がある場合は、ログインするか運営責任者にご確認ください。登録を繰り返さないでください。");
   if (code === "registration_uncertain")
     return t("登録結果を確認できません。アカウントが作成された可能性があります。この画面から再申請せず、ログインまたは復旧を確認し、利用できない場合は運営責任者にご相談ください。");
   if (code === "password_update_failed")
@@ -86,7 +86,7 @@ export function staffAuthError(error: unknown): string {
   if (code === "weak_password")
     return t("このパスワードは利用できません。12文字以上で、推測されにくい別のパスワードを入力してください。");
   if (["reauthentication_required", "current_password_required", "current_password_mismatch"].includes(code))
-    return t("パスワード変更の認証を確認できません。確認リンクを申請し直すか、運営責任者にご相談ください。");
+    return t("パスワード変更の認証を確認できません。運営責任者に復旧をご相談ください。");
   if (code === "mfa_required")
     return t("追加の本人確認が必要です。運営責任者に復旧をご相談ください。");
   if (code === "password_update_uncertain")
@@ -227,7 +227,7 @@ export function mountStaffAuth({ client, notice, refresh }: StaffAuthOptions) {
       invalid(field(element, "password_confirmation"), "パスワードが一致しません。");
       return;
     }
-    const payload = { action: "register", ...identity(element), password, password_confirmation: confirmation, email: read(element, "email").trim() };
+    const payload = { action: "register", ...identity(element), password, password_confirmation: confirmation };
     clearStaffPasswords(portal);
     try { await staffAuthRequest(client, payload); }
     catch (error) {
@@ -243,7 +243,7 @@ export function mountStaffAuth({ client, notice, refresh }: StaffAuthOptions) {
     if (generation !== viewGeneration) return;
     element.reset();
     show("login", false);
-    message(t("アカウントを作成しました。メールの確認は不要です。入力したIDとパスワードでログインして承認状態をご確認ください。"));
+    message(t("アカウントを作成しました。入力したIDとパスワードでログインして承認状態をご確認ください。"));
   });
   bind("enroll", async (element) => {
     const generation = viewGeneration;
@@ -309,7 +309,6 @@ export function mountStaffAuth({ client, notice, refresh }: StaffAuthOptions) {
         [t("ログインID"), state.username ?? t("未登録")],
         [t("実名"), state.real_name ?? t("未登録")],
         [t("所属・担当業務"), state.department ?? t("未登録")],
-        [t("メール確認"), t(state.email_confirmation_required === false || state.email_verification_status === "not_required" ? "確認不要（メール所有未確認）" : state.email_confirmed ? "確認済み" : "未確認")],
         [t("承認状態"), t(status[state.approval_status] ?? "承認待ち")],
         [t("実名確認"), t(state.name_verified_at ? "確認済み" : "未確認")],
       ];

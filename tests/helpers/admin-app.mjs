@@ -28,6 +28,7 @@ export async function eventually(condition) {
   }
   assert.ok(condition(), "UI did not reach expected state");
 }
+const restoredSessions = new WeakMap();
 export async function app(
   staffRole = "owner",
   appUrl = "https://kansaiunited.com/admin/",
@@ -63,26 +64,21 @@ export async function app(
   });
   const user = {
     id: uid,
-    email: "test@example.invalid",
+    email: authResponses.userEmail ?? "test@example.invalid",
     aud: "authenticated",
     role: "authenticated",
     user_metadata: { role: "owner" },
     app_metadata: {},
     created_at: new Date().toISOString(),
   };
-  // 초대·기존 계정 전환은 새 아이디 로그인을 가정하지 않고 기존의 검증된 세션 복원을 검사합니다.
+  // 이메일 양식 제거 후 기존 세션의 RLS·편집 회귀를 검사합니다. 인증 자체는 별도 아이디·실제 Auth suite가 검증합니다.
+  const testSession = {
+    access_token: token, refresh_token: "TEST-REFRESH", token_type: "bearer",
+    expires_at: Math.floor(Date.now() / 1000) + 3600, expires_in: 3600, user,
+  };
+  restoredSessions.set(window, testSession);
   if (authResponses.initialSession)
-    window.localStorage.setItem(
-      "kansai-admin-session",
-      JSON.stringify({
-        access_token: token,
-        refresh_token: "TEST-REFRESH",
-        token_type: "bearer",
-        expires_at: Math.floor(Date.now() / 1000) + 3600,
-        expires_in: 3600,
-        user,
-      }),
-    );
+    window.localStorage.setItem("kansai-admin-session", JSON.stringify(testSession));
   const tables = {
     admin_roles: [
       { user_id: uid, email: user.email, role: staffRole, active: true },
@@ -289,15 +285,9 @@ export async function app(
 }
 export async function login(window) {
   const document = window.document;
-  document.querySelector('#login-form input[name="email"]').value =
-    "test@example.invalid";
-  document.querySelector('#login-form input[name="password"]').value =
-    "TEST ONLY";
-  document
-    .querySelector("#login-form")
-    .dispatchEvent(
-      new window.Event("submit", { bubbles: true, cancelable: true }),
-    );
+  window.localStorage.setItem("kansai-admin-session", JSON.stringify(restoredSessions.get(window)));
+  // 다른 탭에서 생성된 기존 세션으로 복귀할 때와 같은 재검증 경로를 사용합니다.
+  window.dispatchEvent(new window.Event("focus"));
   await eventually(
     () =>
       !document.querySelector("#workspace").hidden &&

@@ -60,7 +60,7 @@ for (const event of ["focus", "visibility"]) {
       form.elements.namedItem("username").value = "signup.test";
       form.elements.namedItem("real_name").value = "登録 テスト";
       form.elements.namedItem("department").value = "運営テスト";
-      form.elements.namedItem("email").value = "signup@example.invalid";
+      assert.equal(form.elements.namedItem("email"), null);
       form.elements.namedItem("password").value = "synthetic-test-password";
       form.elements.namedItem("password_confirmation").value = "synthetic-test-password";
       const passwordLength = form.elements.namedItem("password").value.length;

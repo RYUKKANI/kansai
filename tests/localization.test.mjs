@@ -253,7 +253,7 @@ test("Korean staff UI preserves original content, server field names and draft s
     assert.equal(doc.documentElement.lang, "ko");
     assert.equal(
       doc.querySelector("#login-panel h1").textContent,
-      "운영 멤버 로그인",
+      "관계자 계정",
     );
     assert.equal(
       doc.querySelector(".office-public-link").getAttribute("href"),
@@ -294,66 +294,28 @@ test("Korean staff UI preserves original content, server field names and draft s
     dom.window.close();
   }
 });
-test("English login notices remain invitation-only and return to the selected language", async () => {
-  const { dom, window, requests } = await app(
-    "owner",
-    "https://kansaiunited.com/admin/?lang=en",
-  );
+test("English ID portal preserves language without exposing email authentication", async () => {
+  const { dom, window, requests } = await app("owner", "https://kansaiunited.com/admin/?lang=en");
   try {
     const doc = window.document;
     assert.equal(doc.documentElement.lang, "en");
-    assert.equal(
-      doc.querySelector("#login-panel h1").textContent,
-      "Club staff login",
-    );
-    doc.querySelector("#login-form input[name=email]").value =
-      "test@example.invalid";
-    doc.querySelector("#magic-link-button").click();
-    await eventually(() =>
-      doc
-        .querySelector("#admin-notice")
-        .textContent.includes("Login link sent."),
-    );
-    const request = requests.find((item) =>
-      new URL(item.url).pathname.endsWith("/auth/v1/otp"),
-    );
-    assert.equal(JSON.parse(request.body).create_user, false);
-    assert.equal(
-      new URL(request.url).searchParams.get("redirect_to"),
-      "https://kansaiunited.com/admin/",
-    );
+    assert.equal(doc.querySelector("#login-panel h1").textContent, "Club member account");
+    assert.equal(doc.querySelector('#staff-login-form label[for="staff-login-username"]').textContent, "Login ID");
+    assert.equal(doc.querySelector('input[type="email"],#magic-link-button'), null);
     assert.equal(window.localStorage.getItem("kansai-language"), "en");
-  } finally {
-    dom.window.close();
-  }
+    assert.equal(requests.some(item => /\/auth\/v1\/(otp|resend|signup)/.test(new URL(item.url).pathname)), false);
+  } finally { dom.window.close(); }
 });
 
-test("Korean email rate-limit errors are readable and English coach access stays restricted", async () => {
-  const limited = await app(
-    "owner",
-    "https://kansaiunited.com/admin/?lang=ko",
-    { otpError: "over_email_send_rate_limit" },
-  );
+test("Korean disabled portal and English coach access stay restricted", async () => {
+  const limited = await app("owner", "https://kansaiunited.com/admin/?lang=ko");
   try {
     const doc = limited.window.document;
-    doc.querySelector("#login-form input[name=email]").value =
-      "test@example.invalid";
-    doc.querySelector("#magic-link-button").click();
-    await eventually(() =>
-      doc
-        .querySelector("#admin-notice")
-        .textContent.includes("메일 전송 횟수 제한"),
-    );
-    assert.equal(doc.querySelector("#magic-link-button").disabled, false);
-    assert.equal(
-      limited.requests.filter((item) =>
-        new URL(item.url).pathname.includes("/auth/v1/otp"),
-      ).length,
-      1,
-    );
-  } finally {
-    limited.dom.window.close();
-  }
+    assert.equal(doc.querySelector("#login-panel h1").textContent, "관계자 계정");
+    assert.equal(doc.querySelector('#staff-login-form input[name="username"]').disabled, true);
+    assert.equal(doc.querySelector('input[type="email"],#magic-link-button'), null);
+    assert.equal(limited.requests.some(item => /\/auth\/v1\/(otp|resend|signup)/.test(new URL(item.url).pathname)), false);
+  } finally { limited.dom.window.close(); }
   const coach = await app(
     "coach",
     "https://kansaiunited.com/admin/?lang=en",

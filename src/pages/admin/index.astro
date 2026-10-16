@@ -3,8 +3,7 @@
 import AdminLayout from "../../layouts/AdminLayout.astro";
 import StaffAuthPortal from "../../components/admin/StaffAuthPortal.astro";
 import "../../styles/admin-staff.css";
-// 운영 Owner의 실제 전환 검증이 끝날 때까지 기존 로그인 화면을 유지합니다.
-const staffIdentityEnabled = import.meta.env.PUBLIC_STAFF_IDENTITY_ENABLED === "true";
+// 아이디 인증이 비활성인 환경에서도 이전 이메일 로그인 양식은 다시 노출하지 않습니다.
 // 양식·목록은 브라우저에서 확인한 세션과 DB 역할에 따라 구성합니다. 실제 접근 권한은 RLS가 결정합니다.
 ---
 
@@ -15,57 +14,7 @@ const staffIdentityEnabled = import.meta.env.PUBLIC_STAFF_IDENTITY_ENABLED === "
     role="status"
     aria-live="polite"
   ></div>
-  {staffIdentityEnabled ? <div id="login-panel"><StaffAuthPortal /></div> : (
-  <section class="admin-login" id="login-panel">
-    <p class="eyebrow">CLUB OFFICE</p>
-    <h1>
-      <span data-i18n="運営メンバーのログイン">運営メンバーのログイン</span>
-    </h1>
-    <p>
-      <span data-i18n="招待されたメールアドレスでログインしてください。">
-        招待されたメールアドレスでログインしてください。
-      </span>
-    </p>
-    <!-- 초대만 받은 계정에는 아직 비밀번호가 없습니다. 첫 인증과 이후 로그인을 구분해 안내합니다. -->
-    <p class="admin-help">
-      <span data-i18n="初回は招待メールの確認リンクを開いてください。メールが見つからない・期限切れの場合は、下のメールリンク送信をお試しください。">
-        初回は招待メールの確認リンクを開いてください。メールが見つからない・期限切れの場合は、下のメールリンク送信をお試しください。
-      </span>
-    </p>
-    <form id="login-form">
-      <label>
-        <span data-i18n="メールアドレス">メールアドレス</span>
-        <input type="email" name="email" autocomplete="email" required />
-      </label>
-      <label>
-        <span data-i18n="パスワード">パスワード</span>
-        <input
-          type="password"
-          name="password"
-          autocomplete="current-password"
-        />
-      </label>
-      <button type="submit" class="admin-primary">
-        <span data-i18n="ログイン">ログイン</span>
-      </button>
-      <button type="button" id="magic-link-button" class="admin-secondary">
-        <span data-i18n="メールのログインリンクを送信">
-          メールのログインリンクを送信
-        </span>
-      </button>
-      <p class="admin-help">
-        <span data-i18n="メールリンクではパスワードを入力する必要はありません。新規登録は受け付けていません。">
-          メールリンクではパスワードを入力する必要はありません。新規登録は受け付けていません。
-        </span>
-      </p>
-    </form>
-    <p id="config-warning" class="admin-help" hidden>
-      <span data-i18n="管理システムの接続は準備中です。">
-        管理システムの接続は準備中です。
-      </span>
-    </p>
-  </section>
-  )}
+  <div id="login-panel"><StaffAuthPortal /></div>
   <div class="admin-workspace" id="workspace" hidden>
     <div id="sidebar-backdrop" class="office-sidebar-backdrop" hidden></div>
     <aside
@@ -235,38 +184,6 @@ const staffIdentityEnabled = import.meta.env.PUBLIC_STAFF_IDENTITY_ENABLED === "
         <span data-i18n="削除する">削除する</span>
       </button>
     </div>
-  </dialog>
-  <dialog
-    id="invite-dialog"
-    class="admin-dialog admin-confirm"
-    aria-labelledby="invite-title"
-  >
-    <h2 id="invite-title">
-      <span data-i18n="運営メンバーを招待">運営メンバーを招待</span>
-    </h2>
-    <form id="invite-form">
-      <label>
-        <span data-i18n="メールアドレス">メールアドレス</span>
-        <input type="email" name="email" required />
-      </label>
-      <label>
-        <span data-i18n="権限">権限</span>
-        <select name="role">
-          <option value="administrator">Administrator</option>
-          <option value="editor">Editor</option>
-          <option value="coach">Coach</option>
-          <option value="owner">Owner</option>
-        </select>
-      </label>
-      <div class="admin-editor-actions">
-        <button type="button" id="invite-cancel" class="admin-secondary">
-          <span data-i18n="キャンセル">キャンセル</span>
-        </button>
-        <button type="submit" class="admin-primary">
-          <span data-i18n="招待メールを送信">招待メールを送信</span>
-        </button>
-      </div>
-    </form>
   </dialog>
   <noscript>
     <p class="content-empty">

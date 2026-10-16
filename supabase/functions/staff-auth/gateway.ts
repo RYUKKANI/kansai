@@ -52,7 +52,7 @@ const ACTIONS = ["login", "register", "recovery", "enroll", "set_password", "leg
 type Action = typeof ACTIONS[number];
 const fields: Record<Action, string[]> = {
   login: ["action", "username", "password", "captcha_token"],
-  register: ["action", "username", "password", "password_confirmation", "real_name", "department", "email", "notice_accepted", "captcha_token"],
+  register: ["action", "username", "password", "password_confirmation", "real_name", "department", "notice_accepted", "captcha_token"],
   recovery: ["action", "email", "captcha_token", "code_challenge", "code_challenge_method", "flow_id"],
   enroll: ["action", "username", "real_name", "department", "notice_accepted"],
   set_password: ["action", "password", "password_confirmation", "current_password"],
@@ -277,10 +277,11 @@ export function createGateway(deps: GatewayDependencies): (request: Request) => 
         const secret = newPassword(body);
         const realName = displayText(body.real_name, 150);
         const department = displayText(body.department, 200);
-        const recoveryEmail = email(body.email);
         const captchaToken = captcha(body.captcha_token);
         if (body.notice_accepted !== true) return fail("invalid_request");
-        await rateLimit(deps, action, ip, [`username:${username}`, `email:${recoveryEmail}`]);
+        // 기술 주소는 요청마다 달라지므로 제한 식별자로 사용하지 않습니다. 정규화 아이디와
+        // 검증된 IP(설정된 경우), 공통 생성 한도는 이메일 수집 없이도 계속 적용합니다.
+        await rateLimit(deps, action, ip, [`username:${username}`]);
         if (deps.config.registrationCaptchaMode === "unconfigured") return fail("service_unavailable", 503);
         if (deps.config.registrationCaptchaMode !== "disabled") {
           if (!captchaToken) return fail("invalid_request");
@@ -289,8 +290,12 @@ export function createGateway(deps: GatewayDependencies): (request: Request) => 
           if (verification !== "passed") return fail("invalid_request");
         }
         await registrationCreationLimit(deps);
+        // Supabase의 네이티브 비밀번호 검증에만 쓰는 무작위 기술 식별자입니다. 실존 메일함이나
+        // 아이디에서 유도하지 않으며 .invalid 예약 도메인이라 메일 수신·복구 연락처로 쓸 수 없습니다.
+        // 기존 계정 이메일은 변경하지 않고, 새 가입 요청의 email 키 자체를 입력 허용 목록에서 거부합니다.
+        const authAddress = `staff-${crypto.randomUUID()}@accounts.kansai.invalid`;
         // 이메일 소유 확인 생략은 서버가 정한 가입 정책입니다. 브라우저가 역할·확인 여부를 지정할 수 없습니다.
-        const reservation = await deps.service.rpc("staff_auth_reserve", { p_username: username, p_email: recoveryEmail, p_real_name: realName, p_department: department, p_notice_accepted: true, p_email_confirmation_required: false });
+        const reservation = await deps.service.rpc("staff_auth_reserve", { p_username: username, p_email: authAddress, p_real_name: realName, p_department: department, p_notice_accepted: true, p_email_confirmation_required: false });
         if (reservation.error) { if (unavailableReservation(reservation.error)) return fail("registration_unavailable", 409); return fail("service_unavailable", 503); }
         if (typeof reservation.data !== "string" || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(reservation.data)) return fail("service_unavailable", 503);
         const rejectedRegistration = async (code: string, status: number): Promise<never> => {
@@ -306,7 +311,7 @@ export function createGateway(deps: GatewayDependencies): (request: Request) => 
         // Auth의 기술적 email_confirm은 이메일 소유 확인이나 구단 승인이 아닙니다. DB는 별도 정책과 pending을 저장합니다.
         let result: Result;
         try { result = await deps.service.auth.admin.createUser({
-          email: recoveryEmail, password: secret, email_confirm: true,
+          email: authAddress, password: secret, email_confirm: true,
           // DB 확정 전 세션을 얻더라도 이전 운영진 enrollment로 정책을 우회할 수 없도록 Auth 생성과 함께 기록합니다.
           // 사용자 수정이 가능한 user_metadata나 클라이언트 인자로 이 표식을 받지 않습니다.
           app_metadata: { staff_signup_policy: "manual_approval_no_email_v1" },
@@ -325,7 +330,7 @@ export function createGateway(deps: GatewayDependencies): (request: Request) => 
         const created = result.data?.user;
         if (result.data?.session || typeof created?.id !== "string" ||
           !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(created.id) ||
-          typeof created.email !== "string" || created.email.trim().toLowerCase() !== recoveryEmail) return fail("registration_uncertain", 503);
+          typeof created.email !== "string" || created.email.trim().toLowerCase() !== authAddress) return fail("registration_uncertain", 503);
         let finalized: Result;
         try { finalized = await deps.service.rpc("staff_auth_finalize", { p_reservation: reservation.data, p_user_id: created.id }); }
         catch { return fail("registration_uncertain", 503); }

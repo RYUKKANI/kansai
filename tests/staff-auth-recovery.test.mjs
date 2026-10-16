@@ -195,7 +195,7 @@ function browser(address, network, saved = []) {
   };
 }
 
-test("actual browser SDK auto-initializes callback and resumes a signed recovery after a full page reload", async () => {
+test("previously issued PKCE callback still auto-initializes and resumes signed recovery after reload", async () => {
   const requests = [];
   const result = signedBrowserSession();
   const network = async (input, init) => {
@@ -212,10 +212,12 @@ test("actual browser SDK auto-initializes callback and resumes a signed recovery
   const first = browser("https://club.example.invalid/admin/help/?lang=ja", network);
   let saved;
   try {
-    const form = first.window.document.querySelector("#staff-recovery-form");
-    form.elements.namedItem("email").value = "test@example.invalid";
-    form.dispatchEvent(new first.window.Event("submit", { bubbles: true, cancelable: true }));
-    await until(() => first.window.document.querySelector("#staff-help-message").textContent.includes("送信を受け付けました"));
+    // 메일 양식을 제거하기 전에 발급된 링크와 브라우저 verifier를 격리된 SDK로 재현합니다.
+    assert.equal(first.window.document.querySelector("#staff-recovery-form"), null);
+    const issuedBeforeTransition = await first.runtime.client.auth.resetPasswordForEmail("test@example.invalid", {
+      redirectTo: "https://club.example.invalid/admin/help/",
+    });
+    assert.equal(issuedBeforeTransition.error, null);
     assert.match(requests[0].body.flow_id, /^[A-Za-z0-9_-]{8,64}$/);
     saved = first.snapshot();
     assert.ok(saved.some(([name]) => name.endsWith("-code-verifier")));
@@ -350,36 +352,21 @@ test("actual recovery controller rejects more than 72 UTF-8 bytes and accepts th
   }
 });
 
-test("signup and help describe Owner approval, retained contact email and transitional recovery without a fake support action", async () => {
-  const portalSource = await readFile(
-    "src/components/admin/StaffAuthPortal.astro",
-    "utf8",
-  );
-  const portal = new JSDOM(portalSource.replace(/^---[\s\S]*?---/, "")).window
-    .document;
+test("signup and help need no email and direct account recovery to verified administrators", async () => {
+  const portalSource = await readFile("src/components/admin/StaffAuthPortal.astro", "utf8");
+  const supportSource = await readFile("src/components/StaffSupportRecovery.astro", "utf8");
+  const portal = new JSDOM(portalSource.replace(/^---[\s\S]*?---/, "")).window.document;
   const help = new JSDOM(helpHtml).window.document;
   const signup = portal.querySelector('[data-staff-panel="signup"]');
-  assert.match(signup.textContent, /新規登録では確認メールを送信しません/);
-  assert.match(
-    signup.textContent,
-    /Ownerによる本人・関係者・連絡先の確認と承認/,
-  );
-  assert.equal(signup.querySelector('[name="email"]').required, true);
-  assert.match(
-    signup.querySelector('label[for="staff-signup-email"]').textContent,
-    /連絡・復旧用/,
-  );
-  for (const field of signup.querySelectorAll('[autocomplete="new-password"]'))
-    assert.equal(field.maxLength, 72);
+  assert.match(signup.textContent, /メールアドレスは不要/);
+  assert.match(signup.textContent, /Ownerが本人と関係者であることを確認/);
+  assert.equal(signup.querySelector('[name="email"], input[type="email"]'), null);
+  for (const field of signup.querySelectorAll('[autocomplete="new-password"]')) assert.equal(field.maxLength, 72);
   const options = help.querySelector("#staff-help-options");
-  assert.match(options.textContent, /申請・受信・リンクの確認だけでは/);
-  assert.match(options.textContent, /移行期間中のメール復旧/);
-  assert.ok(options.querySelector("#staff-recovery-form"));
+  assert.match(options.textContent, /本人と既存アカウントを確認.*管理画面から対応/);
+  assert.equal(options.querySelector("#staff-recovery-form, #staff-help-legacy, input[type=email]"), null);
   assert.equal(options.textContent.includes("reset-staff-password.mjs"), false);
-  assert.equal(
-    [...options.querySelectorAll("button")].some((button) =>
-      /支援|メールを使わない再設定/.test(button.textContent),
-    ),
-    false,
-  );
+  assert.match(supportSource, /Ownerアカウントの復旧/);
+  assert.match(supportSource, /申請だけでは権限は得られません/);
+  assert.equal(supportSource.includes('type="email"'), false);
 });

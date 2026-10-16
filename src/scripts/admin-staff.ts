@@ -145,11 +145,6 @@ function submit(
   form.append(button);
   return button;
 }
-function emailVerification(row: Row): string {
-  if (row.email_confirmation_required === false || row.email_verification_status === "not_required")
-    return t("確認不要（メール所有未確認）");
-  return row.email_confirmed === true || row.email_confirmed_at ? t("確認済み") : t("未確認");
-}
 function safeError(error: unknown): string {
   const value = error && typeof error === "object" ? (error as Row) : {};
   const raw = string(value.message);
@@ -167,10 +162,8 @@ function safeError(error: unknown): string {
     return t("最後の有効なOwnerは停止・降格できません。");
   if (/self|own.*(approv|role|identity)/i.test(raw))
     return t("自分自身の承認・本人確認・権限変更はできません。");
-  if (raw === "manual_contact_check_required")
-    return t("申請者の連絡先を確認し、本人との照合を完了してください。");
-  if (/email.*confirm/i.test(raw))
-    return t("メールアドレスの確認後に承認してください。");
+  if (raw === "manual_contact_check_required" || /email.*confirm/i.test(raw))
+    return t("実名・ログインID・所属を確認してから承認してください。");
   if (/verif|real.name/i.test(raw))
     return t("先に実名と関係者であることを確認してください。");
   if (/rate|too.many/i.test(raw))
@@ -491,10 +484,6 @@ export async function renderStaffOffice(
         [t("実名"), valueOrDash(account.real_name)],
         [t("所属・担当業務"), valueOrDash(account.department)],
         [t("申請状態"), state(account.approval_status)],
-        [
-          t("メール確認"),
-          emailVerification(account),
-        ],
         [t("活動状態"), account.active === true ? t("活動中") : t("利用停止")],
         [t("現在の権限"), roleText(account.role)],
         [
@@ -526,7 +515,7 @@ export async function renderStaffOffice(
       section.append(
         note(
           t(
-            "メール確認と運営責任者の承認は別々に行われます。承認前は自分の申請状態のみ確認できます。",
+            "運営責任者の承認後にご利用いただけます。承認前は自分の申請状態のみ確認できます。",
           ),
         ),
       );
@@ -658,10 +647,6 @@ export async function renderStaffOffice(
           [t("所属・担当業務"), valueOrDash(member.department)],
           [t("希望する役割"), valueOrDash(member.requested_role)],
           [t("現在の権限"), roleText(member.role)],
-          [
-            t("メール確認"),
-            emailVerification(member),
-          ],
           [t("活動状態"), member.active === true ? t("活動中") : t("利用停止")],
           [t("アカウントUUID"), id || "—"],
           [
@@ -682,15 +667,7 @@ export async function renderStaffOffice(
           [t("確認日時"), date(member.verified_at ?? member.name_verified_at)],
         ]),
       );
-      // 연락처는 승인 담당 RPC에서 허용한 경우에만 별도의 접힌 영역에 표시합니다.
-      if (string(member.email)) {
-        const contact = element("details", "", "staff-contact");
-        contact.append(
-          element("summary", t("承認担当者向けの連絡先")),
-          element("p", string(member.email)),
-        );
-        card.append(contact);
-      }
+      // 가입·승인은 아이디·실명·소속으로 심사합니다. 기존 연락처와 내부 인증 주소는 표시하지 않습니다.
       if (self)
         card.append(
           note(t("自分自身の承認・本人確認・権限変更は別のOwnerに依頼してください。")),
@@ -724,7 +701,6 @@ export async function renderStaffOffice(
         }
         if (member.approval_status === "pending") {
           const manual = member.email_confirmation_required === false || member.email_verification_status === "not_required";
-          let contactLoaded = !manual;
           const approval = element("form", "", "staff-form");
           approval.append(element("h4", t("加入申請を審査")));
           const role = selectRole(approval, "role", "coach", owner);
@@ -742,19 +718,9 @@ export async function renderStaffOffice(
           }
           choiceLabel.append(choice);
           approval.append(choiceLabel);
-          if (manual) approval.append(note(t("確認メールは送信していません。承認前に本人と連絡先をご確認ください。")));
-          const contactView = element("details", "", "staff-contact");
-          const contactButton = element("button", t("申請者の連絡先を確認"), "staff-button");
-          contactButton.type = "button";
-          contactButton.dataset.staffAction = "contact";
-          const contactText = element("p");
-          if (manual && owner) {
-            contactView.append(element("summary", t("承認担当者向けの連絡先")), contactButton, contactText);
-            approval.append(contactView);
-          }
           const confirmationLabel = element(
             "label",
-            t(manual ? "本人・ログインID・メールアドレスを別の連絡手段で確認しました。" : "実名と関係者であることを確認しました。"),
+            t("実名・ログインID・関係者であることを確認しました。"),
             "staff-checkbox",
           );
           const confirmed = element("input");
@@ -771,44 +737,14 @@ export async function renderStaffOffice(
           const updateDecision = () => {
             confirmed.required = choice.value === "approved";
             confirmationLabel.hidden = !confirmed.required;
-            save.disabled = busy || (confirmed.required && !contactLoaded);
+            save.disabled = busy;
           };
           updateDecision();
           choice.addEventListener("change", updateDecision);
-          // 연락 이메일은 Owner가 요청한 단일 대기 신청에만 표시하고, 로그아웃 뒤 늦은 응답은 버립니다.
-          contactButton.addEventListener("click", () => {
-            if (busy || !current()) return;
-            const requestSequence = sequence;
-            // 연락처 조회와 심사 저장이 같은 controls의 disabled 스냅샷을 덮어쓰지 않게 직렬화합니다.
-            busy = true;
-            contactButton.disabled = true;
-            contactView.setAttribute("aria-busy", "true");
-            updateDecision();
-            void (async () => {
-              try {
-                const contact = record(await rpc("office_staff_application_contact", { p_user_id: id }));
-                if (!current() || requestSequence !== sequence) return;
-                if (contact.user_id !== id || !string(contact.email)) throw new Error("invalid_response");
-                contactText.textContent = format("連絡用メール: {0}", string(contact.email));
-                contactLoaded = true;
-                confirmed.checked = false;
-                updateDecision();
-              } catch (error) {
-                if (current() && requestSequence === sequence) notice(safeError(error), true);
-              } finally {
-                busy = false;
-                if (current() && requestSequence === sequence) {
-                  contactButton.disabled = false;
-                  contactView.removeAttribute("aria-busy");
-                  updateDecision();
-                }
-              }
-            })();
-          });
           formAction(
             approval,
             () => {
-              if (manual && choice.value === "approved" && (!contactLoaded || !confirmed.checked))
+              if (choice.value === "approved" && !confirmed.checked)
                 throw new Error("manual_contact_check_required");
               return rpc("office_review_staff", {
                 p_user_id: id,
