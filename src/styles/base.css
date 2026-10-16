@@ -118,3 +118,15 @@ svg {
 .skip-link:focus {
   top: 20px;
 }
+/* 공개 화면과 관리자 화면 모두 움직임 줄이기 설정을 따릅니다. */
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  *,
+  *::before,
+  *::after {
+    transition: none !important;
+    animation: none !important;
+  }
+}

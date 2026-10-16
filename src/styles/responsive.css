@@ -732,15 +732,3 @@
     height: 45px;
   }
 }
-/* 움직임 줄이기를 설정한 사용자의 접근성 */
-@media (prefers-reduced-motion: reduce) {
-  html {
-    scroll-behavior: auto;
-  }
-  *,
-  *::before,
-  *::after {
-    transition: none !important;
-    animation: none !important;
-  }
-}
