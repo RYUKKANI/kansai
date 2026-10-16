@@ -262,7 +262,7 @@ test("server denial displays no editable account fields", async () => {
     );
     assert.match(
       context.dialog.querySelector('[role="alert"]').textContent,
-      /最高管理者/,
+      /統括/,
     );
   } finally {
     context.close();
@@ -442,7 +442,7 @@ test("verified self name remains unchanged for a login ID edit, while a missing 
 test("identity errors distinguish an MFA challenge and verified self correction without exposing server details", async () => {
   for (const [message, expected] of [
     ["owner_mfa_required", /多要素認証.*その認証も完了/],
-    ["self_verified_name_requires_review", /別の最高管理者/],
+    ["self_verified_name_requires_review", /別の統括/],
   ]) {
     const context = app({
       update: () => ({
@@ -556,7 +556,7 @@ test("verified self real name is read-only while an unverified self name remains
       const form = context.dialog.querySelector('[data-owner-form="identity"]');
       assert.equal(form.elements.namedItem("real_name").readOnly, verified);
       assert.equal(form.elements.namedItem("username").readOnly, false);
-      if (verified) assert.match(form.textContent, /別の最高管理者/);
+      if (verified) assert.match(form.textContent, /別の統括/);
     } finally {
       context.close();
     }

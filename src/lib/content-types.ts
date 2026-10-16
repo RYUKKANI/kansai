@@ -2,7 +2,7 @@
 import type { ContentTranslations } from "./content-translations";
 export type Position = "GK" | "DF" | "MF" | "FW";
 export type ContentStatus = "draft" | "pending" | "published";
-export type StaffRole = "owner" | "administrator" | "editor" | "coach";
+export type StaffRole = import("./member-grades").MemberGrade;
 export interface PublicPlayer {
   playerId: string; // 이름이나 등번호가 바뀌어도 유지하는 UUID
   slug: string;

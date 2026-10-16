@@ -11,7 +11,7 @@ export type StaffOfficePage =
   | "staff_applications"
   | "staff_account"
   | "staff_audit";
-export type OfficePage = Resource | "dashboard" | "schedule" | StaffOfficePage;
+export type OfficePage = Resource | "dashboard" | "schedule" | "player_portal" | StaffOfficePage;
 export const staffOfficePages: StaffOfficePage[] = [
   "staff_directory", "staff_applications", "staff_account", "staff_audit",
 ];
@@ -47,6 +47,10 @@ export const officePages: Record<
   OfficePage,
   { group: OfficeGroup; english: string; icon: string; description: string }
 > = {
+  player_portal: {
+    group: "OVERVIEW", english: "PLAYER HOME", icon: "ball",
+    description: t("自分の選手情報と、参加できる公開予定を確認します。"),
+  },
   dashboard: {
     group: "OVERVIEW",
     english: "DASHBOARD",
@@ -133,7 +137,7 @@ export const officePages: Record<
   },
   staff_applications: {
     group: "SYSTEM", english: "MEMBER MANAGEMENT", icon: "shield",
-    description: t("加入申請とアカウントを管理します。ID・実名・パスワードの変更は最高管理者が行います。"),
+    description: t("加入申請とアカウントを管理します。ID・実名・パスワードの変更は統括が行います。"),
   },
   staff_account: {
     group: "SYSTEM", english: "MY ACCOUNT", icon: "profile",
@@ -161,11 +165,24 @@ export const stateLabels: Record<string, string> = {
   disabled: t("無効"),
 };
 export const roleLabels: Record<string, string> = {
-  owner: t("最高管理者"),
+  owner: t("統括"),
+  staff: t("スタッフ"),
+  player: t("選手"),
+  // 과거 감사 기록의 역할은 당시 값을 보존해 표시합니다.
   administrator: t("管理者"),
   editor: t("編集者"),
   coach: t("コーチ"),
 };
+
+// 이미 공개된 자료는 내용만 바꾸어도 다음 배포에 반영됩니다. 총괄만 수정·삭제합니다.
+export function isPublicOfficeRecord(row: Row | null): boolean {
+  if (!row) return false;
+  const profile = row.office_profile as Row | undefined;
+  const release = row.office_release as Row | undefined;
+  return row.status === "published" || row.is_public === true || profile?.status === "published" || release?.state === "queued";
+}
+export const publicReadOnlyMessage = () =>
+  t("公開中の資料は閲覧のみできます。変更は統括が公開を取り消した後に行い、再度承認を受けてください。");
 
 // 경로는 구단 UI 안에서만 쓰는 고정 SVG입니다. 사용자 입력을 SVG나 HTML로 해석하지 않습니다.
 const iconPaths: Record<string, string[]> = {
@@ -493,7 +510,7 @@ export const editorGroups: Record<
       label: t("メンバーのアクセス"),
       fields: ["role", "active"],
       hint: t(
-        "最後の最高管理者を停止するには、先に別の最高管理者を設定してください。退任者の記録は削除せず、利用を停止します。",
+        "最後の統括を停止するには、先に別の統括を設定してください。退任者の記録は削除せず、利用を停止します。",
       ),
     },
   ],

@@ -32,7 +32,7 @@ try {
   }
 
   await test("published profiles keep approval metadata inside the football staff boundary", async () => {
-    await as(2);
+    await as(1);
     const player = (await rows("insert into public.players(internal_name,profile_consent) values('TEST Public Player',true) returning id"))[0].id;
     const draft = (await rows("insert into public.players(internal_name) values('TEST Private Player') returning id"))[0].id;
     await db.query("insert into public.public_player_profiles(player_id,slug,display_name,position,status) values($1,'test-public-player','TEST Public Player','GK','published'),($2,'test-private-player','TEST Private Player','DF','draft')", [player, draft]);
@@ -43,16 +43,16 @@ try {
     await assert.rejects(db.query("select approved_by from public.public_player_profiles"), /permission denied/);
     await assert.rejects(db.query("select * from public.public_player_profiles"), /permission denied/);
 
-    for (const [n, label] of [[6, "pending"], [7, "suspended"], [5, "inactive"], [3, "editor"]]) {
+    for (const [n, label] of [[6, "pending"], [7, "suspended"], [5, "inactive"]]) {
       await as(n);
       assert.deepEqual(await rows("select approved_by from public.public_player_profiles"), [], `${label} account cannot obtain internal approval UUIDs even from a published row`);
       assert.deepEqual(await rows("select * from public.public_player_profiles"), [], `${label} account cannot bypass the safe anonymous projection with a table-wide select`);
     }
-    for (const n of [1, 2, 4]) {
+    for (const n of [1, 2, 3, 4]) {
       await as(n);
       const internal = await rows("select player_id,approved_by from public.public_player_profiles order by player_id");
       assert.equal(internal.length, 2, "permitted football staff retain published and draft access");
-      assert.equal(internal.find((row) => row.player_id === player).approved_by, user(2), "the real server-selected approver remains available to permitted staff");
+      assert.equal(internal.find((row) => row.player_id === player).approved_by, user(1), "the real server-selected approver remains available to permitted staff");
     }
 
     // 같은 access JWT를 계속 사용해도 현재 DB의 회수/정지 상태를 검사해야 합니다.
@@ -89,7 +89,7 @@ try {
     assert.deepEqual(logs.map((row) => row.action), ["insert", "update", "delete"]);
     for (const log of logs) {
       assert.equal(log.actor_id, user(4));
-      assert.equal(log.actor_role, "coach");
+      assert.equal(log.actor_role, "staff");
       assert.equal(log.actor_name, verifiedName);
       assert.equal(log.actor_name_status, "verified");
       assert.equal(log.source, "human");
@@ -128,14 +128,14 @@ try {
     await assert.rejects(db.query("select * from public.create_training_series($1,1,2)", [invalidTemplate]), /check constraint/);
     assert.equal((await rows("select count(*)::int as n from public.audit_logs where entity='training_series'"))[0].n, beforeFailure, "a failed recurrence RPC rolls back both its series insert and audit trigger");
 
-    for (const n of [3, 5, 6, 7]) {
+    for (const n of [5, 6, 7]) {
       await as(n);
-      assert.deepEqual(await auditFor(id), [], "unapproved, inactive and unrelated staff cannot read football audit details");
+      assert.deepEqual(await auditFor(id), [], "unapproved and inactive accounts cannot read business audit details");
       await assert.rejects(db.query("insert into public.training_series(interval_weeks,occurrences) values(1,2)"), /row-level security/);
     }
     await as(null);
     await assert.rejects(db.query("select * from public.audit_logs where entity='training_series'"), /permission denied/);
-    for (const n of [1, 2, 4]) {
+    for (const n of [1, 2, 3, 4]) {
       await as(n);
       assert.equal((await auditFor(id)).length, 3, "permitted football staff retain committed series history");
     }

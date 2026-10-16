@@ -9,7 +9,10 @@ export type StaffAccountState = {
   email_confirmed: boolean;
   email_confirmation_required?: boolean;
   email_verification_status?: "verified" | "pending" | "not_required";
-  role: "owner" | "administrator" | "editor" | "coach" | null;
+  role: import("./member-grades").MemberGrade | null;
+  member_grade?: import("./member-grades").MemberGrade | null;
+  requested_grade?: import("./member-grades").MemberGrade | null;
+  player_id?: string | null;
   active: boolean;
   identity_enrolled: boolean;
   profile_enrollment_pending?: boolean;

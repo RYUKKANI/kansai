@@ -265,7 +265,7 @@ test("local draft restore includes both translations, tab status and keyboard na
   }
 });
 
-test("player registration offers only approved player photos and public profile receives the chosen photo", async () => {
+test("Staff can prepare player-category photos while public profile approval remains unavailable", async () => {
   const photo = (id, category, status = "published", approved = true) => ({
     id,
     title: id,
@@ -278,7 +278,7 @@ test("player registration offers only approved player photos and public profile 
     album_id: null,
   });
   const context = await app(
-    "coach",
+    "staff",
     undefined,
     {},
     {
@@ -318,7 +318,7 @@ test("player registration offers only approved player photos and public profile 
     const photos = d.querySelector('[name="photo_asset_id"]');
     assert.deepEqual(
       [...photos.options].map((o) => o.value).sort(),
-      ["", "selected-player", "second-player"].sort(),
+      ["", "selected-player", "second-player", "draft-player", "unapproved"].sort(),
     );
     d.querySelector("#editor-close").click();
     await eventually(() => d.querySelector('[data-player-action="edit"]'));

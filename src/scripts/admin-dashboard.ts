@@ -59,6 +59,8 @@ export async function buildDashboard({
   create,
   open,
 }: Options): Promise<HTMLElement> {
+  // 선수는 이 집계 화면을 사용하지 않습니다. 직접 호출되어도 운영 통계·감사를 조회하지 않습니다.
+  if (role === "player") return node("p", t("選手ホームで自分の情報と公開予定を確認してください。"), "admin-help");
   const visible = (Object.keys(resources) as Resource[]).filter(
     (resource) =>
       resources[resource].roles.includes(role) && resourceAvailable(resource),

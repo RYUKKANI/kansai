@@ -29,6 +29,14 @@ export async function eventually(condition) {
   assert.ok(condition(), "UI did not reach expected state");
 }
 const restoredSessions = new WeakMap();
+// 기존 회귀의 직책 인자는 마이그레이션 후 서버가 반환하는 등급으로 바꿉니다.
+// rawLegacyRole은 구형 응답 호환성을 별도로 검증할 때만 사용합니다.
+const grade = (role) => ["administrator", "editor", "coach"].includes(role) ? "staff" : role;
+function serverAccount(value, rawLegacyRole) {
+  return value && !(value instanceof Response) && !rawLegacyRole
+    ? { ...value, role: grade(value.role) }
+    : value;
+}
 export async function app(
   staffRole = "owner",
   appUrl = "https://kansaiunited.com/admin/",
@@ -84,7 +92,8 @@ export async function app(
     window.localStorage.setItem(name, value);
   const tables = {
     admin_roles: [
-      { user_id: uid, email: user.email, role: staffRole, active: true },
+      { user_id: uid, email: user.email,
+        role: authResponses.rawLegacyRole ? staffRole : grade(staffRole), active: true },
     ],
     articles: [
       {
@@ -174,7 +183,7 @@ export async function app(
         typeof authResponses.accountState === "function"
           ? await authResponses.accountState()
           : authResponses.accountState;
-      return value instanceof Response ? value : Response.json(value);
+      return value instanceof Response ? value : Response.json(serverAccount(value, authResponses.rawLegacyRole));
     }
     if (name === "office_release_states")
       return Response.json(authResponses.releaseStates ?? []);
@@ -294,6 +303,7 @@ export async function login(window) {
   await eventually(
     () =>
       !document.querySelector("#workspace").hidden &&
-      document.querySelectorAll(".admin-stat").length > 0,
+      (document.querySelectorAll(".admin-stat").length > 0 ||
+        Boolean(document.querySelector(".office-player-portal"))),
   );
 }

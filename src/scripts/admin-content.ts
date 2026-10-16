@@ -24,6 +24,7 @@ export function attachContentEditor(options: {
   form: HTMLFormElement;
   container: HTMLElement;
   publisher: boolean;
+  canPublish: boolean;
   changed: () => void;
   isCurrent: () => boolean;
   restore: (row: Row) => Promise<void>;
@@ -132,7 +133,7 @@ export function attachContentEditor(options: {
       "admin-help",
     ),
   );
-  if (options.publisher) {
+  if (options.publisher && options.canPublish) {
     const label = node("label", t("予約公開（日本時間）"));
     const input = node("input");
     input.type = "datetime-local";
@@ -157,7 +158,7 @@ export function attachContentEditor(options: {
     section.append(
       node(
         "p",
-        t("予約公開は運営責任者による公開処理の有効化後に利用できます。"),
+        t(options.canPublish ? "予約公開は運営責任者による公開処理の有効化後に利用できます。" : "公開と予約公開は統括が承認します。"),
         "admin-help",
       ),
     );
@@ -210,7 +211,7 @@ export function attachContentEditor(options: {
           "admin-help",
         ),
       );
-      if (release.state === "queued") {
+      if (release.state === "queued" && options.canPublish) {
         if (
           new Date(String(release.scheduled_at)).getTime() <
           Date.now() - 600000

@@ -359,14 +359,14 @@ test("signup and help need no email and direct account recovery to verified admi
   const help = new JSDOM(helpHtml).window.document;
   const signup = portal.querySelector('[data-staff-panel="signup"]');
   assert.match(signup.textContent, /メールアドレスは不要/);
-  assert.match(signup.textContent, /最高管理者が本人と関係者であることを確認/);
+  assert.match(signup.textContent, /統括が本人と関係者であることを確認/);
   assert.equal(signup.querySelector('[name="email"], input[type="email"]'), null);
   for (const field of signup.querySelectorAll('[autocomplete="new-password"]')) assert.equal(field.maxLength, 72);
   const options = help.querySelector("#staff-help-options");
   assert.match(options.textContent, /本人と既存アカウントを確認.*管理画面から対応/);
   assert.equal(options.querySelector("#staff-recovery-form, #staff-help-legacy, input[type=email]"), null);
   assert.equal(options.textContent.includes("reset-staff-password.mjs"), false);
-  assert.match(supportSource, /最高管理者アカウントの復旧/);
+  assert.match(supportSource, /統括アカウントの復旧/);
   assert.match(supportSource, /申請だけではログインや権限の変更はできません/);
   assert.equal(supportSource.includes('type="email"'), false);
 });

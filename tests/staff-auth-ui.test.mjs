@@ -89,7 +89,7 @@ function application({ help = false, invoke, getUser, getClaims, initialize, rec
     emit: (event, session = { access_token: "verified-recovery-token", user: { id: "unchanged-user-id" } }) => authListener?.(event, session),
   };
 }
-const signup = { username: "Staff.Name", password: "correct-password-123", password_confirmation: "correct-password-123", real_name: "金 さくら Ana-María", department: "コーチ / Staff", notice_accepted: true };
+const signup = { username: "Staff.Name", password: "correct-password-123", password_confirmation: "correct-password-123", real_name: "金 さくら Ana-María", requested_grade: "player", department: "コーチ / Staff", notice_accepted: true };
 const account = { user_id: "unchanged-user-id", username: "staff.name", real_name: "金 さくら Ana-María", department: "コーチ", approval_status: "pending", email_confirmed: true, role: null, active: true, identity_enrolled: true, name_verified_at: null, name_verified_by: null, legacy_account: false, name_request: null };
 
 test("ID login normalizes case, clears passwords and prevents duplicate submissions", async () => {
@@ -162,6 +162,7 @@ test("registration checks confirmation and sends Unicode real names without gran
     assert.equal(body.username, "staff.name");
     assert.equal(body.real_name, signup.real_name);
     assert.equal(body.department, signup.department);
+    assert.equal(body.requested_grade, "player");
     assert.equal(body.notice_accepted, true);
     assert.equal(body.password_confirmation, signup.password_confirmation);
     for (const key of ["email", "role", "actor_id", "user_id", "approval_status", "desired_role"]) assert.equal(key in body, false);
@@ -170,6 +171,43 @@ test("registration checks confirmation and sends Unicode real names without gran
     assert.match(app.document.querySelector("#staff-auth-message").textContent, /承認状況をご確認/);
     assert.equal(app.document.querySelector('[name="email"]'), null);
     assert.doesNotMatch(app.document.querySelector("#staff-auth-message").textContent, /確認メールをご確認/);
+  } finally { app.dom.window.close(); }
+});
+
+test("signup offers exactly three requested grades and empty duty remains optional without granting authority", async () => {
+  for (const requested_grade of ["owner", "staff", "player"]) {
+    const app = application();
+    try {
+      app.document.querySelector('[data-staff-show="signup"]').click();
+      const form = app.document.querySelector("#staff-signup-form");
+      assert.deepEqual([...form.elements.namedItem("requested_grade").options].map(option => option.value), ["owner", "staff", "player"]);
+      assert.equal(form.elements.namedItem("requested_grade").value, "player");
+      assert.equal(form.elements.namedItem("department").required, false);
+      app.set("#staff-signup-form", { ...signup, requested_grade, department: "" });
+      app.submit("#staff-signup-form");
+      await eventually(() => app.requests.length === 1);
+      assert.equal(app.requests[0].body.requested_grade, requested_grade);
+      assert.equal(app.requests[0].body.department, "");
+      for (const name of ["role", "active", "approval_status", "user_id", "actor_id"])
+        assert.equal(name in app.requests[0].body, false);
+      assert.equal(app.sessions.length, 0);
+    } finally { app.dom.window.close(); }
+  }
+});
+
+test("tampered signup grade is rejected before network or session creation", async () => {
+  const app = application();
+  try {
+    app.document.querySelector('[data-staff-show="signup"]').click();
+    app.set("#staff-signup-form", signup);
+    const option = app.document.createElement("option");
+    option.value = "administrator";
+    app.document.querySelector('[name="requested_grade"]').append(option);
+    app.document.querySelector('[name="requested_grade"]').value = "administrator";
+    app.submit("#staff-signup-form");
+    await eventually(() => app.document.querySelector("#staff-auth-message").dataset.error === "true");
+    assert.equal(app.requests.length, 0);
+    assert.equal(app.sessions.length, 0);
   } finally { app.dom.window.close(); }
 });
 
@@ -416,7 +454,7 @@ test("callback with missing verifier or failed initialization directs to adminis
     try {
       await eventually(() => app.document.querySelector("#staff-help-message").dataset.error === "true");
       const notice = app.document.querySelector("#staff-help-message");
-      assert.match(notice.textContent, /リンクを申請したブラウザー.*最高管理者.*復旧/);
+      assert.match(notice.textContent, /リンクを申請したブラウザー.*統括.*復旧/);
       assert.doesNotMatch(notice.textContent, /sensitive-code|callback detail/);
       assert.equal(app.window.location.search.includes("code="), false);
       assert.equal(app.document.querySelector("#staff-new-password-panel").hidden, true);

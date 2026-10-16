@@ -307,7 +307,7 @@ test("English ID portal preserves language without exposing email authentication
   } finally { dom.window.close(); }
 });
 
-test("Korean disabled portal and English coach access stay restricted", async () => {
+test("Korean disabled portal and English migrated Staff access stay restricted", async () => {
   const limited = await app("owner", "https://kansaiunited.com/admin/?lang=ko");
   try {
     const doc = limited.window.document;
@@ -323,7 +323,7 @@ test("Korean disabled portal and English coach access stay restricted", async ()
   try {
     await login(coach.window);
     const doc = coach.window.document;
-    assert.equal(doc.querySelector("[data-resource=articles]"), null);
+    assert.ok(doc.querySelector("[data-resource=articles]"));
     assert.equal(doc.querySelector("[data-resource=admin_roles]"), null);
     assert.ok(doc.querySelector("[data-resource=players]"));
     assert.equal(doc.querySelector("#resource-title").textContent, "Dashboard");

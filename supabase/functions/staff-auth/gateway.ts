@@ -52,7 +52,7 @@ const ACTIONS = ["login", "register", "recovery", "enroll", "set_password", "leg
 type Action = typeof ACTIONS[number];
 const fields: Record<Action, string[]> = {
   login: ["action", "username", "password", "captcha_token"],
-  register: ["action", "username", "password", "password_confirmation", "real_name", "department", "notice_accepted", "captcha_token"],
+  register: ["action", "username", "password", "password_confirmation", "real_name", "department", "requested_grade", "notice_accepted", "captcha_token"],
   recovery: ["action", "email", "captcha_token", "code_challenge", "code_challenge_method", "flow_id"],
   enroll: ["action", "username", "real_name", "department", "notice_accepted"],
   set_password: ["action", "password", "password_confirmation", "current_password"],
@@ -83,6 +83,17 @@ function displayText(value: unknown, maximum: number): string {
   // 실명은 임의의 문자권·공백·하이픈을 허용합니다. 문자권에 필요한 결합·연결 문자까지 일괄 거부하지 않습니다.
   return text.length > 0 && text.length <= maximum && !/[\p{Cc}]/u.test(text)
     ? text : fail("invalid_request");
+}
+// 소속 희망은 승인 권한과 분리합니다. 구버전 신청은 가장 낮은 희망 등급으로 보존하며 모두 pending입니다.
+function requestedGrade(value: unknown): "owner" | "staff" | "player" {
+  if (value === undefined) return "player";
+  return value === "owner" || value === "staff" || value === "player" ? value : fail("invalid_request");
+}
+function optionalDuty(value: unknown): string {
+  if (value === undefined) return "";
+  if (typeof value !== "string") return fail("invalid_request");
+  const result = value.normalize("NFC").trim();
+  return result.length <= 200 && !/[\p{Cc}]/u.test(result) ? result : fail("invalid_request");
 }
 function password(value: unknown, newPassword = false): string {
   return typeof value === "string" && value.length >= (newPassword ? 12 : 1) && value.length <= 128
@@ -276,7 +287,8 @@ export function createGateway(deps: GatewayDependencies): (request: Request) => 
         const username = normalizeUsername(body.username);
         const secret = newPassword(body);
         const realName = displayText(body.real_name, 150);
-        const department = displayText(body.department, 200);
+        const department = optionalDuty(body.department);
+        const requested = requestedGrade(body.requested_grade);
         const captchaToken = captcha(body.captcha_token);
         if (body.notice_accepted !== true) return fail("invalid_request");
         // 기술 주소는 요청마다 달라지므로 제한 식별자로 사용하지 않습니다. 정규화 아이디와
@@ -295,7 +307,7 @@ export function createGateway(deps: GatewayDependencies): (request: Request) => 
         // 기존 계정 이메일은 변경하지 않고, 새 가입 요청의 email 키 자체를 입력 허용 목록에서 거부합니다.
         const authAddress = `staff-${crypto.randomUUID()}@accounts.kansai.invalid`;
         // 이메일 소유 확인 생략은 서버가 정한 가입 정책입니다. 브라우저가 역할·확인 여부를 지정할 수 없습니다.
-        const reservation = await deps.service.rpc("staff_auth_reserve", { p_username: username, p_email: authAddress, p_real_name: realName, p_department: department, p_notice_accepted: true, p_email_confirmation_required: false });
+        const reservation = await deps.service.rpc("staff_auth_reserve", { p_username: username, p_email: authAddress, p_real_name: realName, p_department: department, p_notice_accepted: true, p_email_confirmation_required: false, p_requested_grade: requested });
         if (reservation.error) { if (unavailableReservation(reservation.error)) return fail("registration_unavailable", 409); return fail("service_unavailable", 503); }
         if (typeof reservation.data !== "string" || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(reservation.data)) return fail("service_unavailable", 503);
         const rejectedRegistration = async (code: string, status: number): Promise<never> => {
@@ -393,7 +405,7 @@ export function createGateway(deps: GatewayDependencies): (request: Request) => 
       if (action === "enroll") {
         const username = normalizeUsername(body.username);
         const realName = displayText(body.real_name, 150);
-        const department = displayText(body.department, 200);
+        const department = optionalDuty(body.department);
         if (body.notice_accepted !== true) return fail("invalid_request");
         const result = await client.rpc("office_enroll_identity", { p_username: username, p_real_name: realName, p_department: department, p_notice_accepted: true });
         if (result.error) return fail("enrollment_unavailable", 409);

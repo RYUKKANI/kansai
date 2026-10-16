@@ -42,19 +42,19 @@ export interface ResourceConfig {
   canPublish: StaffRole[];
   fields: Field[];
 }
-const contentRoles: StaffRole[] = ["owner", "administrator", "editor"];
-const footballRoles: StaffRole[] = ["owner", "administrator", "coach"];
-const allContent: StaffRole[] = ["owner", "administrator"];
+// 소속 등급은 모든 업무에서 같습니다. 스태프의 초안 권한과 총괄의 공개 권한을 분리합니다.
+const contentRoles: StaffRole[] = ["owner", "staff"];
+const footballRoles: StaffRole[] = ["owner", "staff"];
+const allContent: StaffRole[] = ["owner"];
 const options = (...values: string[]) =>
   values.map((value) => ({
     value,
     label: t(
       (
         {
-          owner: "最高管理者",
-          administrator: "管理者",
-          editor: "編集者",
-          coach: "コーチ",
+          owner: "統括",
+          staff: "スタッフ",
+          player: "選手",
         } as Record<string, string>
       )[value] ?? value,
     ),
@@ -75,7 +75,7 @@ export const resources: Record<Resource, ResourceConfig> = {
     titleField: "title",
     key: "id",
     roles: contentRoles,
-    canPublish: contentRoles,
+    canPublish: allContent,
     fields: [
       title,
       slug,
@@ -233,7 +233,7 @@ export const resources: Record<Resource, ResourceConfig> = {
     titleField: "opponent",
     key: "id",
     roles: footballRoles,
-    canPublish: footballRoles,
+    canPublish: allContent,
     fields: [
       { name: "opponent", label: t("対戦相手"), required: true },
       { name: "competition", label: t("大会名") },
@@ -356,7 +356,7 @@ export const resources: Record<Resource, ResourceConfig> = {
     titleField: "title",
     key: "id",
     roles: contentRoles,
-    canPublish: contentRoles,
+    canPublish: allContent,
     fields: [
       title,
       { name: "description", label: t("説明"), type: "textarea" },
@@ -369,7 +369,7 @@ export const resources: Record<Resource, ResourceConfig> = {
     titleField: "title",
     key: "id",
     roles: contentRoles,
-    canPublish: contentRoles,
+    canPublish: allContent,
     fields: [
       title,
       {
@@ -420,7 +420,7 @@ export const resources: Record<Resource, ResourceConfig> = {
     singular: t("案内ページ"),
     titleField: "title",
     key: "id",
-    roles: allContent,
+    roles: contentRoles,
     canPublish: allContent,
     fields: [
       {
@@ -451,10 +451,9 @@ export const resources: Record<Resource, ResourceConfig> = {
         label: t("権限"),
         type: "select",
         options: [
-          { value: "owner", label: t("最高管理者") },
-          { value: "administrator", label: t("管理者") },
-          { value: "editor", label: t("編集者") },
-          { value: "coach", label: t("コーチ") },
+          { value: "owner", label: t("統括") },
+          { value: "staff", label: t("スタッフ") },
+          { value: "player", label: t("選手") },
         ],
       },
       {

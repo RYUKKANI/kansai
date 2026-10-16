@@ -44,6 +44,20 @@ async function app(page, response = {}, options = {}) {
   const notices = [];
   let active = true;
   const client = {
+    // 총괄의 계정↔선수 연결 선택지만 읽습니다. 이 조회가 다른 등급에서 발생하면 별도 검사가 잡습니다.
+    from(table) {
+      assert.equal(table, "players");
+      return {
+        select(columns) {
+          assert.equal(columns, "id,internal_name");
+          return { async order(column) {
+            assert.equal(column, "internal_name");
+            calls.push({ name: table, args: { select: columns, order: column } });
+            return { data: response.players ?? [], error: null };
+          } };
+        },
+      };
+    },
     auth: {
       onAuthStateChange() {
         return { data: { subscription: { unsubscribe() {} } } };
@@ -149,9 +163,9 @@ test("failed ID-only approval retains review input and enables retry without an 
   } finally { context.controller.dispose(); context.dom.window.close(); }
 });
 
-test("Administrator cannot open member management even with an Owner caller hint", async () => {
+test("Staff cannot open member management even with an Owner caller hint", async () => {
   const context = await app("staff_applications", {
-    office_account_state: { ...owner, role: "administrator" },
+    office_account_state: { ...owner, role: "staff" },
     office_staff_applications: [manualApplicant], office_staff_name_requests: [],
   });
   try {
@@ -161,6 +175,45 @@ test("Administrator cannot open member management even with an Owner caller hint
     assert.ok(context.container.querySelector('[role="alert"]'));
   } finally { context.controller.dispose(); context.dom.window.close(); }
 });
+
+for (const [role, pages] of [["staff", ["staff_applications"]], ["player", ["staff_directory", "staff_applications", "staff_audit"]]]) {
+  for (const page of pages) {
+    test(`${role} cannot fetch ${page} data or Owner player-link controls from a caller hint`, async () => {
+      const context = await app(page, { office_account_state: { ...owner, role } }, { role: "owner" });
+      try {
+        assert.deepEqual(context.calls.map(call => call.name), ["office_account_state"]);
+        assert.equal(context.container.querySelector("form,[data-owner-account],[data-staff-action='player-link']"), null);
+        assert.ok(context.container.querySelector('[role="alert"]'));
+      } finally { context.controller.dispose(); context.dom.window.close(); }
+    });
+  }
+}
+
+for (const linked of [true, false]) {
+  test(`Owner ${linked ? "links" : "unlinks"} an existing player using distinct account and player UUIDs`, async () => {
+    const playerId = "00000000-0000-4000-8000-000000000099";
+    const context = await app("staff_applications", {
+      office_staff_applications: [{ ...owner, user_id: peerId, role: "player", player_id: linked ? null : playerId }],
+      players: [{ id: playerId, internal_name: "Existing player" }],
+      office_owner_set_player_link: args => ({ data: { user_id: args.p_user_id, player_id: args.p_player_id }, error: null }),
+    });
+    try {
+      const form = context.container.querySelector('[data-staff-action="player-link"]').form;
+      const choice = form.elements.namedItem("player_id");
+      assert.deepEqual([...choice.options].map(option => option.value), ["", playerId]);
+      assert.equal(choice.value, linked ? "" : playerId);
+      choice.value = linked ? playerId : "";
+      form.elements.namedItem("reason").value = "本人の既存選手記録を確認";
+      send(context.window, form);
+      await eventually(() => context.notices.length === 1);
+      assert.deepEqual(JSON.parse(JSON.stringify(context.calls.find(call => call.name === "office_owner_set_player_link").args)), {
+        p_user_id: peerId, p_player_id: linked ? playerId : null, p_reason: "本人の既存選手記録を確認",
+      });
+      assert.equal(context.notices[0][1], undefined);
+      assert.equal(context.calls.some(call => /create_player|save_player_office/.test(call.name)), false);
+    } finally { context.controller.dispose(); context.dom.window.close(); }
+  });
+}
 
 test("ID-only review response arriving after logout cannot restore private data or notify the old session", async () => {
   let settle;
@@ -201,7 +254,7 @@ test("Owner reset audit distinguishes the authenticated requester from the serve
     before_values: { password: "must-not-render" }, after_values: { password: "must-not-render" } }] });
   try {
     assert.match(context.container.textContent, /実名確認前のアカウント/);
-    assert.match(context.container.textContent, /最高管理者によるアカウント管理/);
+    assert.match(context.container.textContent, /統括によるアカウント管理/);
     assert.match(context.container.textContent, /staff_auth_edge_function/);
     assert.ok(context.container.textContent.includes(ownerId));
     assert.equal(context.container.textContent.includes("must-not-render"), false);
@@ -306,7 +359,7 @@ test("directory uses verified safe RPC data and preserves Unicode names as text 
 
 test("server state controls management access even if caller-provided role claims Owner", async () => {
   const context = await app("staff_applications", {
-    office_account_state: { ...owner, role: "coach" },
+    office_account_state: { ...owner, role: "staff" },
   });
   try {
     assert.deepEqual(
@@ -345,7 +398,7 @@ test("Owner management suppresses self approval and separates requested duty fro
         approval_status: "pending",
         email_confirmed: true,
         active: false,
-        requested_role: "owner",
+        requested_grade: "owner",
       },
     ],
     office_staff_name_requests: [],
@@ -363,11 +416,11 @@ test("Owner management suppresses self approval and separates requested duty fro
       [...form.querySelectorAll('[name="role"] option')].map(
         (item) => item.value,
       ),
-      ["owner", "administrator", "editor", "coach"],
+      ["owner", "staff", "player"],
     );
     assert.equal(
       form.querySelector('[name="role"]').value,
-      "coach",
+      "player",
       "desired owner role never becomes an authority grant",
     );
     assert.equal(
@@ -421,7 +474,7 @@ test("membership save is duplicate-safe, sends only reviewed values and reports 
     assert.deepEqual(JSON.parse(JSON.stringify(request.args)), {
       p_user_id: peerId,
       p_decision: "approved",
-      p_role: "coach",
+      p_role: "player",
       p_reason: "所属確認済み",
     });
     assert.equal("actor_id" in request.args, false);

@@ -2,6 +2,8 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { StaffRole } from "../lib/content-types";
 import { text as t, format, localizedDate, currentLocale } from "../lib/i18n";
 import { renderOwnerAccountManagement } from "./owner-account-management";
+import { memberGrades, memberGradeLabel, normalizeMemberGrade } from "../lib/member-grades";
+import { roleLabels } from "../lib/admin-ui";
 
 // [편집 안내] 관계자 화면은 비공개 매핑 테이블을 직접 읽지 않습니다. RPC가 현재 세션의
 // 승인·활동·업무 권한을 매번 확인하고 반환한 최소 정보만 텍스트 노드로 표시합니다.
@@ -22,14 +24,8 @@ export interface StaffOfficeController {
   dispose: () => void;
   refresh: () => Promise<void>;
 }
-const roles: StaffRole[] = ["owner", "administrator", "editor", "coach"];
-const roleText = (value: unknown) =>
-  ({
-    owner: t("最高管理者"),
-    administrator: t("管理者"),
-    editor: t("編集者"),
-    coach: t("コーチ"),
-  })[String(value) as StaffRole] ?? t("未設定");
+const roles: StaffRole[] = [...memberGrades];
+const roleText = memberGradeLabel;
 function element<K extends keyof HTMLElementTagNameMap>(
   tag: K,
   text = "",
@@ -115,21 +111,16 @@ function selectRole(
   current: unknown,
   owner: boolean,
 ): HTMLSelectElement {
-  const label = element("label", t("付与する権限"), "staff-field");
+  const label = element("label", t("付与する所属等級"), "staff-field");
   const select = element("select");
   select.name = name;
-  for (const role of roles.filter(
-    (value) => owner || !["owner", "administrator"].includes(value),
-  )) {
+  for (const role of roles.filter((value) => owner || value !== "owner")) {
     const option = element("option", roleText(role));
     option.value = role;
     select.append(option);
   }
-  select.value =
-    roles.includes(current as StaffRole) &&
-    (owner || !["owner", "administrator"].includes(String(current)))
-      ? String(current)
-      : "coach";
+  const grade = normalizeMemberGrade(current);
+  select.value = grade && (owner || grade !== "owner") ? grade : "player";
   label.append(select);
   form.append(label);
   return select;
@@ -151,7 +142,7 @@ function safeError(error: unknown): string {
   if (string(value.code) === "response_unconfirmed")
     return t("保存結果を確認できませんでした。一覧を更新して現在の情報を確認してから、再度操作してください。");
   if (raw === "self_verified_name_requires_review")
-    return t("確認済みの自分の実名は、別の最高管理者に訂正を依頼してください。");
+    return t("確認済みの自分の実名は、別の統括に訂正を依頼してください。");
   if (raw === "owner_mfa_required")
     return t("多要素認証を完了してから、もう一度お試しください。");
   if (raw === "invalid_real_name")
@@ -159,7 +150,7 @@ function safeError(error: unknown): string {
   if (raw === "identity_change_reason_required")
     return t("変更理由を入力してください。");
   if (/last.*owner|final.*owner/i.test(raw))
-    return t("最後の有効な最高管理者は、利用停止や権限の引き下げができません。");
+    return t("最後の有効な統括は、利用停止や権限の引き下げができません。");
   if (/self|own.*(approv|role|identity)/i.test(raw))
     return t("自分自身の承認・本人確認・権限変更はできません。");
   if (raw === "manual_contact_check_required" || /email.*confirm/i.test(raw))
@@ -331,14 +322,15 @@ function auditAction(row: Row): string {
     support_password_reset_succeeded: t("パスワード支援の完了"),
     support_password_reset_failed: t("パスワード支援の失敗"),
     support_password_reset_indeterminate: t("パスワード支援の結果未確認"),
-    owner_identity_updated: t("最高管理者によるID・実名の変更"),
-    owner_password_reset_requested: t("最高管理者によるパスワード再設定の受付"),
-    owner_password_reset_succeeded: t("最高管理者によるパスワード再設定の完了"),
-    owner_password_reset_failed: t("最高管理者によるパスワード再設定の失敗"),
-    owner_password_reset_uncertain: t("最高管理者によるパスワード再設定の結果未確認"),
+    owner_identity_updated: t("統括によるID・実名の変更"),
+    owner_password_reset_requested: t("統括によるパスワード再設定の受付"),
+    owner_password_reset_succeeded: t("統括によるパスワード再設定の完了"),
+    owner_password_reset_failed: t("統括によるパスワード再設定の失敗"),
+    owner_password_reset_uncertain: t("統括によるパスワード再設定の結果未確認"),
     application_approved: t("加入申請の承認"),
     application_rejected: t("加入申請の見送り"),
     access_changed: t("権限・アクセスの変更"),
+    player_link_changed: t("選手情報との紐付けを変更"),
     identity_verified: t("実名の確認"),
     name_change_requested: t("実名訂正の申請"),
     name_change_approved: t("実名訂正の承認"),
@@ -381,12 +373,12 @@ export function renderStaffAuditEntry(row: Row): HTMLElement {
     header,
     details([
       [t("作業者のアカウント識別番号"), valueOrDash(row.actor_id)],
-      [t("作業時の権限"), roleText(row.actor_role)],
+      [t("作業時の権限"), roleLabels[string(row.actor_role)] ?? roleText(row.actor_role)],
       [t("実行主体"), valueOrDash(row.executor)],
       [
         t("処理区分"),
         source === "owner_password_reset"
-          ? t("最高管理者によるアカウント管理")
+          ? t("統括によるアカウント管理")
           : source === "human"
           ? t("認証済みアカウントの操作")
           : source === "system_support"
@@ -539,7 +531,8 @@ export async function renderStaffOffice(
         [t("アカウント識別番号"), string(account.user_id) || userId],
         [t("ログインID"), valueOrDash(account.login_id ?? account.username)],
         [t("実名"), valueOrDash(account.real_name)],
-        [t("所属・担当業務"), valueOrDash(account.department)],
+        [t("所属等級"), roleText(account.member_grade ?? account.role)],
+        [t("担当業務"), valueOrDash(account.department)],
         [t("承認状況"), state(account.approval_status)],
         [t("活動状態"), account.active === true ? t("活動中") : t("利用停止")],
         [t("現在の権限"), roleText(account.role)],
@@ -580,7 +573,7 @@ export async function renderStaffOffice(
     }
     section.append(note(t("実名とログインIDは別の情報です。実名の確認状態は、表示名や権限とは別に管理します。")));
     if (account.profile_enrollment_pending === true || account.identity_enrolled === false)
-      section.append(note(t("所属・担当業務の入力と案内の確認が未完了です。登録を完了しても、現在のアカウントと権限は変わりません。")));
+      section.append(note(t("関係者情報の登録と案内の確認が未完了です。登録を完了しても、現在のアカウントと権限は変わりません。")));
     if (account.name_edit_mode === "unverified_edit") {
       // 미확인 이름의 수정은 본인 확인 승인이 아닙니다. 확인된 이름의 변경은 별도로 심사합니다.
       section.append(title(t("未確認の実名を編集")), note(t("未確認の実名は編集できます。保存しても実名確認済みにはなりません。")));
@@ -667,7 +660,7 @@ export async function renderStaffOffice(
           member.activity_status === "inactive" ? "inactive" : "active",
         ),
       );
-      card.append(header, element("p", valueOrDash(member.department)));
+      card.append(header, element("p", roleText(member.member_grade ?? member.role)), element("p", valueOrDash(member.department)));
       section.append(card);
     }
     return section;
@@ -676,13 +669,14 @@ export async function renderStaffOffice(
     rows: Row[],
     requests: Row[],
     owner: boolean,
+    players: Row[],
   ): HTMLElement {
     const section = element("section", "", "staff-management");
     section.append(
       title(t("加入申請と関係者管理")),
       note(
         t(
-          "希望する役割は申請内容です。実際の権限は承認時に別途設定します。自分自身の承認・本人確認・権限変更はできません。",
+          "希望する所属は申請内容です。実際の所属等級は統括が承認時に設定します。自分自身の承認・本人確認・所属等級の変更はできません。",
         ),
       ),
     );
@@ -701,9 +695,9 @@ export async function renderStaffOffice(
         header,
         details([
           [t("ログインID"), valueOrDash(member.login_id ?? member.username)],
-          [t("所属・担当業務"), valueOrDash(member.department)],
-          [t("希望する役割"), valueOrDash(member.requested_role)],
-          [t("現在の権限"), roleText(member.role)],
+          [t("担当業務"), valueOrDash(member.department)],
+          [t("希望する所属"), roleText(member.requested_grade)],
+          [t("所属等級"), roleText(member.member_grade ?? member.role)],
           [t("活動状態"), member.active === true ? t("活動中") : t("利用停止")],
           [t("アカウント識別番号"), id || "—"],
           [
@@ -727,11 +721,11 @@ export async function renderStaffOffice(
       // 가입·승인은 아이디·실명·소속으로 심사합니다. 기존 연락처와 내부 인증 주소는 표시하지 않습니다.
       if (self)
         card.append(
-          note(t("自分自身の承認・本人確認・権限変更は、別の最高管理者に依頼してください。")),
+          note(t("自分自身の承認・本人確認・権限変更は、別の統括に依頼してください。")),
         );
       else if (
         id &&
-        (owner || !["owner", "administrator"].includes(string(member.role)))
+        owner
       ) {
         if (member.approval_status === "approved" && !member.name_verified_at) {
           const verify = element("form", "", "staff-form");
@@ -760,7 +754,7 @@ export async function renderStaffOffice(
           const manual = member.email_confirmation_required === false || member.email_verification_status === "not_required";
           const approval = element("form", "", "staff-form");
           approval.append(element("h4", t("加入申請を審査")));
-          const role = selectRole(approval, "role", "coach", owner);
+          const role = selectRole(approval, "role", "player", owner);
           const choiceLabel = element("label", t("審査結果"), "staff-field");
           const choice = element("select");
           choice.name = "decision";
@@ -851,6 +845,35 @@ export async function renderStaffOffice(
           card.append(access);
         }
       }
+      if (owner && id && ["approved", "suspended"].includes(string(member.approval_status)) &&
+          (normalizeMemberGrade(member.member_grade ?? member.role) === "player" || member.player_id)) {
+        // 계정 UUID와 선수 UUID는 별개입니다. 총괄이 기존 선수만 선택하며 가입 시 선수를 만들지 않습니다.
+        const link = element("form", "", "staff-form");
+        link.append(element("h4", t("選手情報との紐付け")), note(t("本人の選手情報だけを閲覧できるよう、既存の選手を選択してください。新しい選手は作成されません。")));
+        const label = element("label", t("紐付ける選手"), "staff-field");
+        const choice = element("select");
+        choice.name = "player_id";
+        const empty = element("option", t("紐付けなし"));
+        empty.value = "";
+        choice.append(empty);
+        for (const player of players) {
+          const option = element("option", `${valueOrDash(player.internal_name)} (${string(player.id)})`);
+          option.value = string(player.id);
+          choice.append(option);
+        }
+        choice.value = string(member.player_id);
+        label.append(choice);
+        link.append(label);
+        const reason = field(link, t("変更理由"), "reason", { multiline: true, maxLength: 500 });
+        submit(link, t("選手の紐付けを保存"), "player-link");
+        formAction(link, async () => {
+          const updated = record(await rpc("office_owner_set_player_link", {
+            p_user_id: id, p_player_id: choice.value || null, p_reason: reason.value.trim(),
+          }));
+          if (updated.user_id !== id || (updated.player_id ?? null) !== (choice.value || null)) throw { code: "response_unconfirmed" };
+        }, t("選手情報との紐付けを保存しました。"));
+        card.append(link);
+      }
       if (owner && id) {
         const accountWindow = renderOwnerAccountManagement({
           client, userId, targetUserId: id, isCurrent: current, notice,
@@ -938,6 +961,7 @@ export async function renderStaffOffice(
     try {
       const account = record(await rpc("office_account_state"));
       if (account.user_id !== userId) throw { code: "response_unconfirmed" };
+      if (normalizeMemberGrade(account.role) === "player" && page !== "staff_account") throw { code: "42501" };
       if (!current() || token !== sequence) return;
       const approved =
         account.approval_status === "approved" && account.active === true;
@@ -949,15 +973,18 @@ export async function renderStaffOffice(
       else if (page === "staff_applications") {
         const role = string(account.role);
         if (role !== "owner") throw { code: "42501" };
-        const [members, requests] = await Promise.all([
+        const [members, requests, players] = await Promise.all([
           rpc("office_staff_applications"),
           rpc("office_staff_name_requests"),
+          client.from("players").select("id,internal_name").order("internal_name"),
         ]);
+        if (players.error) throw players.error;
         if (!current() || token !== sequence) return;
         view = management(
           records(members),
           records(requests),
           role === "owner",
+          records(players.data),
         );
       } else {
         const data = await rpc("office_staff_audit", { p_limit: 100 });

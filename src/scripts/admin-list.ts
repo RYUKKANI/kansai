@@ -6,6 +6,7 @@ import {
   weekdayNames,
 } from "../lib/i18n";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import type { StaffRole } from "../lib/content-types";
 import { resources, type Resource } from "../lib/admin-config";
 import { contentEnabled } from "../lib/office-features";
 import { contentResources } from "../lib/content-drafts";
@@ -21,6 +22,7 @@ import {
   officePages,
   selectFields,
   roleLabels,
+  isPublicOfficeRecord,
   type ListFilter,
   type Row,
 } from "../lib/admin-ui";
@@ -29,6 +31,7 @@ import {
 interface Options {
   client: SupabaseClient;
   resource: Resource;
+  role: StaffRole;
   base: string;
   initialFilter?: ListFilter;
   isCurrent: () => boolean;
@@ -404,13 +407,14 @@ export function createList(options: Options): ListController {
     }
     add(t("操作"), (row) => {
       const buttons = node("div", "", "admin-row-actions");
-      const edit = action(t("編集"), "admin-secondary", () =>
+      const readOnly = options.role !== "owner" && isPublicOfficeRecord(row);
+      const edit = action(t(readOnly ? "表示" : "編集"), "admin-secondary", () =>
         options.open(row),
       );
       if (resource === "players") edit.dataset.playerAction = "edit";
       buttons.append(edit);
       if (
-        ![
+        !readOnly && ![
           "players",
           "public_player_profiles",
           "admin_roles",

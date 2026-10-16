@@ -310,10 +310,10 @@ test("logout while a player photo uploads prevents the old form from dispatching
     ctx.dom.window.close();
   }
 });
-test("coach uses the full form without upload or approval access", async () => {
+test("Staff uses the full player form and uploads without public approval access", async () => {
   const calls = [];
   const ctx = await app(
-    "coach",
+    "staff",
     undefined,
     {
       rpc: (name, values) => {
@@ -333,13 +333,13 @@ test("coach uses the full form without upload or approval access", async () => {
   try {
     const d = await open(ctx, true);
     assert.ok(d.querySelector('[name="display_name"]'));
-    assert.equal(d.querySelector('input[type="file"]'), null);
+    assert.ok(d.querySelector('input[type="file"]'));
     assert.equal(d.querySelector('[data-save-status="published"]'), null);
     assert.deepEqual(
       [...d.querySelector('[name="photo_asset_id"]').options].map(
         (option) => option.value,
       ),
-      ["", photo.id],
+      ["", photo.id, "private"],
     );
     set(ctx.window, "display_name", "Test public");
     set(ctx.window, "position", "MF");

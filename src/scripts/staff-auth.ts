@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { text as t } from "../lib/i18n";
 import type { StaffAccountState } from "../lib/staff-auth-types";
+import { isMemberGrade, memberGradeLabel } from "../lib/member-grades";
 
 type AuthResult = {
   session?: { access_token: string; refresh_token: string };
@@ -76,9 +77,9 @@ export function staffAuthError(error: unknown): string {
   if (code === "enrollment_unavailable")
     return t("登録を完了できませんでした。IDを確認し、必要な場合は運営責任者にご相談ください。");
   if (code === "registration_unavailable")
-    return t("登録を完了できませんでした。申請済みの場合はログインをお試しください。解決しない場合は、再申請せず最高管理者にご相談ください。");
+    return t("登録を完了できませんでした。申請済みの場合はログインをお試しください。解決しない場合は、再申請せず統括にご相談ください。");
   if (code === "registration_uncertain")
-    return t("登録結果を確認できません。再申請せず、入力したIDとパスワードでログインをお試しください。ログインできない場合は最高管理者にご相談ください。");
+    return t("登録結果を確認できません。再申請せず、入力したIDとパスワードでログインをお試しください。ログインできない場合は統括にご相談ください。");
   if (code === "password_update_failed")
     return t("パスワードを設定できませんでした。ログイン状態を確認するか、運営責任者にご相談ください。");
   if (code === "same_password")
@@ -92,7 +93,7 @@ export function staffAuthError(error: unknown): string {
   if (code === "password_update_uncertain")
     return t("保存結果を確認できません。パスワードは変更された可能性があります。再設定を繰り返さず、入力した新しいパスワードでログインを確認し、利用できない場合は運営責任者にご相談ください。");
   if (code === "feature_unavailable")
-    return t("このログイン機能は現在利用できません。ログイン画面に戻るか、最高管理者にご相談ください。");
+    return t("このログイン機能は現在利用できません。ログイン画面に戻るか、統括にご相談ください。");
   return t("操作を完了できませんでした。時間をおいて再度お試しください。");
 }
 
@@ -227,7 +228,9 @@ export function mountStaffAuth({ client, notice, refresh }: StaffAuthOptions) {
       invalid(field(element, "password_confirmation"), "パスワードが一致しません。");
       return;
     }
-    const payload = { action: "register", ...identity(element), password, password_confirmation: confirmation };
+    const requested = read(element, "requested_grade");
+    if (!isMemberGrade(requested)) throw new Error("invalid_request");
+    const payload = { action: "register", ...identity(element), requested_grade: requested, password, password_confirmation: confirmation };
     clearStaffPasswords(portal);
     try { await staffAuthRequest(client, payload); }
     catch (error) {
@@ -308,7 +311,9 @@ export function mountStaffAuth({ client, notice, refresh }: StaffAuthOptions) {
       const rows = [
         [t("ログインID"), state.username ?? t("未登録")],
         [t("実名"), state.real_name ?? t("未登録")],
-        [t("所属・担当業務"), state.department ?? t("未登録")],
+        [t("所属"), memberGradeLabel(state.member_grade ?? state.role)],
+        [t("希望する所属"), memberGradeLabel(state.requested_grade)],
+        [t("担当業務"), state.department || "—"],
         [t("承認状況"), t(status[state.approval_status] ?? "承認待ち")],
         [t("実名確認"), t(state.name_verified_at ? "確認済み" : "未確認")],
       ];
@@ -330,6 +335,8 @@ export function mountStaffAuth({ client, notice, refresh }: StaffAuthOptions) {
       field(element, "username").readOnly = Boolean(state.username);
       field(element, "real_name").value = state.real_name ?? "";
       field(element, "department").value = state.department ?? "";
+      const grade = portal.querySelector<HTMLElement>("#staff-enroll-grade");
+      if (grade) grade.textContent = memberGradeLabel(state.member_grade ?? state.role);
       field(element, "notice_accepted").checked = false;
     },
     hide() { viewGeneration++; portal.hidden = true; clearStaffPasswords(portal); },
