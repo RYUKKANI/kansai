@@ -12,6 +12,9 @@ export type StaffAccountState = {
   role: "owner" | "administrator" | "editor" | "coach" | null;
   active: boolean;
   identity_enrolled: boolean;
+  profile_enrollment_pending?: boolean;
+  name_edit_mode?: "unverified_edit" | "review_required" | "unavailable";
+  can_edit_real_name?: boolean;
   name_verified_at: string | null;
   name_verified_by: string | null;
   legacy_account: boolean;

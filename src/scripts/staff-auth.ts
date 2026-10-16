@@ -261,7 +261,7 @@ export function mountStaffAuth({ client, notice, refresh }: StaffAuthOptions) {
     element.reset();
     if (result.account) ownState = result.account;
     await refresh();
-    notice(t("ログインIDを登録しました。実名の確認状態はアカウント画面で確認できます。"));
+    notice(t("関係者情報を登録しました。実名の確認状態はアカウント画面で確認できます。"));
   });
   portal.querySelector("#staff-account-refresh")?.addEventListener("click", () => void run(portal, async () => { await refresh(); }));
   portal.querySelector("#staff-account-signout")?.addEventListener("click", () => void run(portal, async () => {

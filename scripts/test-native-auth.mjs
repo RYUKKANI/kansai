@@ -214,8 +214,10 @@ async function main() {
   const recoveredPassword = randomBytes(24).toString("base64url");
   const supportedPassword = randomBytes(24).toString("base64url");
   const replayPassword = randomBytes(24).toString("base64url");
+  const forgedActorId = randomUUID();
   stage = "create isolated Owner through native Auth";
-  const owner = data(await service.auth.admin.createUser({ email: ownerEmail, password: initialPassword, email_confirm: true }), "native_owner_creation_failed").user;
+  const owner = data(await service.auth.admin.createUser({ email: ownerEmail, password: initialPassword, email_confirm: true,
+    user_metadata: { actor_id: forgedActorId, real_name: "CI forged actor", role: "coach" } }), "native_owner_creation_failed").user;
   verify(owner?.id, "native_owner_missing");
   uuid(owner.id);
   await sql(`insert into public.admin_roles(user_id,email,role,active) values(${sqlLiteral(owner.id)}::uuid,${sqlLiteral(ownerEmail)},'owner',true);`);
@@ -231,6 +233,54 @@ async function main() {
   verify(initialToken && data(await initialOwner.auth.getUser(), "initial_owner_user_failed").user.id === owner.id, "initial_owner_uuid_mismatch");
   const ownerState = await rpc("office_account_state", {}, initialToken);
   verify(ownerState.status === 200 && ownerState.body.role === "owner", "native_owner_role_missing");
+
+  stage = "unverified legacy Owner name update and trusted audit actor";
+  verify(ownerState.body.profile_enrollment_pending === true && ownerState.body.name_edit_mode === "unverified_edit" && ownerState.body.can_edit_real_name === true,
+    "legacy_owner_unverified_edit_not_available");
+  // 이름·수정 시각을 뺀 원래 계정/권한과 최소 Auth 필드만 메모리에서 비교합니다. 해시를 읽지 않으며
+  // 이름 입력만으로 소속·동의·본인 확인·선수·콘텐츠가 만들어지지 않는지 실제 DB에서 확인합니다.
+  const protectedIdentityQuery = `select jsonb_build_object('account',to_jsonb(a)-'real_name'-'updated_at','role',to_jsonb(r),
+    'auth',jsonb_build_object('id',u.id,'email',u.email,'app_metadata',u.raw_app_meta_data,'user_metadata',u.raw_user_meta_data),
+    'content_counts',jsonb_build_object('players',(select count(*) from public.players),'articles',(select count(*) from public.articles),
+      'fixtures',(select count(*) from public.fixtures),'media_assets',(select count(*) from public.media_assets)))::text
+    from private.staff_accounts a join public.admin_roles r on r.user_id=a.user_id join auth.users u on u.id=a.user_id
+    where a.user_id=${sqlLiteral(owner.id)}::uuid;`;
+  const protectedIdentityBefore = await sql(protectedIdentityQuery);
+  const unverifiedName = "CI 山田 류컁이 Ana-María";
+  const nameReason = "CI unverified profile correction";
+  const nameUpdated = await rpc("office_update_unverified_name", { p_real_name: unverifiedName, p_reason: nameReason }, initialToken);
+  verify(nameUpdated.status === 200 && nameUpdated.body.user_id === owner.id && nameUpdated.body.username === ownerUsername && nameUpdated.body.real_name === unverifiedName,
+    "unverified_name_update_failed");
+  verify(nameUpdated.body.role === "owner" && nameUpdated.body.active === true && nameUpdated.body.approval_status === "approved" &&
+    nameUpdated.body.profile_enrollment_pending === true && nameUpdated.body.identity_enrolled === false &&
+    nameUpdated.body.approved_real_name === null && nameUpdated.body.name_verified_at === null && nameUpdated.body.name_verified_by === null &&
+    nameUpdated.body.name_edit_mode === "unverified_edit" && nameUpdated.body.can_edit_real_name === true,
+    "unverified_name_update_changed_approval_or_profile_state");
+  verify(await sql(protectedIdentityQuery) === protectedIdentityBefore, "unverified_name_update_changed_other_data");
+  // RPC의 허용 인자를 넘어 본인 확인 값이나 작업자를 넣어도 실제 변경이나 성공 이력이 생기면 안 됩니다.
+  const selfVerified = await rpc("office_update_unverified_name", { p_real_name: "CI forbidden verified name", p_reason: nameReason,
+    p_name_verified_by: owner.id, p_name_verified_at: new Date().toISOString(), actor_id: forgedActorId }, initialToken);
+  verify(selfVerified.status >= 400, "unverified_name_rpc_accepted_forged_verification");
+  const nameAfterForgery = await rpc("office_account_state", {}, initialToken);
+  verify(nameAfterForgery.status === 200 && nameAfterForgery.body.real_name === unverifiedName && nameAfterForgery.body.name_verified_at === null &&
+    nameAfterForgery.body.name_verified_by === null && nameAfterForgery.body.approved_real_name === null && nameAfterForgery.body.profile_enrollment_pending === true,
+    "forged_name_request_changed_identity");
+  verify(await sql(protectedIdentityQuery) === protectedIdentityBefore, "forged_name_request_changed_other_data");
+  const nameAuditText = await sql(`select coalesce(jsonb_agg(jsonb_build_object('actor_id',actor_id,'actor_role',actor_role,'actor_name',actor_name,
+    'actor_name_status',actor_name_status,'requested_by',requested_by,'entity',entity,'record_id',record_id,'action',action,'changed_fields',changed_fields,
+    'before_values',before_values,'after_values',after_values,'reason',reason,'source',source,'executor',executor)),'[]'::jsonb)::text
+    from public.audit_logs where entity='staff_accounts' and record_id=${sqlLiteral(owner.id)} and action='unverified_name_updated';`);
+  const nameAudit = JSON.parse(nameAuditText);
+  verify(nameAudit.length === 1 && nameAudit[0].actor_id === owner.id && nameAudit[0].requested_by === owner.id && nameAudit[0].actor_role === "owner" &&
+    nameAudit[0].actor_name === null && nameAudit[0].actor_name_status === "unverified" && nameAudit[0].source === "human" && nameAudit[0].executor === "authenticated_user" &&
+    nameAudit[0].reason === nameReason && JSON.stringify(nameAudit[0].changed_fields) === '["real_name"]' &&
+    JSON.stringify(nameAudit[0].before_values) === "{}" && JSON.stringify(nameAudit[0].after_values) === "{}",
+    "unverified_name_audit_actor_or_fields_incorrect");
+  verify(![forgedActorId, "CI forged actor", ownerEmail, unverifiedName, initialPassword, initialToken].some(value => nameAuditText.includes(value)),
+    "unverified_name_audit_exposed_unapproved_or_secret_values");
+  report("unverified legacy Owner name changes preserve UUID, role and incomplete profile; self-verification is rejected and audit uses the server actor");
+
+  stage = "verify existing private fixture permissions";
   const privatePlayer = randomUUID();
   await sql(`insert into public.players(id,internal_name) values(${sqlLiteral(privatePlayer)}::uuid,'CI private fixture only');`);
   const ownerPlayers = await localFetch(`${api}/rest/v1/players?select=id`, { headers: { apikey: publicKey, Authorization: `Bearer ${initialToken}` } });
@@ -316,7 +366,9 @@ async function main() {
   verify(data(await supportOwner.auth.getUser(), "support_owner_user_failed").user.id === owner.id, "support_owner_uuid_changed");
   const currentToken = data(await supportOwner.auth.getSession(), "support_owner_session_missing").session.access_token;
   const sameRole = await rpc("office_account_state", {}, currentToken);
-  verify(sameRole.status === 200 && sameRole.body.role === "owner", "support_reset_changed_owner_role");
+  verify(sameRole.status === 200 && sameRole.body.role === "owner" && sameRole.body.real_name === unverifiedName &&
+    sameRole.body.name_verified_at === null && sameRole.body.approved_real_name === null && sameRole.body.profile_enrollment_pending === true,
+    "support_reset_changed_owner_identity");
   const stale = await rpc("office_account_state", {}, beforeSupportSession.access_token);
   verify(stale.status >= 400, "revoked_access_session_retained_staff_access");
   const refreshed = await client(api, publicKey).auth.refreshSession({ refresh_token: beforeSupportSession.refresh_token });

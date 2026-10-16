@@ -62,6 +62,7 @@ function state(value: unknown): string {
       active: t("活動中"),
       inactive: t("活動休止"),
       suspended: t("利用停止"),
+      withdrawn: t("取下げ済み"),
     }[String(value) as "pending"] ?? t("未設定")
   );
 }
@@ -152,6 +153,16 @@ function emailVerification(row: Row): string {
 function safeError(error: unknown): string {
   const value = error && typeof error === "object" ? (error as Row) : {};
   const raw = string(value.message);
+  if (string(value.code) === "response_unconfirmed")
+    return t("保存結果を確認できませんでした。一覧を更新して現在の情報を確認してから、再度操作してください。");
+  if (raw === "self_verified_name_requires_review")
+    return t("確認済みの自分の実名は、別のOwnerに訂正を依頼してください。");
+  if (raw === "owner_mfa_required")
+    return t("多要素認証を完了してから、もう一度お試しください。");
+  if (raw === "invalid_real_name")
+    return t("実名は空白だけにせず、150文字以内で入力してください。");
+  if (raw === "identity_change_reason_required")
+    return t("変更理由を入力してください。");
   if (/last.*owner|final.*owner/i.test(raw))
     return t("最後の有効なOwnerは停止・降格できません。");
   if (/self|own.*(approv|role|identity)/i.test(raw))
@@ -282,6 +293,8 @@ function auditAction(row: Row): string {
     name_change_requested: t("実名訂正の申請"),
     name_change_approved: t("実名訂正の承認"),
     name_change_rejected: t("実名訂正の却下"),
+    unverified_name_updated: t("未確認の実名を変更"),
+    name_request_withdrawn: t("実名訂正の申請を取下げ"),
   };
   return labels[value] ?? valueOrDash(row.action || row.operation);
 }
@@ -406,6 +419,10 @@ export async function renderStaffOffice(
   async function rpc(name: string, args: Row = {}): Promise<unknown> {
     const result = await client.rpc(name, args);
     if (result.error) throw result.error;
+    // void RPC의 확정 응답은 null입니다. 빈 배열·거짓 성공 응답을 저장 완료로 표시하지 않습니다.
+    if (["office_request_name_change", "office_verify_staff_identity", "office_review_staff",
+      "office_set_staff_access", "office_review_name_change"].includes(name) && result.data !== null)
+      throw { code: "response_unconfirmed" };
     return result.data;
   }
   function formAction(
@@ -440,8 +457,13 @@ export async function renderStaffOffice(
           await operation();
           if (!current()) return;
           notice(success);
-          await load();
-          if (current()) await options.refresh();
+          // DB 확정 뒤 화면 재조회가 실패해도, 이미 저장한 변경을 실패라고 되돌려 안내하지 않습니다.
+          try {
+            await load();
+            if (current()) await options.refresh();
+          } catch {
+            if (current()) notice(t("変更は保存されましたが、アカウント表示を更新できませんでした。画面を再読み込みしてください。"), true);
+          }
         } catch (error) {
           if (!current()) return;
           localNotice.textContent = safeError(error);
@@ -510,6 +532,28 @@ export async function renderStaffOffice(
       );
       return section;
     }
+    section.append(note(t("実名とログインIDは別の情報です。実名の確認状態は、表示名や権限とは別に管理します。")));
+    if (account.profile_enrollment_pending === true || account.identity_enrolled === false)
+      section.append(note(t("所属・担当業務と案内確認の登録が未完了です。登録を完了しても、現在のアカウントUUIDと権限は維持されます。")));
+    if (account.name_edit_mode === "unverified_edit") {
+      // 미확인 이름의 수정은 본인 확인 승인이 아닙니다. 확인된 이름의 변경은 별도로 심사합니다.
+      section.append(title(t("未確認の実名を編集")), note(t("未確認の実名は編集できます。保存しても実名確認済みにはなりません。")));
+      const form = element("form", "", "staff-form");
+      const name = field(form, t("実名"), "real_name", { value: string(account.real_name), maxLength: 150 });
+      const reason = field(form, t("変更理由"), "reason", { multiline: true, maxLength: 500 });
+      submit(form, t("実名を保存"), "update-unverified-name");
+      formAction(form, async () => {
+        const updated = record(await rpc("office_update_unverified_name", {
+          p_real_name: name.value.normalize("NFC").trim(), p_reason: reason.value.trim(),
+        }));
+        if (updated.success === false || updated.user_id !== userId || updated.real_name !== name.value.normalize("NFC").trim()
+          || updated.active !== true || updated.approval_status !== "approved"
+          || updated.approved_real_name != null || updated.name_verified_at != null
+          || updated.name_verified_by != null
+          || updated.name_edit_mode !== "unverified_edit") throw { code: "response_unconfirmed" };
+      }, t("実名を保存しました。実名確認は別途必要です。"));
+      section.append(form);
+    } else if (account.name_edit_mode === "review_required" || account.name_verified_at) {
     section.append(
       note(
         t(
@@ -537,6 +581,9 @@ export async function renderStaffOffice(
       t("実名の訂正を申請しました。承認まで現在の確認済み氏名を使用します。"),
     );
     section.append(form);
+    } else {
+      section.append(note(t("実名の編集可否を確認できません。再読み込みして現在の状態を確認してください。")));
+    }
     const requests =
       account.name_request && typeof account.name_request === "object"
         ? [record(account.name_request)]
@@ -814,6 +861,7 @@ export async function renderStaffOffice(
       if (owner && id) {
         const accountWindow = renderOwnerAccountManagement({
           client, userId, targetUserId: id, isCurrent: current, notice,
+          onOwnIdentityChanged: options.refresh,
           onChanged: async () => {
             if (!current()) return;
             await load();
@@ -896,6 +944,7 @@ export async function renderStaffOffice(
     container.replaceChildren(note(t("関係者情報を読み込んでいます。")));
     try {
       const account = record(await rpc("office_account_state"));
+      if (account.user_id !== userId) throw { code: "response_unconfirmed" };
       if (!current() || token !== sequence) return;
       const approved =
         account.approval_status === "approved" && account.active === true;

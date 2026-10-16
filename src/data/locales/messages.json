@@ -3798,5 +3798,81 @@
   "アカウントを作成しました。メールの確認は不要です。入力したIDとパスワードでログインして承認状態をご確認ください。": {
     "ko": "계정을 생성했습니다. 이메일 확인은 필요하지 않습니다. 입력한 아이디와 비밀번호로 로그인해 승인 상태를 확인해주세요.",
     "en": "Your account has been created. Email confirmation is not required. Sign in with the ID and password you entered to check your approval status."
+  },
+  "実名未確認": {
+    "ko": "실명 미확인",
+    "en": "Real name unverified"
+  },
+  "実名と所属・担当業務の登録を完了": {
+    "ko": "실명·소속·담당 업무 등록 완료",
+    "en": "Complete real name and duties registration"
+  },
+  "取下げ済み": {
+    "ko": "철회됨",
+    "en": "Withdrawn"
+  },
+  "実名は空白だけにせず、150文字以内で入力してください。": {
+    "ko": "실명은 공백만 입력하지 말고, 150자 이내로 입력해주세요.",
+    "en": "Enter a real name of up to 150 characters, not only spaces."
+  },
+  "変更理由を入力してください。": {
+    "ko": "변경 사유를 입력해주세요.",
+    "en": "Enter a reason for the change."
+  },
+  "実名とログインIDは別の情報です。実名の確認状態は、表示名や権限とは別に管理します。": {
+    "ko": "실명과 로그인 아이디는 서로 다른 정보입니다. 실명 확인 상태는 표시 이름이나 권한과 별도로 관리합니다.",
+    "en": "Your real name and login ID are separate. Name verification is managed separately from the displayed name and access level."
+  },
+  "所属・担当業務と案内確認の登録が未完了です。登録を完了しても、現在のアカウントUUIDと権限は維持されます。": {
+    "ko": "소속·담당 업무와 안내 확인 등록이 미완료 상태입니다. 등록을 마쳐도 현재 계정 UUID와 권한은 유지됩니다.",
+    "en": "Your duties and notice acknowledgment are not fully registered. Completing registration keeps your current account UUID and access."
+  },
+  "未確認の実名を編集": {
+    "ko": "미확인 실명 수정",
+    "en": "Edit unverified real name"
+  },
+  "実名を保存": {
+    "ko": "실명 저장",
+    "en": "Save real name"
+  },
+  "実名を保存しました。実名確認は別途必要です。": {
+    "ko": "실명을 저장했습니다. 실명 확인은 별도로 필요합니다.",
+    "en": "Your real name was saved. Name verification is still required separately."
+  },
+  "実名の編集可否を確認できません。再読み込みして現在の状態を確認してください。": {
+    "ko": "실명 수정 가능 여부를 확인할 수 없습니다. 새로고침하여 현재 상태를 확인해주세요.",
+    "en": "Name editing availability could not be confirmed. Reload to check your current status."
+  },
+  "保存結果を確認できませんでした。一覧を更新して現在の情報を確認してから、再度操作してください。": {
+    "ko": "저장 결과를 확인할 수 없습니다. 목록을 새로고침하여 현재 정보를 확인한 후 다시 진행해주세요.",
+    "en": "The save result could not be confirmed. Refresh the list and check the current information before trying again."
+  },
+  "変更は保存されましたが、アカウント表示を更新できませんでした。画面を再読み込みしてください。": {
+    "ko": "변경은 저장됐지만 계정 표시를 갱신하지 못했습니다. 화면을 새로고침해주세요.",
+    "en": "The change was saved, but the account display could not be refreshed. Reload the page."
+  },
+  "未確認の実名は編集できます。保存しても実名確認済みにはなりません。": {
+    "ko": "미확인 실명은 수정할 수 있습니다. 저장해도 실명 확인 완료로 바뀌지 않습니다.",
+    "en": "An unverified real name can be edited. Saving it does not mark the name as verified."
+  },
+  "多要素認証を完了してから、もう一度お試しください。": {
+    "ko": "다중 인증을 완료한 뒤 다시 시도해주세요.",
+    "en": "Complete multi-factor authentication, then try again."
+  },
+  "未確認の実名を変更": {
+    "ko": "미확인 실명 변경",
+    "en": "Unverified real name changed"
+  },
+  "実名訂正の申請を取下げ": {
+    "ko": "실명 정정 신청 철회",
+    "en": "Name correction request withdrawn"
+  },
+  "関係者情報の登録を完了": {
+    "ko": "관계자 정보 등록 완료",
+    "en": "Complete staff profile registration"
+  },
+  "関係者情報を登録しました。実名の確認状態はアカウント画面で確認できます。": {
+    "ko": "관계자 정보를 등록했습니다. 실명 확인 상태는 계정 화면에서 확인할 수 있습니다.",
+    "en": "Your staff profile was registered. You can check name verification on your account page."
   }
 }

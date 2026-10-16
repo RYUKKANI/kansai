@@ -51,8 +51,10 @@ async function app(page, response = {}, options = {}) {
     },
     async rpc(name, args) {
       calls.push({ name, args });
-      const value =
-        response[name] ?? (name === "office_account_state" ? owner : []);
+      const emptyWrite = ["office_request_name_change", "office_verify_staff_identity", "office_review_staff",
+        "office_set_staff_access", "office_review_name_change"].includes(name);
+      const value = Object.hasOwn(response, name) ? response[name]
+        : name === "office_account_state" ? owner : emptyWrite ? null : [];
       if (typeof value === "function") return value(args);
       return { data: value, error: null };
     },
@@ -66,7 +68,7 @@ async function app(page, response = {}, options = {}) {
     userId: ownerId,
     notice: (...args) => notices.push(args),
     isCurrent: () => active,
-    refresh: () => {},
+    refresh: options.refresh ?? (() => {}),
   });
   return {
     dom,
@@ -635,4 +637,101 @@ test("logout during in-flight request suppresses stale data and notifications", 
     context.controller.dispose();
     context.dom.window.close();
   }
+});
+
+// 가입 승인·Owner 권한과 미확인 실명 입력은 다른 상태입니다. 실제 본인 계정 폼을 조작해 회귀를 검사합니다.
+for (const [lang, saveText] of [["ja", "実名を保存"], ["ko", "실명 저장"], ["en", "Save real name"]]) {
+  test(`partial legacy Owner edits own unverified name without a correction approval in ${lang}`, async () => {
+    let account = { ...owner, real_name: "Old name", department: null,
+      name_verified_at: null, name_verified_by: null, approved_real_name: null,
+      identity_enrolled: false, profile_enrollment_pending: true,
+      name_edit_mode: "unverified_edit", can_edit_real_name: true };
+    let settle;
+    let refreshes = 0;
+    const context = await app("staff_account", {
+      office_account_state: () => ({ data: account, error: null }),
+      office_update_unverified_name: () => new Promise(resolve => { settle = () => {
+        account = { ...account, real_name: "李 Jean-Luc サトウ" };
+        resolve({ data: account, error: null });
+      }; }),
+    }, { lang, refresh: () => { refreshes++; } });
+    try {
+      const form = context.container.querySelector('form');
+      assert.equal(form.querySelector('button[type="submit"]').textContent, saveText);
+      assert.equal(context.container.querySelector('[data-staff-action="request-name"]'), null);
+      form.querySelector('[name="real_name"]').value = "李 Jean-Luc サトウ";
+      form.querySelector('[name="reason"]').value = "本人による未確認名の修正";
+      send(context.window, form); send(context.window, form);
+      assert.equal(context.calls.filter(call => call.name === "office_update_unverified_name").length, 1);
+      assert.equal(context.notices.length, 0);
+      const args = context.calls.find(call => call.name === "office_update_unverified_name").args;
+      assert.deepEqual(JSON.parse(JSON.stringify(args)), { p_real_name: "李 Jean-Luc サトウ", p_reason: "本人による未確認名の修正" });
+      assert.equal(Object.hasOwn(args, "p_user_id"), false);
+      settle();
+      await eventually(() => refreshes === 1);
+      assert.equal(context.notices[0][1], undefined);
+      assert.equal(context.container.querySelector('[name="real_name"]').value, account.real_name);
+      assert.equal(context.calls.some(call => call.name === "office_verify_staff_identity" || call.name === "office_request_name_change"), false);
+    } finally { context.controller.dispose(); context.dom.window.close(); }
+  });
+}
+
+test("pending account cannot expose name-edit controls even with a misleading edit-mode flag", async () => {
+  const context = await app("staff_account", { office_account_state: {
+    ...owner, role: null, active: false, approval_status: "pending", name_edit_mode: "unverified_edit",
+  } });
+  try {
+    assert.equal(context.container.querySelector('form'), null);
+    assert.deepEqual(context.calls.map(call => call.name), ["office_account_state"]);
+  } finally { context.controller.dispose(); context.dom.window.close(); }
+});
+
+for (const bad of [null, { success: false }, { ...owner, user_id: peerId },
+  { ...owner, name_edit_mode: "unverified_edit", name_verified_at: now }]) {
+  test(`unverified name save never reports success for malformed or different-state response ${JSON.stringify(bad)?.slice(0,35)}`, async () => {
+    const account = { ...owner, name_verified_at: null, name_verified_by: null,
+      approved_real_name: null, name_edit_mode: "unverified_edit" };
+    const context = await app("staff_account", { office_account_state: account,
+      office_update_unverified_name: () => ({ data: bad, error: null }) });
+    try {
+      const form = context.container.querySelector('form');
+      form.querySelector('[name="real_name"]').value = "New name";
+      form.querySelector('[name="reason"]').value = "理由";
+      send(context.window, form);
+      await eventually(() => context.notices.length > 0);
+      assert.equal(context.notices.every(notice => notice[1] === true), true);
+      assert.equal(form.querySelector('[name="real_name"]').value, "New name");
+      assert.equal(context.calls.filter(call => call.name === "office_account_state").length, 1);
+    } finally { context.controller.dispose(); context.dom.window.close(); }
+  });
+}
+
+test("void membership RPC with success:false is not a committed access change", async () => {
+  const context = await app("staff_applications", { office_staff_applications: [{ ...owner, user_id: peerId }],
+    office_set_staff_access: () => ({ data: { success: false }, error: null }) });
+  try {
+    const form = context.container.querySelector('[data-staff-action="access"]').form;
+    form.querySelector('[name="reason"]').value = "理由";
+    send(context.window, form);
+    await eventually(() => context.notices.length > 0);
+    assert.equal(context.notices.every(notice => notice[1] === true), true);
+    assert.match(context.notices[0][0], /保存結果を確認できません/);
+  } finally { context.controller.dispose(); context.dom.window.close(); }
+});
+
+test("confirmed profile save remains saved when the header refresh later fails", async () => {
+  const account = { ...owner, name_verified_at: null, name_verified_by: null,
+    approved_real_name: null, name_edit_mode: "unverified_edit" };
+  const context = await app("staff_account", { office_account_state: account,
+    office_update_unverified_name: () => ({ data: { ...account, real_name: "New name" }, error: null })
+  }, { refresh: () => { throw new Error("read_unavailable"); } });
+  try {
+    const form = context.container.querySelector('form');
+    form.querySelector('[name="real_name"]').value = "New name";
+    form.querySelector('[name="reason"]').value = "理由";
+    send(context.window, form);
+    await eventually(() => context.notices.length === 2);
+    assert.equal(context.notices[0][1], undefined);
+    assert.match(context.notices[1][0], /変更は保存されましたが/);
+  } finally { context.controller.dispose(); context.dom.window.close(); }
 });

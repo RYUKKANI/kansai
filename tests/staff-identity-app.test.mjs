@@ -328,8 +328,8 @@ test(
       const document = context.window.document;
       assert.equal(document.querySelector("#account-email").textContent.includes("test@"), false);
       document.querySelector('[data-resource="staff_account"]').click();
-      await helper.eventually(() => [...document.querySelectorAll("#admin-content button")].some(button => /ログインIDを登録/.test(button.textContent)));
-      [...document.querySelectorAll("#admin-content button")].find(button => /ログインIDを登録/.test(button.textContent)).click();
+      await helper.eventually(() => document.querySelector("#admin-content [data-staff-migration]"));
+      document.querySelector("#admin-content [data-staff-migration]").click();
       await helper.eventually(() => !document.querySelector('[data-staff-panel="migration"]').hidden);
       assert.equal(document.querySelector("#staff-enroll-username").value, "bootstrap.owner");
       assert.equal(document.querySelector("#staff-enroll-username").readOnly, true);
