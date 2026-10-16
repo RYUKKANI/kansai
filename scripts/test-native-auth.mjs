@@ -121,7 +121,8 @@ async function main() {
   await cp(path.join(repository, "supabase", "migrations"), path.join(temporary, "supabase", "migrations"), { recursive: true });
   await cp(path.join(repository, "supabase", "functions"), path.join(temporary, "supabase", "functions"), { recursive: true });
   // 고정 CLI가 생성한 기본 설정을 보존하고 이번 검사에서 필요한 값만 바꿉니다.
-  // 운영 config.toml은 수정하지 않고 Confirm Email과 로컬 Mailpit 수신만 명시합니다.
+  // 운영 config.toml은 수정하지 않습니다. 공개 가입 차단과 비밀번호 제공자 유지,
+  // 기존 이메일 계정 복구용 Confirm Email·로컬 Mailpit 수신을 각각 확인합니다.
   const configPath = path.join(temporary, "supabase", "config.toml");
   let config = await readFile(configPath, "utf8");
   const settings = [
@@ -165,6 +166,13 @@ async function main() {
   const status = JSON.parse((await cli(["status", "-o", "json"])).stdout);
   const api = localAddress(status.API_URL).origin;
   const mailbox = localAddress(status.INBUCKET_URL ?? status.MAILPIT_URL).origin;
+  async function mailboxCount() {
+    const response = await localFetch(`${mailbox}/api/v1/messages?limit=50`);
+    verify(response.ok, "mailbox_listing_unavailable");
+    const listing = await response.json();
+    verify(Number.isInteger(listing.total), "mailbox_count_missing");
+    return listing.total;
+  }
   const publicKey = status.PUBLISHABLE_KEY ?? status.ANON_KEY;
   const serverKey = status.SECRET_KEY ?? status.SERVICE_ROLE_KEY;
   verify(typeof publicKey === "string" && typeof serverKey === "string", "local_credentials_missing");
@@ -173,6 +181,26 @@ async function main() {
   const version = (await health.json()).version;
   verify(typeof version === "string" && /^v?\d+\.\d+\.\d+(?:[-+][a-zA-Z0-9.-]+)?$/.test(version), "native_auth_version_missing");
   report(`native Auth ${version}; migrations applied`);
+
+  stage = "verify public native signup is blocked while the password provider remains enabled";
+  const settingsResponse = await localFetch(`${api}/auth/v1/settings`, { headers: { apikey: publicKey } });
+  verify(settingsResponse.ok, "native_auth_settings_unavailable");
+  const authSettings = await settingsResponse.json();
+  verify(authSettings.disable_signup === true, "native_public_signup_enabled");
+  verify(authSettings.external?.email === true, "native_email_password_provider_disabled");
+  // 승인·요청 제한을 거치는 서버 가입 경로만 사용해야 합니다. UI가 감춘 것만으로 통과하지
+  // 않도록 실제 익명 SDK 요청의 거절과 DB/메일 부작용 부재를 함께 검사합니다.
+  const directSignupEmail = `direct-signup-${randomBytes(5).toString("hex")}@example.test`;
+  const mailCountBeforeDirectSignup = await mailboxCount();
+  const directSignup = await client(api, publicKey).auth.signUp({
+    email: directSignupEmail, password: randomBytes(24).toString("base64url"),
+  });
+  verify(directSignup.error?.code === "signup_disabled" && directSignup.error.status >= 400 && directSignup.error.status < 500,
+    "native_public_signup_not_rejected_" + safeFailure(directSignup.error?.status, directSignup.error?.code));
+  verify(directSignup.data?.user === null && directSignup.data?.session === null, "native_public_signup_returned_account");
+  verify(await sql(`select count(*) from auth.users where email=${sqlLiteral(directSignupEmail)};`) === "0", "native_public_signup_created_account");
+  verify(await mailboxCount() === mailCountBeforeDirectSignup, "native_public_signup_sent_email");
+  report("direct public Auth signup is disabled, creates no account or mail, and the password provider stays enabled");
   functionProcess = spawn("npx", cliArguments(["functions", "serve", "staff-auth", "--env-file", envFile]), {
     cwd: repository, env: processEnvironment, stdio: ["ignore", "pipe", "pipe"],
   });
@@ -331,13 +359,6 @@ async function main() {
   stage = "pending account native Auth and RLS";
   // 새 가입은 연락 주소를 입력받지 않습니다. 실제 Auth가 서버 식별자로 계정을 만들고
   // 메일을 발송하지 않은 채 아이디 로그인·승인 대기 제한을 적용하는지 함께 확인합니다.
-  async function mailboxCount() {
-    const response = await localFetch(`${mailbox}/api/v1/messages?limit=50`);
-    verify(response.ok, "mailbox_listing_unavailable");
-    const listing = await response.json();
-    verify(Number.isInteger(listing.total), "mailbox_count_missing");
-    return listing.total;
-  }
   const mailCountBeforeSignup = await mailboxCount();
   const pendingPassword = randomBytes(24).toString("base64url");
   const registered = await gateway({ action: "register", username: "native.pending", password: pendingPassword, password_confirmation: pendingPassword,
