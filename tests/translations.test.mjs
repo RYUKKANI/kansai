@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { app, login, eventually, uid } from "./helpers/admin-app.mjs";
 import { typescriptModule } from "./helpers/typescript-module.mjs";
-const { localizeContent } = await typescriptModule(
+const { localizeContent, hasOriginalText } = await typescriptModule(
   "src/data/locales/content.ts",
 );
 const { draftKey, writeDraft } = await typescriptModule(
@@ -84,6 +84,49 @@ test("CMS translations take priority over dictionaries without changing IDs, ima
   assert.equal(content.stories[0].title, "日本語");
   assert.equal(localizeContent(content, "en").pages[0].title, "Our club");
   assert.equal(localizeContent(content, "ja"), content);
+});
+
+// 공개되지 않은 메모리 시험 자료입니다. 사전 키와 겹치는 이름도 써서 실제 번역 충돌을 재현합니다.
+test("public player names stay exact in every language while biography and message translations remain available", () => {
+  const names = ["月", "山田 太郎", "김 민수", "Ana-María O'Neil", "Jose\u0301-Anne"];
+  const bio = "ピッチでつながる。チームの今を、ここから。\n\nプレーする、教える、運営を支える。";
+  const content = {
+    stories: [], pages: [], fixtures: [], media: [], albums: [], fromCms: true, version: 7,
+    players: names.map((name, index) => ({
+      playerId: "00000000-0000-4000-8000-" + String(index + 1).padStart(12, "0"), slug: "test-only-player-" + index,
+      name, romanizedName: "Test only original spelling", number: index + 1, position: "MF", photo: "assets/test-only-photo.jpg",
+      bio, activityStatus: "active", displayOrder: index,
+    })),
+    schedules: [{ id: "test-only-schedule", title: "月", venue: "", description: "" }],
+  };
+  const before = structuredClone(content);
+  const biographies = {
+    ja: bio,
+    ko: "그라운드에서 연결되다. 팀의 오늘을 여기에서.\n\n뛰고, 가르치고, 운영을 지원하다.",
+    en: "Connected on the pitch. The team today, right here.\n\nPlay. Coach. Support the club.",
+  };
+  for (const locale of ["ja", "ko", "en"]) {
+    const localized = localizeContent(content, locale);
+    assert.deepEqual(localized.players.map(player => player.name), names);
+    assert.deepEqual(localized.players, before.players.map(player => ({ ...player, bio: biographies[locale] })));
+    assert.equal(localized.schedules[0].title, { ja: "月", ko: "월", en: "Month" }[locale]);
+    if (locale !== "ja") assert.equal(hasOriginalText(localized), false);
+  }
+  assert.deepEqual(content, before);
+});
+
+test("original-script player names do not trigger translation notices but untranslated biographies and stories do", () => {
+  const content = {
+    stories: [], pages: [], fixtures: [], media: [], albums: [], schedules: [], fromCms: true, version: 1,
+    players: [{ name: "山田 タロウ", bio: "" }],
+  };
+  for (const locale of ["ko", "en"]) {
+    assert.equal(hasOriginalText(localizeContent(content, locale)), false);
+    const untranslatedBio = { ...content, players: [{ ...content.players[0], bio: "まだ翻訳のない選手紹介" }] };
+    assert.equal(hasOriginalText(localizeContent(untranslatedBio, locale)), true);
+    const untranslatedStory = { ...content, stories: [{ title: "まだ翻訳のない新着記事", summary: "", alt: "", paragraphs: [], label: "CLUB" }] };
+    assert.equal(hasOriginalText(localizeContent(untranslatedStory, locale)), true);
+  }
 });
 
 test("one editor retains three language values, previews chosen language and saves one record", async () => {

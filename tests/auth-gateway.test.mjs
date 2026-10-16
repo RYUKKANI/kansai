@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { createClient } from "@supabase/supabase-js";
+import { AuthApiError, AuthRetryableFetchError, createClient } from "@supabase/supabase-js";
 import { typescriptModule } from "./helpers/typescript-module.mjs";
 
 const { createGateway, normalizeUsername, normalizeIp, trustedClientIp } = await typescriptModule("supabase/functions/staff-auth/gateway.ts");
@@ -140,6 +140,46 @@ test("unknown, suspended and mismatched Auth UUID all use generic invalid creden
   }
   const f = fixture({ signInWithPassword: () => ok({ user: { id: "another-uuid" }, session: { access_token: "a", refresh_token: "r" } }) });
   assert.equal((await f.send({ action: "login", username: "member", password: "password" })).status, 401);
+});
+
+test("login reports native throttling and infrastructure failures without exposing credentials or sessions", async () => {
+  const secret = "synthetic-login-password-only";
+  for (const [error, status, code] of [
+    [new AuthApiError(`private ${EMAIL} ${secret}`, 429, "over_request_rate_limit"), 429, "rate_limited"],
+    [new AuthApiError(`private ${EMAIL} ${secret}`, 400, "rate_limited"), 429, "rate_limited"],
+    [new AuthRetryableFetchError(`private ${EMAIL} ${secret}`, 503), 503, "service_unavailable"],
+    [new AuthApiError(`private ${EMAIL} ${secret}`, 500, "unexpected_failure"), 503, "service_unavailable"],
+    [new AuthApiError(`private ${EMAIL} ${secret}`, 408, "request_timeout"), 503, "service_unavailable"],
+    [new AuthRetryableFetchError(`private ${EMAIL} ${secret}`, 0), 503, "service_unavailable"],
+    [{ name: "AuthUnknownError", message: `private ${EMAIL} ${secret}` }, 503, "service_unavailable"],
+  ]) {
+    const f = fixture({ signInWithPassword: () => ({
+      data: { user: { id: USER }, session: { access_token: "must-not-return", refresh_token: "must-not-return" } }, error,
+    }) });
+    const response = await f.send({ action: "login", username: "member", password: secret });
+    const body = await response.json();
+    assert.equal(response.status, status);
+    assert.deepEqual(body, { error: code });
+    for (const value of [EMAIL, USER, secret, "must-not-return", "private", "session"])
+      assert.equal(JSON.stringify(body).includes(value), false);
+    assert.equal(authCalls(f).length, 1);
+  }
+  const thrown = fixture({ signInWithPassword: () => { throw new TypeError(`private ${EMAIL} ${secret}`); } });
+  const response = await thrown.send({ action: "login", username: "member", password: secret });
+  assert.equal(response.status, 503);
+  assert.deepEqual(await response.json(), { error: "service_unavailable" });
+});
+
+test("login keeps account and credential rejections generic and never returns an error response session", async () => {
+  for (const [code, status] of [["invalid_credentials", 400], ["user_banned", 403], ["email_not_confirmed", 400], ["user_not_found", 404]]) {
+    const f = fixture({ signInWithPassword: () => ({
+      data: { user: { id: USER }, session: { access_token: "must-not-return", refresh_token: "must-not-return" } },
+      error: new AuthApiError(`private ${EMAIL}`, status, code),
+    }) });
+    const response = await f.send({ action: "login", username: "member", password: "synthetic-test-password" });
+    assert.equal(response.status, 401);
+    assert.deepEqual(await response.json(), { error: "invalid_credentials" });
+  }
 });
 
 test("pending account receives Auth session but no approval or role mutation", async () => {
