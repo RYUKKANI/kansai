@@ -3874,5 +3874,13 @@
   "関係者情報を登録しました。実名の確認状態はアカウント画面で確認できます。": {
     "ko": "관계자 정보를 등록했습니다. 실명 확인 상태는 계정 화면에서 확인할 수 있습니다.",
     "en": "Your staff profile was registered. You can check name verification on your account page."
+  },
+  "写真をアップロードしています。完了してから保存してください。": {
+    "ko": "사진을 업로드하고 있습니다. 완료된 후 저장해주세요.",
+    "en": "A photo is uploading. Wait until it finishes before saving."
+  },
+  "選択候補にない写真が含まれています。下書きには保持できます。発行前に写真を確認するか、選択を外してください。": {
+    "ko": "선택 후보에 없는 사진이 포함돼 있습니다. 초안에는 유지할 수 있습니다. 발행 전에 사진을 확인하거나 선택을 해제해주세요.",
+    "en": "Some photos are not in the selection list. They can remain in the draft. Review them or remove the selection before publishing."
   }
 }
