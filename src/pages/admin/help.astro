@@ -3,6 +3,7 @@ import { club } from "../../data/club";
 import { asset } from "../../lib/urls";
 import { localeFromUrl, localizedPage } from "../../lib/i18n";
 import LanguageSwitcher from "../../components/LanguageSwitcher.astro";
+import StaffSupportRecovery from "../../components/StaffSupportRecovery.astro";
 import "../../styles/global.css";
 import "../../styles/admin.css";
 import "../../styles/languages.css";
@@ -43,17 +44,19 @@ const legacyEnabled = enabled && import.meta.env.PUBLIC_STAFF_LEGACY_LOGIN_ENABL
           <div id="staff-help-options" hidden={!enabled}>
             <h2><span data-i18n="ログインできない場合">ログインできない場合</span></h2>
             <p class="admin-help"><span data-i18n="パスワードが未設定・不明な場合やメールを利用できない場合は、運営責任者（Owner）にご相談ください。本人と既存アカウントを確認したうえで対応します。">パスワードが未設定・不明な場合やメールを利用できない場合は、運営責任者（Owner）にご相談ください。本人と既存アカウントを確認したうえで対応します。</span></p>
-            <p class="admin-help"><span data-i18n="メールを使わない再設定は、確認済みのプロジェクト管理者が信頼できる管理用端末で支援します。新しいパスワードはご本人が直接入力し、チャットやメールで共有しないでください。">メールを使わない再設定は、確認済みのプロジェクト管理者が信頼できる管理用端末で支援します。新しいパスワードはご本人が直接入力し、チャットやメールで共有しないでください。</span></p>
+            <StaffSupportRecovery />
             <!-- 기존 Owner의 새 비밀번호 로그인이 검증되기 전에는 기존 메일 복구 양식을 유지합니다. -->
             <h3><span data-i18n="移行期間中のメール復旧">移行期間中のメール復旧</span></h3>
             <p class="admin-help"><span data-i18n="既存アカウント向けの移行用手続きです。メールが届かない場合はOwnerにご相談ください。">既存アカウント向けの移行用手続きです。メールが届かない場合はOwnerにご相談ください。</span></p>
             <p class="admin-help"><span data-i18n="登録した復旧用メールアドレスに確認リンクを送ります。招待後にパスワードを設定していない方もご利用いただけます。">登録した復旧用メールアドレスに確認リンクを送ります。招待後にパスワードを設定していない方もご利用いただけます。</span></p>
             <p class="admin-help"><span data-i18n="確認メールのリンクは、送信を申請した同じブラウザーで開いてください。別のブラウザーで開いた場合は、そこで新しい確認メールを申請してください。">確認メールのリンクは、送信を申請した同じブラウザーで開いてください。別のブラウザーで開いた場合は、そこで新しい確認メールを申請してください。</span></p>
+            <p class="admin-help"><span data-i18n="メールの申請・受信・リンクの確認だけでは、パスワードは変更されません。新しいパスワードを入力し、保存完了の表示を確認してください。">メールの申請・受信・リンクの確認だけでは、パスワードは変更されません。新しいパスワードを入力し、保存完了の表示を確認してください。</span></p>
             <form id="staff-recovery-form">
               <label for="staff-recovery-email"><span data-i18n="確認・復旧用メールアドレス">確認・復旧用メールアドレス</span></label>
               <input id="staff-recovery-email" placeholder="確認・復旧用メールアドレス" data-i18n-placeholder="確認・復旧用メールアドレス" name="email" type="email" autocomplete="email" required maxlength="254" spellcheck="false" autocapitalize="none" />
               <button type="submit" class="admin-primary"><span data-i18n="確認リンクを送信">確認リンクを送信</span></button>
             </form>
+            <p id="staff-help-request-status" class="admin-help" role="status" aria-live="polite"></p>
             {legacyEnabled && <div class="staff-auth-alternate"><p class="admin-help"><span data-i18n="移行中の既存メンバーは、登録済みメールアドレスのリンクでもログインできます。">移行中の既存メンバーは、登録済みメールアドレスのリンクでもログインできます。</span></p><button type="button" id="staff-help-legacy" class="admin-secondary"><span data-i18n="移行期間中のメールリンクでログイン">移行期間中のメールリンクでログイン</span></button></div>}
           </div>
           <div id="staff-new-password-panel" hidden>
