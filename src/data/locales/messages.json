@@ -3686,5 +3686,117 @@
   "変更後の実名を本人に確認してから保存してください。": {
     "ko": "변경할 실명을 당사자에게 확인한 후 저장해주세요.",
     "en": "Confirm the corrected real name with the account holder before saving."
+  },
+  "現在と同じパスワードです。別のパスワードを入力するか、入力したパスワードでログインしてください。": {
+    "ko": "현재와 같은 비밀번호입니다. 다른 비밀번호를 입력하거나 입력한 비밀번호로 로그인해주세요.",
+    "en": "This is already the current password. Choose a different password or sign in with the password you entered."
+  },
+  "このパスワードは利用できません。12文字以上で、推測されにくい別のパスワードを入力してください。": {
+    "ko": "사용할 수 없는 비밀번호입니다. 12자 이상이며 추측하기 어려운 다른 비밀번호를 입력해주세요.",
+    "en": "This password cannot be used. Choose a different password of at least 12 characters that is hard to guess."
+  },
+  "パスワード変更の認証を確認できません。確認リンクを申請し直すか、運営責任者にご相談ください。": {
+    "ko": "비밀번호 변경 인증을 확인할 수 없습니다. 확인 링크를 다시 신청하거나 운영 책임자에게 문의해주세요.",
+    "en": "Password change authentication could not be verified. Request a new confirmation link or contact the club operator."
+  },
+  "追加の本人確認が必要です。運営責任者に復旧をご相談ください。": {
+    "ko": "추가 본인 확인이 필요합니다. 운영 책임자에게 계정 복구를 문의해주세요.",
+    "en": "Additional identity verification is required. Contact the club operator for account recovery."
+  },
+  "保存結果を確認できません。パスワードは変更された可能性があります。再設定を繰り返さず、入力した新しいパスワードでログインを確認し、利用できない場合は運営責任者にご相談ください。": {
+    "ko": "저장 결과를 확인할 수 없습니다. 비밀번호가 변경됐을 수 있습니다. 재설정을 반복하지 말고 입력한 새 비밀번호로 로그인을 확인한 뒤, 로그인할 수 없으면 운영 책임자에게 문의해주세요.",
+    "en": "The save result could not be confirmed. Your password may have changed. Do not repeat the reset. Try signing in with the new password you entered, and contact the club operator if you cannot sign in."
+  },
+  "再申請は60秒ほどお待ちください。新しい申請は以前のリンクを無効にする場合があります。": {
+    "ko": "다시 신청하려면 약 60초 기다려주세요. 새로 신청하면 이전 링크를 사용할 수 없게 될 수 있습니다.",
+    "en": "Wait about 60 seconds before requesting again. A new request may invalidate an earlier link."
+  },
+  "メールの申請・受信・リンクの確認だけでは、パスワードは変更されません。新しいパスワードを入力し、保存完了の表示を確認してください。": {
+    "ko": "이메일 신청·수신·링크 확인만으로 비밀번호가 변경되지는 않습니다. 새 비밀번호를 입력하고 저장 완료 안내를 확인해주세요.",
+    "en": "Requesting or receiving an email, or opening its link, does not change your password. Enter a new password and check that saving is confirmed."
+  },
+  "メールの送信が制限され、今回は申請を受け付けられませんでした。パスワードは変更されていません。時間をおくか、メールを使わない復旧をご利用ください。": {
+    "ko": "이메일 발송이 제한되어 이번 신청을 접수하지 못했습니다. 비밀번호는 변경되지 않았습니다. 시간을 두고 시도하거나 이메일 없는 복구를 이용해주세요.",
+    "en": "Email sending is limited, so this request was not accepted. Your password has not changed. Wait before trying again, or use recovery without email."
+  },
+  "確認メールの申請を完了できませんでした。パスワードは変更されていません。メールを使わない復旧をご利用いただくか、運営責任者にご相談ください。": {
+    "ko": "확인 이메일 신청을 완료하지 못했습니다. 비밀번호는 변경되지 않았습니다. 이메일 없는 복구를 이용하거나 운영 책임자에게 문의해주세요.",
+    "en": "The confirmation email request could not be completed. Your password has not changed. Use recovery without email or contact the club operator."
+  },
+  "メールを受信できないOwnerの復旧": {
+    "ko": "메일을 받을 수 없는 최고 관리자 복구",
+    "en": "Owner recovery without email"
+  },
+  "唯一のOwnerがログインできない場合の手続きです。申請だけでは権限は得られません。プロジェクト管理者が本人と既存アカウントを別途確認します。": {
+    "ko": "유일한 최고 관리자가 로그인할 수 없을 때 사용하는 절차입니다. 신청만으로 권한이 생기지 않습니다. 프로젝트 관리자가 본인과 기존 계정을 별도로 확인합니다.",
+    "en": "For a sole Owner who cannot sign in. A request grants no access. A project administrator must independently verify your identity and existing account."
+  },
+  "この端末で復旧を申請": {
+    "ko": "이 기기에서 복구 신청",
+    "en": "Request recovery on this device"
+  },
+  "この画面を開いたまま、下の申請番号と端末確認番号だけを、確認済みのプロジェクト管理者に伝えてください。パスワードは共有しないでください。": {
+    "ko": "이 화면을 열어 둔 채 아래 신청 번호와 기기 확인 번호만 확인된 프로젝트 관리자에게 알려주세요. 비밀번호는 공유하지 마세요.",
+    "en": "Keep this page open and share only the request number and device reference below with a verified project administrator. Do not share your password."
+  },
+  "復旧申請番号": {
+    "ko": "복구 신청 번호",
+    "en": "Recovery request number"
+  },
+  "端末確認番号": {
+    "ko": "기기 확인 번호",
+    "en": "Device reference"
+  },
+  "有効期限": {
+    "ko": "유효 기한",
+    "en": "Valid until"
+  },
+  "管理者の確認状況を更新": {
+    "ko": "관리자 확인 상태 새로고침",
+    "en": "Check administrator approval"
+  },
+  "新しいパスワードを保存": {
+    "ko": "새 비밀번호 저장",
+    "en": "Save new password"
+  },
+  "この端末の申請を閉じる": {
+    "ko": "이 기기의 신청 닫기",
+    "en": "Close this device request"
+  },
+  "管理者の確認を待っています。申請番号と端末確認番号を確認済みのプロジェクト管理者に伝えてください。": {
+    "ko": "관리자 확인을 기다리고 있습니다. 신청 번호와 기기 확인 번호를 확인된 프로젝트 관리자에게 알려주세요.",
+    "en": "Waiting for administrator approval. Share the request number and device reference with a verified project administrator."
+  },
+  "変更結果をまだ確認できません。再送せず、申請番号をプロジェクト管理者に伝えて確認してください。": {
+    "ko": "변경 결과를 아직 확인할 수 없습니다. 다시 제출하지 말고 신청 번호를 프로젝트 관리자에게 알려 확인해 주세요.",
+    "en": "The outcome is not confirmed. Do not submit again. Ask the project administrator to check this request number."
+  },
+  "パスワードを保存しました。ログイン画面でIDと新しいパスワードを入力してください。": {
+    "ko": "비밀번호를 저장했습니다. 로그인 화면에서 아이디와 새 비밀번호를 입력해 주세요.",
+    "en": "Your password was saved. Enter your ID and new password on the sign-in page."
+  },
+  "プロジェクト管理者の確認が完了しました。この端末で新しいパスワードを入力して保存してください。": {
+    "ko": "프로젝트 관리자의 확인이 완료됐습니다. 이 기기에서 새 비밀번호를 입력하고 저장해 주세요.",
+    "en": "The project administrator has approved this request. Enter and save your new password on this device."
+  },
+  "この申請では変更を完了できません。申請を閉じて新しく申請し、管理者に再確認を依頼してください。": {
+    "ko": "이 신청으로는 변경을 완료할 수 없습니다. 신청을 닫고 새로 신청한 뒤 관리자에게 다시 확인을 요청해 주세요.",
+    "en": "This request cannot complete the change. Close it, create a new request, and ask the administrator to approve it again."
+  },
+  "この端末では復旧情報を保持できません。通常のブラウザーで保存を許可してから申請してください。": {
+    "ko": "이 기기에서는 복구 정보를 유지할 수 없습니다. 일반 브라우저에서 저장을 허용한 뒤 신청해 주세요.",
+    "en": "This device cannot retain recovery details. Allow storage in a regular browser before requesting recovery."
+  },
+  "登録を完了できませんでした。同じID・メールを使った申請がある場合は、ログインまたは復旧をご利用ください。登録を繰り返さず、運営責任者にご確認ください。": {
+    "ko": "가입을 완료하지 못했습니다. 같은 아이디·이메일로 신청한 적이 있다면 로그인 또는 복구를 이용해주세요. 가입을 반복하지 말고 운영 책임자에게 확인해주세요.",
+    "en": "Registration could not be completed. If you have already applied with this ID or email, use sign-in or recovery. Do not repeatedly register; contact the club operator."
+  },
+  "登録結果を確認できません。アカウントが作成された可能性があります。この画面から再申請せず、ログインまたは復旧を確認し、利用できない場合は運営責任者にご相談ください。": {
+    "ko": "가입 결과를 확인할 수 없습니다. 계정이 생성됐을 수 있습니다. 이 화면에서 다시 신청하지 말고 로그인 또는 복구를 확인한 뒤, 이용할 수 없으면 운영 책임자에게 문의해주세요.",
+    "en": "The registration result could not be confirmed. An account may have been created. Do not submit this form again. Check sign-in or recovery, and contact the club operator if you cannot continue."
+  },
+  "アカウントを作成しました。メールの確認は不要です。入力したIDとパスワードでログインして承認状態をご確認ください。": {
+    "ko": "계정을 생성했습니다. 이메일 확인은 필요하지 않습니다. 입력한 아이디와 비밀번호로 로그인해 승인 상태를 확인해주세요.",
+    "en": "Your account has been created. Email confirmation is not required. Sign in with the ID and password you entered to check your approval status."
   }
 }
