@@ -7,8 +7,9 @@ export const club = {
   instagram: "https://www.instagram.com/kansai_united_fc/",
   logo: "assets/club-profile.jpg",
   instagramHandle: "@kansai_united_fc",
+  // 세 언어의 검색 설명이 같은 사이트를 가리키므로 특정 화면 언어를 설명에 고정하지 않습니다.
   description:
-    "関西ユナイテッドFCの日本語公式サイト。ニュース、試合日程、選手プロフィール、写真・動画、参加案内をお届けします。",
+    "関西ユナイテッドFC公式サイト。ニュース、試合日程・結果、選手紹介、写真・動画、参加案内をお届けします。",
 };
 
 // 분류를 추가하면 뉴스 필터에도 자동으로 반영됩니다. 검색어와 화면 표기도 함께 지정합니다.
