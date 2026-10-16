@@ -59,11 +59,13 @@ Free 플랜에서 유출 비밀번호 차단은 활성화할 수 없어 Auth Adv
 
 마이그레이션 파일 버전은 원격 기록과 일치시키고 실행한 파일은 변경하지 않습니다.
 DB 변경은 새 마이그레이션으로 추가하고 권한 검사를 통과한 뒤 적용합니다.
-npm test는 메모리 PostgreSQL 권한과 빌드 UI를 검사합니다.
+`npm test`만 입력하면 파트 목록과 사용법을 보여주며 실제 검사를 실행하지 않습니다. 수정한 업무는 `npm run test:members`처럼 `test:<파트 ID>`로 필요한 테스트용 빌드와 해당 검사를 실행합니다. 여러 파트를 함께 바꿨다면 `npm run test:prepare -- --parts members,players` 후 `npm test -- --parts members,players`로 선택합니다. 전체 회귀 검사는 명시적으로 필요한 경우에만 `npm run test:full`로 실행합니다. 검사 범위와 실제 Auth 실행 조건은 [기능별 검사 안내](PART_CHECKS.md)를 따릅니다.
 실제 DB 검사는 supabase/tests/remote-permissions.sql로 실행하고 반드시 ROLLBACK합니다.
 공개 API 검사에는 publishable key만 사용하며 Supabase Advisors에서 보안 상태를 확인합니다.
 
 ## 배포 보안
+
+예약·수동 게시는 같은 SHA의 가장 최근 push 검사 시도에서 `Required part checks complete`가 성공한 뒤에만 진행합니다. 코드·예약·수동 검증은 서로 취소하지 않도록 실행 그룹을 나누고, 실제 게시는 직렬화한 뒤 잠금 안에서 최신 `main` 커밋을 다시 확인합니다. 이전 커밋의 산출물은 게시하지 않습니다. [검사와 게시 보호 절차](PART_CHECKS.md)를 참고하세요.
 
 GitHub Pages의 Enforce HTTPS를 켭니다. HTTP의 `/`, `/admin/`, `/admin/help/`가 HTTPS로 이동하는지 배포 후 확인합니다.
 빌드 HTML의 CSP는 실제 JS·CSS 해시, 같은 출처의 정적 파일, 관리 화면의 현재 Supabase 프로젝트만 허용합니다.
