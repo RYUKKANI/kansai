@@ -2,136 +2,39 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { app, login, eventually } from "./helpers/admin-app.mjs";
 
-test("confirmed member receives a login link without signup or confirmation resend", async () => {
+test("flag-off portal removes email sign-in and invite workflows without enabling ID authentication", async () => {
   const { dom, window, requests } = await app();
   try {
-    const document = window.document;
-    document.querySelector('#login-form input[name="email"]').value =
-      "TEST@EXAMPLE.INVALID";
-    const button = document.querySelector("#magic-link-button");
-    button.click();
-    assert.equal(button.disabled, true);
-    assert.equal(
-      document.querySelector('#login-form button[type="submit"]').disabled,
-      true,
-    );
-    button.click();
-    await eventually(() =>
-      document
-        .querySelector("#admin-notice")
-        .textContent.includes("ログインリンクを送信しました"),
-    );
-    const otpRequests = requests.filter((r) =>
-      new URL(r.url).pathname.endsWith("/auth/v1/otp"),
-    );
-    assert.equal(otpRequests.length, 1);
-    assert.equal(JSON.parse(otpRequests[0].body).create_user, false);
-    assert.equal(JSON.parse(otpRequests[0].body).email, "test@example.invalid");
-    assert.equal(
-      new URL(otpRequests[0].url).searchParams.get("redirect_to"),
-      "https://kansaiunited.com/admin/",
-    );
-    assert.equal(
-      requests.some((r) => new URL(r.url).pathname.endsWith("/auth/v1/resend")),
-      false,
-    );
-    assert.equal(document.querySelector("#workspace").hidden, true);
-    assert.equal(button.disabled, false);
-  } finally {
-    dom.window.close();
-  }
+    const doc = window.document;
+    assert.equal(doc.querySelector('#login-form,#magic-link-button,#invite-form,#invite-dialog,input[type="email"]'), null);
+    assert.ok(doc.querySelector('#staff-login-form [name="username"]'));
+    assert.equal(doc.querySelector('#staff-login-form [name="username"]').disabled, true);
+    assert.equal(doc.querySelector('#staff-login-form [name="password"]').disabled, true);
+    assert.equal(doc.querySelector('#config-warning').hidden, false);
+    doc.querySelector('#staff-login-form').dispatchEvent(new window.Event('submit', { bubbles: true, cancelable: true }));
+    assert.equal(requests.some(r => /\/auth\/v1\/(otp|resend|signup)|\/functions\/v1\/staff-auth/.test(new URL(r.url).pathname)), false);
+    assert.equal(doc.querySelector('#workspace').hidden, true);
+  } finally { dom.window.close(); }
 });
 
-test("unconfirmed invitation resends confirmation and keeps signup disabled", async () => {
-  const { dom, window, requests } = await app("owner", undefined, {
-    otpError: "signup_disabled",
-  });
+test("legacy member list hides internal authentication aliases without changing saved contact data", async () => {
+  const privateAddress = "opaque-token@accounts.kansai.invalid";
+  const { dom, window, tables } = await app("owner", undefined, { userEmail: privateAddress }, { admin_roles: [
+    { user_id: "00000000-0000-4000-8000-000000000001", email: privateAddress, role: "owner", active: true },
+  ] });
   try {
-    const document = window.document;
-    document.querySelector('#login-form input[name="email"]').value =
-      "TEST@EXAMPLE.INVALID";
-    document.querySelector("#magic-link-button").click();
-    await eventually(() =>
-      document
-        .querySelector("#admin-notice")
-        .textContent.includes("確認メールの送信を受け付けました"),
-    );
-    const authRequests = requests.filter((r) =>
-      /\/auth\/v1\/(otp|resend)$/.test(new URL(r.url).pathname),
-    );
-    assert.equal(authRequests.length, 2);
-    assert.equal(JSON.parse(authRequests[0].body).create_user, false);
-    const confirmation = authRequests[1];
-    assert.equal(JSON.parse(confirmation.body).type, "signup");
-    assert.equal(JSON.parse(confirmation.body).email, "test@example.invalid");
-    assert.equal(
-      new URL(confirmation.url).searchParams.get("redirect_to"),
-      "https://kansaiunited.com/admin/",
-    );
-    assert.equal(
-      requests.some((r) => new URL(r.url).pathname.endsWith("/auth/v1/signup")),
-      false,
-    );
-    assert.equal(
-      document.querySelector("#admin-notice").dataset.error,
-      "false",
-    );
-    assert.equal(document.querySelector("#workspace").hidden, true);
-  } finally {
-    dom.window.close();
-  }
+    await login(window);
+    const doc = window.document;
+    assert.equal(doc.querySelector("#account-email").textContent.includes(privateAddress), false);
+    doc.querySelector('[data-resource="admin_roles"]').click();
+    await eventually(() => doc.querySelector('.admin-list-row'));
+    assert.equal(doc.querySelector('#admin-content').textContent.includes(privateAddress), false);
+    for (const item of doc.querySelectorAll('#admin-content [aria-label]'))
+      assert.equal(item.getAttribute('aria-label').includes(privateAddress), false);
+    assert.equal(doc.querySelector('#new-button').hidden, true);
+    assert.equal(tables.admin_roles[0].email, privateAddress);
+  } finally { dom.window.close(); }
 });
-
-for (const [name, authResponses] of [
-  ["login link", { otpError: "over_email_send_rate_limit" }],
-  [
-    "confirmation",
-    { otpError: "signup_disabled", resendError: "over_email_send_rate_limit" },
-  ],
-]) {
-  test(
-    name + " send failure shows Japanese guidance and unlocks retry",
-    async () => {
-      const { dom, window, requests } = await app(
-        "owner",
-        undefined,
-        authResponses,
-      );
-      try {
-        const document = window.document;
-        document.querySelector('#login-form input[name="email"]').value =
-          "test@example.invalid";
-        document.querySelector("#magic-link-button").click();
-        await eventually(
-          () =>
-            document.querySelector("#admin-notice").dataset.error === "true",
-        );
-        assert.ok(
-          document
-            .querySelector("#admin-notice")
-            .textContent.includes("少し時間をおいて"),
-        );
-        assert.equal(
-          document.querySelector("#magic-link-button").disabled,
-          false,
-        );
-        assert.equal(
-          document.querySelector("#login-form").hasAttribute("aria-busy"),
-          false,
-        );
-        assert.equal(document.querySelector("#workspace").hidden, true);
-        assert.equal(
-          requests.some((r) =>
-            new URL(r.url).pathname.endsWith("/auth/v1/signup"),
-          ),
-          false,
-        );
-      } finally {
-        dom.window.close();
-      }
-    },
-  );
-}
 
 test("owner can create drafts and published URL stays locked in editor", async () => {
   const { dom, window, tables, requests } = await app();
@@ -199,11 +102,9 @@ test("saved preview disables login and makes no authentication requests", async 
   try {
     const document = window.document;
     assert.equal(document.querySelector("#config-warning").hidden, false);
-    assert.equal(document.querySelector("#magic-link-button").disabled, true);
-    assert.equal(
-      document.querySelector('#login-form input[name="email"]').disabled,
-      true,
-    );
+    assert.equal(document.querySelector('#staff-login-form input[name="username"]').disabled, true);
+    assert.equal(document.querySelector('#staff-login-form input[name="password"]').disabled, true);
+    assert.equal(document.querySelector('input[type="email"]'), null);
     assert.equal(document.querySelector("#workspace").hidden, true);
     assert.equal(requests.length, 0);
   } finally {

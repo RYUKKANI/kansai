@@ -88,7 +88,7 @@ function application({ help = false, invoke, getUser, getClaims, initialize, rec
     emit: (event, session = { access_token: "verified-recovery-token", user: { id: "unchanged-user-id" } }) => authListener?.(event, session),
   };
 }
-const signup = { username: "Staff.Name", password: "correct-password-123", password_confirmation: "correct-password-123", real_name: "金 さくら Ana-María", department: "コーチ / Staff", email: "staff@example.invalid", notice_accepted: true };
+const signup = { username: "Staff.Name", password: "correct-password-123", password_confirmation: "correct-password-123", real_name: "金 さくら Ana-María", department: "コーチ / Staff", notice_accepted: true };
 const account = { user_id: "unchanged-user-id", username: "staff.name", real_name: "金 さくら Ana-María", department: "コーチ", approval_status: "pending", email_confirmed: true, role: null, active: true, identity_enrolled: true, name_verified_at: null, name_verified_by: null, legacy_account: false, name_request: null };
 
 test("ID login normalizes case, clears passwords and prevents duplicate submissions", async () => {
@@ -163,10 +163,11 @@ test("registration checks confirmation and sends Unicode real names without gran
     assert.equal(body.department, signup.department);
     assert.equal(body.notice_accepted, true);
     assert.equal(body.password_confirmation, signup.password_confirmation);
-    for (const key of ["role", "actor_id", "user_id", "approval_status", "desired_role"]) assert.equal(key in body, false);
+    for (const key of ["email", "role", "actor_id", "user_id", "approval_status", "desired_role"]) assert.equal(key in body, false);
     assert.equal(app.sessions.length, 0);
     assert.equal(app.document.querySelector("#staff-signup-password").value, "");
-    assert.match(app.document.querySelector("#staff-auth-message").textContent, /メールの確認は不要/);
+    assert.match(app.document.querySelector("#staff-auth-message").textContent, /承認状態をご確認/);
+    assert.equal(app.document.querySelector('[name="email"]'), null);
     assert.doesNotMatch(app.document.querySelector("#staff-auth-message").textContent, /確認メールをご確認/);
   } finally { app.dom.window.close(); }
 });
@@ -188,13 +189,14 @@ test("signup rejects over-byte passwords before a request and accepts the native
   } finally { app.dom.window.close(); }
 });
 
-test("manual-policy state does not claim mailbox verification or offer orphan enrollment", () => {
+test("manual-policy state omits mailbox status and does not offer orphan enrollment", () => {
   const app = application();
   try {
     app.controller.showAccount({ ...account, identity_enrolled: false, email_confirmed: true,
       email_confirmation_required: false, email_verification_status: "not_required" });
     const term = [...app.document.querySelectorAll("#staff-account-state dt")].find(node => node.textContent === "メール確認");
-    assert.equal(term.nextElementSibling.textContent, "確認不要（メール所有未確認）");
+    assert.equal(term, undefined);
+    assert.doesNotMatch(app.document.querySelector("#staff-account-state").textContent, /メール|email/i);
     assert.equal(app.document.querySelector("#staff-account-enroll").hidden, true);
     assert.equal(app.requests.length, 0);
   } finally { app.dom.window.close(); }
@@ -215,7 +217,7 @@ test("pending accounts display only their own state and never interpret a real n
   } finally { app.dom.window.close(); }
 });
 
-for (const [language, heading, status, placeholder, emailStatus] of [["ja", "関係者アカウント", "承認待ち", "ログインID", "確認不要（メール所有未確認）"], ["ko", "관계자 계정", "승인 대기", "로그인 아이디", "확인 불필요(이메일 소유 미확인)"], ["en", "Club member account", "Awaiting approval", "Login ID", "Not required (email ownership unverified)"]]) {
+for (const [language, heading, status, placeholder] of [["ja", "関係者アカウント", "承認待ち", "ログインID"], ["ko", "관계자 계정", "승인 대기", "로그인 아이디"], ["en", "Club member account", "Awaiting approval", "Login ID"]]) {
   test(`the ${language} UI translates labels and status while preserving the original real name`, () => {
     const app = application({ language });
     try {
@@ -227,7 +229,7 @@ for (const [language, heading, status, placeholder, emailStatus] of [["ja", "関
       app.controller.showAccount({ ...account, email_confirmation_required: false, email_verification_status: "not_required" });
       assert.ok(app.document.querySelector("#staff-account-state").textContent.includes(account.real_name));
       assert.ok(app.document.querySelector("#staff-account-state").textContent.includes(status));
-      assert.ok(app.document.querySelector("#staff-account-state").textContent.includes(emailStatus));
+      assert.doesNotMatch(app.document.querySelector("#staff-account-state").textContent, /メール|이메일|email/i);
     } finally { app.dom.window.close(); }
   });
 }
@@ -326,16 +328,16 @@ test("signing in to another account clears an already verified recovery form", a
   } finally { app.dom.window.close(); }
 });
 
-test("recovery requests use only the email and show an enumeration-safe receipt", async () => {
+test("help offers administrator recovery guidance and cannot dispatch a new email request", async () => {
   const app = application({ help: true });
   try {
-    app.set("#staff-recovery-form", { email: "private@example.invalid" });
-    app.submit("#staff-recovery-form");
-    await eventually(() => app.requests.length === 1 && app.document.querySelector("#staff-help-message").textContent.includes("送信を受け付けました"));
-    assert.deepEqual(app.requests[0].body, { action: "recovery", email: "private@example.invalid" });
-    assert.doesNotMatch(app.document.querySelector("#staff-help-message").textContent, /private@example/);
-    assert.match(app.document.querySelector("#staff-help-message").textContent, /パスワードはまだ変更されていません/);
-  } finally { app.dom.window.close(); }
+    assert.equal(app.document.querySelector('input[type="email"], [name="email"]'), null);
+    assert.equal(app.document.querySelector("#staff-recovery-form"), null);
+    assert.equal(app.document.querySelector("#staff-help-legacy"), null);
+    assert.match(app.document.querySelector("#staff-help-options").textContent, /管理画面から対応/);
+    await new Promise(resolve => setTimeout(resolve, 10));
+    assert.equal(app.requests.length, 0);
+  } finally { app.controller.destroy(); app.dom.window.close(); }
 });
 
 test("PASSWORD_RECOVERY event and URL type cannot replace verified recent recovery claims", async () => {
@@ -406,7 +408,7 @@ test("an active recovery form clears when refreshed authentication becomes stale
   } finally { app.dom.window.close(); }
 });
 
-test("callback with missing verifier or failed initialization explains recovery instead of silently showing resend form", async () => {
+test("callback with missing verifier or failed initialization directs to administrator recovery", async () => {
   for (const initialize of [() => ({ error: null }), () => ({ error: { message: "must not echo callback detail" } })]) {
     const app = application({ help: true, query: "&code=unit-test-only-sensitive-code", initialize });
     try {
@@ -553,40 +555,38 @@ test("a known unavailable registration is not accepted and can be corrected expl
   } finally { app.dom.window.close(); }
 });
 
-test("accepted mail requests have a resend cooldown and do not change independent support controls or secrets", async () => {
-  const app = application({ help: true });
+for (const [language, expected] of [["ja", /管理画面から対応/], ["ko", /관리자 화면에서 처리/], ["en", /manage it from the admin page/]]) {
+  test(`the ${language} help directs to account management without email fields or mail actions`, async () => {
+    const app = application({ help: true, language });
+    try {
+      assert.match(app.document.querySelector("#staff-help-options").textContent, expected);
+      assert.equal(app.document.querySelector('input[type="email"], [name="email"], #staff-recovery-form, #staff-help-legacy'), null);
+      await new Promise(resolve => setTimeout(resolve, 5));
+      assert.equal(app.requests.length, 0);
+    } finally { app.controller.destroy(); app.dom.window.close(); }
+  });
+}
+
+test("existing recovery password save does not change independent device support controls or secrets", async () => {
+  let release;
+  const app = application({ help: true, getClaims: () => recoveryClaims(), invoke: () => new Promise(resolve => { release = resolve; }) });
   try {
     const support = app.document.createElement("section");
     support.id = "staff-support-recovery";
     support.innerHTML = '<button id="independent-support">Support</button><input autocomplete="new-password" value="support-test-only" type="password">';
     app.document.querySelector("#staff-help-options").prepend(support);
-    app.set("#staff-recovery-form", { email: "staff@example.invalid" });
-    app.submit("#staff-recovery-form");
-    await eventually(() => app.document.querySelector("#staff-help-message").textContent.includes("送信を受け付けました"));
-    app.submit("#staff-recovery-form");
-    app.document.querySelector("#staff-help-legacy")?.click();
-    assert.equal(app.requests.length, 1);
-    assert.equal(app.document.querySelector('#staff-recovery-form button[type="submit"]').disabled, true);
-    assert.match(app.document.querySelector("#staff-help-request-status").textContent, /60秒/);
+    app.emit("PASSWORD_RECOVERY");
+    await eventually(() => !app.document.querySelector("#staff-new-password-panel").hidden);
+    app.set("#staff-new-password-form", { password: "test-recovered-password", password_confirmation: "test-recovered-password" });
+    app.submit("#staff-new-password-form");
+    await eventually(() => app.requests.length === 1);
+    assert.equal(app.document.querySelector('#staff-new-password-form button[type="submit"]').disabled, true);
     assert.equal(app.document.querySelector("#independent-support").disabled, false);
     assert.equal(support.querySelector("input").value, "support-test-only");
+    release({ data: { success: true, code: "password_updated" }, error: null });
+    await eventually(() => app.document.querySelector("#staff-help-message").textContent.includes("保存しました"));
+    assert.equal(support.querySelector("input").value, "support-test-only");
   } finally { app.controller.destroy(); app.dom.window.close(); }
-});
-
-test("provider mail throttling and unavailability are errors rather than email receipts", async () => {
-  for (const [code, expected] of [["rate_limited", /メールの送信が制限/], ["service_unavailable", /申請を完了できません/]]) {
-    const app = application({ help: true, recoveryError: { code, message: "provider private message" } });
-    try {
-      app.set("#staff-recovery-form", { email: "staff@example.invalid" });
-      app.submit("#staff-recovery-form");
-      await eventually(() => app.document.querySelector("#staff-help-message").dataset.error === "true");
-      const notice = app.document.querySelector("#staff-help-message");
-      assert.match(notice.textContent, expected);
-      assert.match(notice.textContent, /パスワードは変更されていません/);
-      assert.doesNotMatch(notice.textContent, /受け付けました|provider private/);
-      assert.equal(app.counts().signOut, 0);
-    } finally { app.controller.destroy(); app.dom.window.close(); }
-  }
 });
 
 test("callback provider error parameters are removed without exposing their content", async () => {

@@ -99,7 +99,7 @@ function fixture(overrides = {}) {
   }));
   return { calls, counters, handler, send, client, operations };
 }
-const registration = overrides => ({ action: "register", username: "Kansai.Owner", password: "safe-test-password-only", password_confirmation: "safe-test-password-only", real_name: "田中  류컁이 José-Anne", department: "コーチ / 운영", email: "new-account@example.invalid", notice_accepted: true, ...overrides });
+const registration = overrides => ({ action: "register", username: "Kansai.Owner", password: "safe-test-password-only", password_confirmation: "safe-test-password-only", real_name: "田中  류컁이 José-Anne", department: "コーチ / 운영", notice_accepted: true, ...overrides });
 const authCalls = fixture => fixture.calls.filter(call => call.type === "auth");
 const rpcCalls = (fixture, name) => fixture.calls.filter(call => call.type === "rpc" && (!name || call.name === name));
 const ownerClaims = (claims = {}) => ok({ claims: { sub: USER, aal: "aal1", amr: [{ method: "password", timestamp: NOW / 1000 }], ...claims } });
@@ -126,7 +126,7 @@ test("username rules match DB and Unicode names preserve original scripts and du
   for (const value of ["ab", "a".repeat(33), "a bcd", "한글아이디", "-user", "user@example.invalid"]) assert.throws(() => normalizeUsername(value));
   const f = fixture();
   assert.equal((await f.send(registration({ username: "member1", real_name: "ژوزه‌ علی-Anne" }))).status, 200);
-  assert.equal((await f.send(registration({ username: "member2", real_name: "ژوزه‌ علی-Anne", email: "new2@example.invalid" }))).status, 200);
+  assert.equal((await f.send(registration({ username: "member2", real_name: "ژوزه‌ علی-Anne" }))).status, 200);
   assert.equal(rpcCalls(f, "staff_auth_reserve").length, 2);
 });
 
@@ -228,9 +228,36 @@ test("registration atomically reserves then creates an Auth account without send
   assert.equal(rpcCalls(f, "staff_auth_reserve")[0].args.p_email_confirmation_required, false);
   assert.deepEqual(rpcCalls(f, "staff_auth_finalize")[0].args, { p_reservation: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb", p_user_id: USER });
   for (const call of rpcCalls(f)) assert.equal(JSON.stringify(call).includes("safe-test-password-only"), false);
-  assert.deepEqual(authCalls(f)[0].args[0], { email: "new-account@example.invalid", password: "safe-test-password-only", email_confirm: true, app_metadata: { staff_signup_policy: "manual_approval_no_email_v1" } });
+  const technicalAddress = authCalls(f)[0].args[0].email;
+  assert.match(technicalAddress, /^staff-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}@accounts\.kansai\.invalid$/);
+  assert.equal(rpcCalls(f, "staff_auth_reserve")[0].args.p_email, technicalAddress);
+  assert.deepEqual(authCalls(f)[0].args[0], { email: technicalAddress, password: "safe-test-password-only", email_confirm: true, app_metadata: { staff_signup_policy: "manual_approval_no_email_v1" } });
   assert.equal(authCalls(f).some(call => ["signUp", "signInWithOtp", "resetPasswordForEmail", "signInWithPassword"].includes(call.method)), false);
-  assert.deepEqual(await (await f.send(registration({ username: "member2", email: "new2@example.invalid" }))).json(), { success: true, code: "registration_received" });
+  const second = await f.send(registration({ username: "member2" }));
+  assert.deepEqual(await second.json(), { success: true, code: "registration_received" });
+  assert.notEqual(authCalls(f).filter(call => call.method === "admin.createUser")[1].args[0].email, technicalAddress);
+});
+
+test("registration refuses caller-supplied email rather than retaining hidden contact data", async () => {
+  for (const value of ["new-account@example.invalid", "", null]) {
+    const f = fixture();
+    const response = await f.send(registration({ email: value }));
+    assert.equal(response.status, 400);
+    assert.deepEqual(await response.json(), { error: "invalid_request" });
+    assert.equal(f.calls.length, 0);
+  }
+});
+
+test("random Auth address does not replace normalized username as registration rate-limit identity", async () => {
+  const f = fixture();
+  const responses = [];
+  for (const username of ["  KANSAI.OWNER ", "kansai.owner", "Kansai.Owner", "KANSAI.OWNER"])
+    responses.push(await f.send(registration({ username })));
+  assert.deepEqual(responses.map(response => response.status), [200, 409, 409, 429]);
+  const identifiers = rpcCalls(f, "staff_auth_rate_limit").filter(call => call.args.p_bucket === "register:identifier");
+  assert.equal(identifiers.length, 4);
+  assert.equal(new Set(identifiers.map(call => call.args.p_key_hash)).size, 1);
+  assert.equal(authCalls(f).filter(call => call.method === "admin.createUser").length, 1);
 });
 
 test("concurrent duplicate registration produces one Auth creation and no existing-email mapping takeover", async () => {
@@ -337,9 +364,9 @@ test("the manual approval Auth marker is server-owned and cannot be replaced thr
   }
 });
 
-test("shared registration creation cap applies even when attackers rotate usernames, emails and spoofed IP headers", async () => {
+test("shared registration creation cap applies even when attackers rotate usernames and spoofed IP headers", async () => {
   const f = fixture();
-  const responses = await Promise.all(Array.from({ length: 11 }, (_, index) => f.send(registration({ username: `member${index}`, email: `new${index}@example.invalid` }), { "x-forwarded-for": `192.0.2.${index}`, "cf-connecting-ip": `203.0.113.${index}` })));
+  const responses = await Promise.all(Array.from({ length: 11 }, (_, index) => f.send(registration({ username: `member${index}` }), { "x-forwarded-for": `192.0.2.${index}`, "cf-connecting-ip": `203.0.113.${index}` })));
   assert.equal(responses.filter(response => response.status === 429).length, 1);
   assert.equal(authCalls(f).filter(call => call.method === "admin.createUser").length, 10);
   assert.equal(rpcCalls(f, "staff_auth_rate_limit").find(call => call.args.p_bucket === "register:shared").args.p_limit, 10);
@@ -368,7 +395,7 @@ test("invalid CAPTCHA cannot exhaust the club-wide account-creation quota", asyn
   let passed = false;
   const f = fixture({ config: { registrationCaptchaMode: "turnstile" }, verifyRegistrationCaptcha: () => passed ? "passed" : "failed" });
   for (let index = 0; index < 10; index++) {
-    const response = await f.send(registration({ username: `badcaptcha${index}`, email: `badcaptcha${index}@example.invalid`, captcha_token: "invalid-token" }));
+    const response = await f.send(registration({ username: `badcaptcha${index}`, captcha_token: "invalid-token" }));
     assert.equal(response.status, 400);
   }
   assert.equal(rpcCalls(f, "staff_auth_rate_limit").some(call => call.args.p_bucket === "register:shared"), false);
@@ -802,7 +829,7 @@ test("installed Supabase SDK provisions only through service Admin API with no e
     auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
     global: { fetch: async (input, init) => {
       requests.push({ url: String(input), method: init?.method, body: init?.body ? JSON.parse(init.body) : null });
-      return Response.json({ id: USER, email: "new-account@example.invalid", email_confirmed_at: new Date(NOW).toISOString(), created_at: new Date(NOW).toISOString() });
+      return Response.json({ id: USER, email: requests.at(-1).body.email, email_confirmed_at: new Date(NOW).toISOString(), created_at: new Date(NOW).toISOString() });
     } },
   });
   const f = fixture();
@@ -813,7 +840,9 @@ test("installed Supabase SDK provisions only through service Admin API with no e
   assert.equal(requests.length, 1);
   assert.equal(new URL(requests[0].url).pathname, "/auth/v1/admin/users");
   assert.equal(requests[0].method, "POST");
-  assert.deepEqual(requests[0].body, { email: "new-account@example.invalid", password: "safe-test-password-only", email_confirm: true, app_metadata: { staff_signup_policy: "manual_approval_no_email_v1" } });
+  assert.match(requests[0].body.email, /^staff-[0-9a-f-]{36}@accounts\.kansai\.invalid$/);
+  assert.equal(rpcCalls(f, "staff_auth_reserve")[0].args.p_email, requests[0].body.email);
+  assert.deepEqual(requests[0].body, { email: requests[0].body.email, password: "safe-test-password-only", email_confirm: true, app_metadata: { staff_signup_policy: "manual_approval_no_email_v1" } });
   assert.equal(requests[0].url.includes("safe-test-password-only"), false);
   assert.equal((await sdk.auth.getSession()).data.session, null);
   assert.equal(rpcCalls(f, "staff_auth_finalize").length, 1);

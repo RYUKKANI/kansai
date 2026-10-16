@@ -50,14 +50,21 @@ test("mail-free gateway uses the pinned SDK Admin endpoint and retains isolated 
   });
   const response = await gateway(new Request("https://identity-sdk-test.supabase.co/functions/v1/staff-auth", {
     method: "POST", headers: { "Content-Type": "application/json", Origin: "https://club.example.invalid" },
-    body: JSON.stringify({ action: "register", username: "test.staff", email: "staff@example.invalid",
+    body: JSON.stringify({ action: "register", username: "test.staff",
       password: "fixture-only-password", password_confirmation: "fixture-only-password",
       real_name: "テスト担当", department: "Staff", notice_accepted: true }),
   }));
   assert.equal(response.status, 200);
-  assert.deepEqual(await response.json(), { success: true, code: "registration_received" });
+  const receipt = await response.json();
+  assert.deepEqual(receipt, { success: true, code: "registration_received" });
   assert.deepEqual(calls.filter(call => call.path.startsWith("/auth/")).map(call => call.path), ["/auth/v1/admin/users"]);
-  assert.equal(calls.find(call => call.path.endsWith("staff_auth_reserve")).body.p_email_confirmation_required, false);
+  const technicalAddress = calls.find(call => call.path === "/auth/v1/admin/users").body.email;
+  assert.match(technicalAddress, /^staff-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}@accounts\.kansai\.invalid$/);
+  const reservation = calls.find(call => call.path.endsWith("staff_auth_reserve")).body;
+  assert.equal(reservation.p_email, technicalAddress);
+  assert.equal(reservation.p_email_confirmation_required, false);
+  for (const privateValue of [technicalAddress, userId, "fixture-only-password", serverKey])
+    assert.equal(JSON.stringify(receipt).includes(privateValue), false);
   assert.deepEqual(calls.find(call => call.path.endsWith("staff_auth_finalize")).body, { p_reservation: reservationId, p_user_id: userId });
   assert.equal((await service.auth.getSession()).data.session, null);
 });
