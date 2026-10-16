@@ -1,4 +1,4 @@
-import { appendFile } from "node:fs/promises";
+import { appendFile, readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -45,25 +45,21 @@ function latestPushRun(listing, commit) {
   return candidates.reduce((latest, item) => item.id > latest.id ? item : latest);
 }
 
-// 예약/수동 공개는 같은 커밋의 코드 검사를 재사용하되 실패·진행 중·이전 시도의
-// 성공을 통과로 보지 않습니다. push 호출자는 이번 checks_complete 성공 뒤에만 사용합니다.
-export async function eligibility({ repository, sha, event, token, request = fetch }) {
+function validateRequest({ repository, sha, token, request }) {
   if (typeof repository !== "string" || repository.length > 200 ||
       !/^[A-Za-z0-9][A-Za-z0-9-]*\/[A-Za-z0-9_.-]+$/.test(repository) ||
       [".", ".."].includes(repository.split("/")[1])) throw invalid("release_invalid_repository");
   if (!validSha(sha)) throw invalid("release_invalid_sha");
-  if (!["push", "schedule", "workflow_dispatch"].includes(event)) throw invalid("release_invalid_event");
   if (typeof token !== "string" || !token || token.length > 4096 || /[\x00-\x20\x7f]/.test(token))
     throw invalid("release_missing_token");
   if (typeof request !== "function") throw invalid("release_invalid_request");
-  const commit = sha.toLowerCase();
-  const prefix = `/repos/${repository}`;
-  const main = await readApi(`${prefix}/git/ref/heads/main`, token, request);
-  if (main?.ref !== "refs/heads/main" || main?.object?.type !== "commit" || !validSha(main?.object?.sha))
-    throw invalid("release_api_invalid_response");
-  if (main.object.sha.toLowerCase() !== commit) return { eligible: false, reason: "superseded" };
-  if (event === "push") return { eligible: true, reason: "current_checks_passed" };
+  return { commit: sha.toLowerCase(), prefix: `/repos/${repository}` };
+}
 
+// 변경 범위의 비교 기준이 현재 main보다 이전일 수 있으므로, 이 함수는 main 위치와 별개로
+// 지정한 SHA 자체의 push 코드 검증만 확인합니다. 과거 성공/실패는 새 실행으로 추측하지 않습니다.
+export async function verifiedPushGate({ repository, sha, token, request = fetch }) {
+  const { commit, prefix } = validateRequest({ repository, sha, token, request });
   const query = new URLSearchParams({ event: "push", branch: "main", head_sha: commit, per_page: "100" });
   const runsRoute = `${prefix}/actions/workflows/deploy.yml/runs?${query}`;
   const run = latestPushRun(await readApi(runsRoute, token, request), commit);
@@ -87,6 +83,37 @@ export async function eligibility({ repository, sha, event, token, request = fet
   return { eligible: true, reason: "verified_push" };
 }
 
+// 예약/수동 공개는 같은 커밋의 코드 검사를 재사용하되 실패·진행 중·이전 시도의
+// 성공을 통과로 보지 않습니다. push 호출자는 이번 checks_complete 성공 뒤에만 사용합니다.
+export async function eligibility({ repository, sha, event, token, request = fetch }) {
+  const { commit, prefix } = validateRequest({ repository, sha, token, request });
+  if (!["push", "schedule", "workflow_dispatch"].includes(event)) throw invalid("release_invalid_event");
+  const main = await readApi(`${prefix}/git/ref/heads/main`, token, request);
+  if (main?.ref !== "refs/heads/main" || main?.object?.type !== "commit" || !validSha(main?.object?.sha))
+    throw invalid("release_api_invalid_response");
+  if (main.object.sha.toLowerCase() !== commit) return { eligible: false, reason: "superseded" };
+  if (event === "push") return { eligible: true, reason: "current_checks_passed" };
+  return verifiedPushGate({ repository, sha: commit, token, request });
+}
+
+// 실패한 코드 변경 다음에 문서만 push해도 검사 범위가 사라지지 않도록 비교 기준을 확인합니다.
+// 이 조회가 불가능하면 선택기가 전체 영향 범위로 확장합니다. 접근 오류를 통과로 해석하지 않습니다.
+export async function baselineChecksMain({ env = process.env, request = fetch, output = appendFile, log = console.log, readEvent = readFile } = {}) {
+  let verified = env.GITHUB_EVENT_NAME !== "push";
+  if (!verified) {
+    try {
+      const payload = JSON.parse(await readEvent(env.GITHUB_EVENT_PATH, "utf8"));
+      if (validSha(payload?.before) && !/^0+$/.test(payload.before)) {
+        const result = await verifiedPushGate({ repository: env.GITHUB_REPOSITORY, sha: payload.before, token: env.GITHUB_TOKEN, request });
+        verified = result.eligible;
+      }
+    } catch { verified = false; }
+  }
+  if (env.GITHUB_OUTPUT) await output(env.GITHUB_OUTPUT, `baseline_verified=${verified}\n`);
+  log(verified ? "비교 기준 확인: 검증된 기준으로 변경 파트를 선택합니다." : "비교 기준 확인: 이전 검증을 확인할 수 없어 검사 범위를 넓힙니다.");
+  return { baseline_verified: verified };
+}
+
 // 정상 생략은 eligible=false로 전달합니다. API 장애는 출력 없이 실패하여 배포를 막습니다.
 export async function releaseChecksMain({ env = process.env, request = fetch, output = appendFile, log = console.log } = {}) {
   const result = await eligibility({ repository: env.GITHUB_REPOSITORY, sha: env.GITHUB_SHA,
@@ -97,6 +124,11 @@ export async function releaseChecksMain({ env = process.env, request = fetch, ou
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  try { await releaseChecksMain(); }
+  try {
+    const args = process.argv.slice(2);
+    if (!args.length) await releaseChecksMain();
+    else if (args.length === 1 && args[0] === "--verify-base") await baselineChecksMain();
+    else throw invalid("release_invalid_argument");
+  }
   catch { console.error("배포 확인에 실패했습니다. GitHub 접근과 실행 결과를 확인하세요."); process.exitCode = 1; }
 }

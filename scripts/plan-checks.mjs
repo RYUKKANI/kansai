@@ -54,6 +54,8 @@ export async function main(args = process.argv.slice(2), env = process.env) {
   const event = options.event ?? env.GITHUB_EVENT_NAME ?? "local";
   // 알 수 없는 이벤트는 Git 호출 전에 거절합니다.
   planChecks({ event });
+  if (event === "push" && env.BASELINE_VERIFIED !== undefined && !["true", "false"].includes(env.BASELINE_VERIFIED))
+    throw new Error("invalid_baseline_verification");
   let payload = {};
   if (env.GITHUB_EVENT_PATH) payload = JSON.parse(await readFile(env.GITHUB_EVENT_PATH, "utf8"));
   let comparison = { files: [] };
@@ -63,6 +65,9 @@ export async function main(args = process.argv.slice(2), env = process.env) {
   if (options["files-json"] !== undefined) comparison.files = JSON.parse(options["files-json"]);
   else if (!options.all && !dispatchAll && !forced && !["schedule", "workflow_dispatch"].includes(event))
     comparison = await changedFiles({ event, payload, base: options.base, head: options.head ?? env.GITHUB_SHA });
+  // 실패한 코드 push 뒤의 문서-only push가 검증되지 않은 코드를 녹색으로 만들 수 없습니다.
+  // CI가 직전 커밋의 성공을 확인하지 못하면 변경 파일의 크기와 무관하게 전체로 확장합니다.
+  if (event === "push" && env.BASELINE_VERIFIED === "false") comparison.fallbackReason = "baseline_unverified";
   const plan = planChecks({ ...comparison, event, all: Boolean(options.all || dispatchAll), forceParts: dispatchAll ? undefined : forced });
   // GitHub 출력은 구조화한 값만 한 줄씩 기록합니다. 파일명 개행을 명령 구문에 넣지 않습니다.
   if (env.GITHUB_OUTPUT) {
