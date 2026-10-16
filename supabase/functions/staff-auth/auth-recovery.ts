@@ -1,4 +1,5 @@
 import type { Result } from "./gateway.ts";
+import { nativeErrorCode, recoveryError } from "./auth-errors.ts";
 
 // [편집 안내] PKCE 검증기는 브라우저의 Supabase SDK에 남겨 두고 challenge만 Auth에 전달합니다.
 // 서버 SDK가 새 검증기를 만들면 브라우저가 복구 코드를 교환할 수 없으므로 공식 /recover API를 사용합니다.
@@ -21,7 +22,8 @@ export async function recoverAuthEmail(
         gotrue_meta_security: { captcha_token: options.captchaToken },
       }),
     });
-    // 제공자의 오류 원문/메일 존재 여부는 응답과 로그에 넣지 않습니다.
-    return response.ok ? { data: {}, error: null } : { data: null, error: { code: "recovery_unavailable" } };
-  } catch { return { data: null, error: { code: "recovery_unavailable" } }; }
+    if (response.ok) return { data: {}, error: null };
+    const error = recoveryError({ code: await nativeErrorCode(response), status: response.status });
+    return error ? { data: null, error } : { data: {}, error: null };
+  } catch { return { data: null, error: { code: "service_unavailable", status: 503 } }; }
 }
