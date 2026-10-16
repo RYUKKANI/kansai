@@ -140,7 +140,7 @@ function notice(text: string, error = false) {
   }
   element.dataset.error = String(error);
 }
-// Auth 오류는 code로 구분합니다. DB 권한과 이메일 인증을 건너뛰지 않습니다.
+// Auth 오류는 code로 구분하고, 현재 서버 권한 확인은 그대로 유지합니다.
 function errorCode(error: unknown): string {
   return typeof error === "object" && error && "code" in error
     ? String(error.code)
@@ -154,26 +154,6 @@ function message(error: unknown): string {
         ? String(error.message)
         : t("操作を完了できませんでした。");
   const code = errorCode(error);
-  if (["signup_disabled", "email_not_confirmed"].includes(code))
-    return t(
-      "初回は招待・確認メールのリンクを開いてください。招待されたメールアドレスもご確認ください。",
-    );
-  if (code === "invalid_credentials")
-    return t(
-      "メールアドレスまたはパスワードをご確認ください。パスワードを設定していない場合はメールリンクをご利用ください。",
-    );
-  if (["over_email_send_rate_limit", "over_request_rate_limit"].includes(code))
-    return t(
-      "メールの送信回数に制限がかかっています。少し時間をおいてから再度お試しください。",
-    );
-  if (code === "otp_expired")
-    return t(
-      "メールリンクの有効期限が切れているか、すでに使用されています。最新のメールをご確認ください。",
-    );
-  if (code === "email_address_not_authorized")
-    return t(
-      "メールを送信できません。運営責任者にメール送信設定をご確認ください。",
-    );
   if (
     code === "42501" ||
     /row-level|permission denied|owner role|active staff/i.test(raw)
@@ -248,27 +228,6 @@ async function run(callback: () => Promise<void>) {
     }
   }
 }
-// 로그인 요청을 중복 전송하지 않도록 두 버튼을 함께 잠그고, 실패 시 다시 사용할 수 있게 합니다.
-let loginPending = false;
-async function runLogin(callback: () => Promise<void>) {
-  if (loginPending) return;
-  loginPending = true;
-  const form = $("#login-form");
-  const buttons = form.querySelectorAll<HTMLButtonElement>("button");
-  form.setAttribute("aria-busy", "true");
-  buttons.forEach((button) => {
-    button.disabled = true;
-  });
-  try {
-    await run(callback);
-  } finally {
-    loginPending = false;
-    form.removeAttribute("aria-busy");
-    buttons.forEach((button) => {
-      button.disabled = false;
-    });
-  }
-}
 async function result<T extends { error: unknown }>(
   request: PromiseLike<T>,
 ): Promise<T> {
@@ -336,9 +295,7 @@ function resetLogin(invalidateRequests = true) {
   $("#account-avatar").textContent = "";
   $("#account-name-status").textContent = "";
   $("#account-name-status").hidden = true;
-  $<HTMLFormElement>("#invite-form").reset();
   for (const name of [
-    "invite-dialog",
     "delete-dialog",
     "unsaved-dialog",
     "article-preview-dialog",
@@ -424,14 +381,18 @@ async function authenticate(preserveForms = false) {
   const approvedName = identity?.approved_real_name?.trim();
   const registeredName = identity?.real_name?.trim();
   const accountName = approvedName || registeredName || identity?.username?.trim();
+  // 내부 인증용 주소는 연락처가 아니므로 이전 플래그 화면에서도 표시명으로 쓰지 않습니다.
+  const legacyEmail = data.user.email ?? membership.data.email;
+  const legacyAccountName = /@accounts\.kansai\.invalid$/i.test(legacyEmail ?? "")
+    ? t("実名確認前のアカウント") : legacyEmail;
   $("#account-email").textContent = staffIdentityUiEnabled
     ? (accountName || t("実名確認前のアカウント"))
-    : (data.user.email ?? membership.data.email);
+    : legacyAccountName;
   $("#account-role").textContent = roleLabels[role] ?? role;
   const nameStatus = $("#account-name-status");
   nameStatus.textContent = staffIdentityUiEnabled && !approvedName ? t("実名未確認") : "";
   nameStatus.hidden = !staffIdentityUiEnabled || Boolean(approvedName);
-  $("#account-avatar").textContent = Array.from((staffIdentityUiEnabled ? accountName : data.user.email) || "KU")
+  $("#account-avatar").textContent = Array.from((staffIdentityUiEnabled ? accountName : legacyAccountName) || "KU")
     .slice(0, 2).join("")
     .toUpperCase();
   $("#header-account").hidden = false;
@@ -631,16 +592,12 @@ async function show(
   $("#page-eyebrow").textContent = info.group + " / " + info.english;
   $("#page-description").textContent = info.description;
   const newButton = $("#new-button");
-  newButton.hidden = resource === "dashboard" || resource === "schedule";
+  newButton.hidden = resource === "dashboard" || resource === "schedule" || resource === "admin_roles";
   newButton.replaceChildren(
     icon("plus"),
     node(
       "span",
-      resource === "admin_roles"
-        ? t("メンバーを招待")
-        : resource === "articles"
-          ? t("ニュースを書く")
-          : t("新規登録"),
+      resource === "articles" ? t("ニュースを書く") : t("新規登録"),
     ),
   );
   $("#admin-navigation")
@@ -716,9 +673,7 @@ async function show(
         $<HTMLDialogElement>("#delete-dialog").showModal();
       },
       create: () => {
-        if (resource === "admin_roles")
-          $<HTMLDialogElement>("#invite-dialog").showModal();
-        else void run(() => openEditor(null));
+        if (resource !== "admin_roles") void run(() => openEditor(null));
       },
       onError: (error) => notice(message(error), true),
     });
@@ -813,9 +768,7 @@ function syncIdentityEnrollmentAction() {
 async function createResource(resource: Resource) {
   await show(resource);
   if (current !== resource || !role) return;
-  if (resource === "admin_roles")
-    $<HTMLDialogElement>("#invite-dialog").showModal();
-  else await openEditor(null);
+  if (resource !== "admin_roles") await openEditor(null);
 }
 async function choices(field: Field) {
   if (!client) return [];
@@ -1918,67 +1871,10 @@ if (!client) {
     staffAuth = mountStaffAuth({ client, notice, refresh: authenticate });
     staffAuth.showLogin();
   } else {
-  $("#login-form").addEventListener("submit", (event) => {
-    event.preventDefault();
-    void runLogin(async () => {
-      const data = new FormData(event.currentTarget as HTMLFormElement);
-      const password = String(data.get("password") ?? "");
-      if (!password)
-        throw new Error(
-          t("パスワードを入力するか、メールリンクをご利用ください。"),
-        );
-      await result(
-        client.auth.signInWithPassword({
-          email: String(data.get("email") ?? "")
-            .trim()
-            .toLowerCase(),
-          password,
-        }),
-      );
-      $<HTMLFormElement>("#login-form").reset();
-    });
-  });
-  $("#magic-link-button").addEventListener("click", () => {
-    void runLogin(async () => {
-      const input = $<HTMLInputElement>('#login-form input[name="email"]');
-      if (!input.reportValidity()) return;
-      const email = input.value.trim().toLowerCase();
-      // 이메일 인증의 기존 허용 주소는 유지하고, 언어 선택은 브라우저에서 기억합니다.
-      const emailRedirectTo = new URL(base + "admin/", location.origin).href;
-      const response = await client.auth.signInWithOtp({
-        email,
-        options: { shouldCreateUser: false, emailRedirectTo },
-      });
-      // 미인증 초대 계정은 OTP 요청에서도 signup_disabled가 반환됩니다.
-      // resend는 이미 존재하는 계정의 확인 메일만 보냅니다. 회원가입은 계속 차단합니다.
-      if (
-        ["signup_disabled", "email_not_confirmed"].includes(
-          errorCode(response.error),
-        )
-      ) {
-        await result(
-          client.auth.resend({
-            type: "signup",
-            email,
-            options: { emailRedirectTo },
-          }),
-        );
-        // 등록 여부를 노출하지 않고, 발송 접수와 실제 로그인 완료를 구분합니다.
-        notice(
-          t(
-            "確認メールの送信を受け付けました。招待されたアドレスの受信箱・迷惑メールをご確認ください。メールが届かない場合は運営責任者にご確認ください。",
-          ),
-        );
-        return;
-      }
-      if (response.error) throw response.error;
-      notice(
-        t(
-          "ログインリンクを送信しました。招待されたメールの受信箱をご確認ください。",
-        ),
-      );
-    });
-  });
+    // 전환 플래그가 꺼진 검토 환경은 기존 인증 세션만 복원합니다. 이메일 인증 UI를 되살리지 않습니다.
+    $("#config-warning").hidden = false;
+    $("#login-panel").querySelectorAll<HTMLInputElement | HTMLButtonElement>("input,button")
+      .forEach((control) => { control.disabled = true; });
   }
   $("#logout-button").addEventListener("click", () => {
     void run(async () => {
@@ -2031,10 +1927,8 @@ if (!client) {
 }
 $("#new-button").addEventListener("click", () => {
   if (isStaffOfficePage(current)) return;
-  if (current === "admin_roles" && staffIdentityDatabaseEnabled) return;
-  if (current === "admin_roles")
-    $<HTMLDialogElement>("#invite-dialog").showModal();
-  else void run(() => openEditor(null));
+  if (current === "admin_roles") return;
+  void run(() => openEditor(null));
 });
 editorForm.addEventListener("submit", (event) => {
   if (editorSaving) {
@@ -2082,28 +1976,5 @@ $("#delete-confirm").addEventListener("click", () => {
     removing = null;
     notice(t("削除しました。"));
     await show(removeResource, false);
-  });
-});
-$("#invite-cancel").addEventListener("click", () =>
-  $<HTMLDialogElement>("#invite-dialog").close(),
-);
-$("#invite-form").addEventListener("submit", (event) => {
-  event.preventDefault();
-  void run(async () => {
-    if (!client || role !== "owner" || staffIdentityDatabaseEnabled) return;
-    const form = event.currentTarget as HTMLFormElement;
-    const data = new FormData(form);
-    await result(
-      client.functions.invoke("invite-staff", {
-        body: {
-          email: String(data.get("email") ?? ""),
-          role: String(data.get("role") ?? ""),
-        },
-      }),
-    );
-    $<HTMLDialogElement>("#invite-dialog").close();
-    form.reset();
-    notice(t("運営メンバーを招待しました。"));
-    await show("admin_roles");
   });
 });

@@ -19,7 +19,6 @@ export function recoveryCallbackState(address: string): RecoveryCallback {
 // 브라우저가 보관한 메타데이터로 비밀번호 변경을 허용하지 않습니다. 서버도 복구 AMR을 재검사합니다.
 export function mountStaffAuthHelp({ root, client, callback = recoveryCallbackState(window.location.href) }: HelpOptions) {
   const notice = root.querySelector<HTMLElement>("#staff-help-message")!;
-  const recovery = root.querySelector<HTMLFormElement>("#staff-recovery-form")!;
   const passwordForm = root.querySelector<HTMLFormElement>("#staff-new-password-form")!;
   const panel = root.querySelector<HTMLElement>("#staff-new-password-panel")!;
   const options = root.querySelector<HTMLElement>("#staff-help-options")!;
@@ -35,11 +34,8 @@ export function mountStaffAuthHelp({ root, client, callback = recoveryCallbackSt
   let savingUserId: string | null = null;
   let checkingRecovery = false;
   let destroyed = false;
-  let resendAt = 0;
-  let cooldownTimer: number | undefined;
-  const requestStatus = root.querySelector<HTMLElement>("#staff-help-request-status");
   const callbackPresent = callback.hasCode || callback.hasError;
-  const callbackFailure = () => message(t("確認リンクを読み取れませんでした。最新のリンクを、メールを申請した同じブラウザーで開いてください。別のブラウザーを使う場合は、ここで新しい確認メールを申請してください。"), true);
+  const callbackFailure = () => message(t("確認リンクを読み取れませんでした。最新のリンクを申請した同じブラウザーで開くか、運営責任者に復旧をご相談ください。"), true);
   function message(value: string, error = false) {
     if (destroyed) return;
     notice.textContent = value;
@@ -48,24 +44,8 @@ export function mountStaffAuthHelp({ root, client, callback = recoveryCallbackSt
     if (value) notice.focus();
   }
   function syncButtons() {
-    // 이메일 복구와 별도로 동작하는 관리자 지원 양식은 해당 컨트롤러가 잠급니다.
-    for (const button of root.querySelectorAll<HTMLButtonElement>("button")) {
-      if (button.closest("#staff-support-recovery")) continue;
-      const mailButton = recovery.contains(button) || button.id === "staff-help-legacy";
-      button.disabled = busy || (mailButton && Date.now() < resendAt);
-    }
-  }
-  function beginCooldown() {
-    resendAt = Date.now() + 60_000;
-    if (cooldownTimer !== undefined) window.clearTimeout(cooldownTimer);
-    if (requestStatus) requestStatus.textContent = t("再申請は60秒ほどお待ちください。新しい申請は以前のリンクを無効にする場合があります。");
-    cooldownTimer = window.setTimeout(() => {
-      if (destroyed) return;
-      resendAt = 0;
-      if (requestStatus) requestStatus.textContent = "";
-      syncButtons();
-    }, 60_000);
-    syncButtons();
+    // 기기 기반 지원 복구는 별도 컨트롤러가 관리합니다. 기존 링크의 비밀번호 양식만 잠급니다.
+    for (const button of panel.querySelectorAll<HTMLButtonElement>("button")) button.disabled = busy;
   }
   async function run(form: HTMLElement, task: () => Promise<void>) {
     if (busy) return;
@@ -82,36 +62,7 @@ export function mountStaffAuthHelp({ root, client, callback = recoveryCallbackSt
     }
   }
   const input = (form: HTMLFormElement, name: string) => form.elements.namedItem(name) as HTMLInputElement;
-  async function send(action: "recovery" | "legacy_login") {
-    if (Date.now() < resendAt || busy) return;
-    if (!recovery.reportValidity()) return;
-    await run(recovery, async () => {
-      const email = input(recovery, "email").value.trim();
-      if (action === "recovery") {
-        // SDK가 PKCE challenge와 브라우저 전용 verifier를 생성합니다.
-        // global.fetch 어댑터가 메일 요청만 게이트웨이를 거치게 해 반복 제한을 유지합니다.
-        const redirectTo = new URL(import.meta.env.BASE_URL.replace(/\/?$/, "/") + "admin/help/", window.location.origin).href;
-        const { error } = await client.auth.resetPasswordForEmail(email, { redirectTo });
-        if (error) {
-          if (error.code === "rate_limited") beginCooldown();
-          throw new Error(error.code === "rate_limited" ? "email_rate_limited" : error.code === "service_unavailable" ? "email_unavailable" : error.code ?? "email_unavailable");
-        }
-      } else {
-        try { await staffAuthRequest(client, { action, email }); }
-        catch (error) {
-          if (error instanceof Error && error.message === "rate_limited") { beginCooldown(); throw new Error("email_rate_limited"); }
-          if (error instanceof Error && ["service_unavailable", "invalid_response"].includes(error.message)) throw new Error("email_unavailable");
-          throw error;
-        }
-      }
-      beginCooldown();
-      message(t(action === "recovery"
-        ? "確認リンクの送信を受け付けました。パスワードはまだ変更されていません。登録済みの場合は、最新のメールのリンクをこのブラウザーで開き、新しいパスワードを保存してください。"
-        : "ログインリンクの送信を受け付けました。登録済みの場合はメールをご確認ください。"));
-    });
-  }
-  recovery.addEventListener("submit", (event) => { event.preventDefault(); void send("recovery"); });
-  root.querySelector("#staff-help-legacy")?.addEventListener("click", () => void send("legacy_login"));
+  // 이메일 발송은 제공하지 않습니다. 이미 발급된 링크의 안전한 만료·복구 처리는 유지합니다.
   attachPasswordToggles(panel);
   passwordForm.addEventListener("input", (event) => {
     if (event.target instanceof HTMLInputElement) event.target.removeAttribute("aria-invalid");
@@ -259,7 +210,7 @@ export function mountStaffAuthHelp({ root, client, callback = recoveryCallbackSt
     } else if (event === "SIGNED_OUT" || event === "SIGNED_IN") { authContextVersion++; invalidateRecovery(); }
   });
   // SDK의 자동 콜백 오류는 일반 getSession 응답에 남지 않을 수 있으므로 초기화 결과를 별도로 확인합니다.
-  // 검증기가 없는 ?code 콜백은 SDK가 교환 자체를 생략합니다. 이 경우에도 빈 메일 양식으로 조용히 돌아가지 않습니다.
+  // 검증기가 없는 ?code 콜백은 SDK가 교환 자체를 생략합니다. 이 경우에도 복구 실패 안내를 표시합니다.
   void client.auth.initialize().then(({ error }) => {
     if (destroyed) return;
     if (error) {
@@ -279,7 +230,6 @@ export function mountStaffAuthHelp({ root, client, callback = recoveryCallbackSt
   });
   return { destroy() {
     destroyed = true;
-    if (cooldownTimer !== undefined) window.clearTimeout(cooldownTimer);
     listener.subscription.unsubscribe();
     verificationGeneration++;
     authContextVersion++;
@@ -297,8 +247,7 @@ if (root?.dataset.enabled === "true" && url && key?.startsWith("sb_publishable_"
   const client = createClient(url, key, {
     auth: {
       storageKey: "kansai-admin-session", persistSession: true, autoRefreshToken: true, detectSessionInUrl: true, flowType: "pkce",
-      // 여러 재신청의 verifier를 SDK가 개별 보관합니다. 게이트웨이는 이 흐름 ID만
-      // 허용된 복귀 주소에 전달하며 인증 토큰·임의 redirect 주소는 전달하지 않습니다.
+      // 이전에 발급된 링크의 개별 verifier를 계속 읽습니다. 새 이메일 발송 양식은 제공하지 않습니다.
       experimental: { appendPkceFlowIdToRedirects: true },
     },
     global: { fetch: createStaffRecoveryFetch(url, key) },
