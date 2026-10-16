@@ -11,7 +11,6 @@ import "../../styles/staff-auth.css";
 const locale = localeFromUrl(Astro.url);
 const page = (path = "") => localizedPage(path, locale);
 const enabled = import.meta.env.PUBLIC_STAFF_IDENTITY_ENABLED === "true";
-const legacyEnabled = enabled && import.meta.env.PUBLIC_STAFF_LEGACY_LOGIN_ENABLED === "true";
 // 관리자 작업 스크립트를 실행하지 않는 전용 복구 화면입니다. 인증 토큰을 다른 URL에 복사하지 않습니다.
 ---
 
@@ -32,7 +31,7 @@ const legacyEnabled = enabled && import.meta.env.PUBLIC_STAFF_LEGACY_LOGIN_ENABL
       <LanguageSwitcher />
     </header>
     <main id="help-main">
-      <section class="staff-auth-portal" id="staff-auth-help" data-enabled={String(enabled)} data-legacy-enabled={String(legacyEnabled)} aria-labelledby="help-heading">
+      <section class="staff-auth-portal" id="staff-auth-help" data-enabled={String(enabled)} aria-labelledby="help-heading">
         <div class="staff-auth-card">
           <div class="staff-auth-brand">
             <img src={asset(club.logo)} width="72" height="72" alt="KANSAI UNITED FC" />
@@ -43,21 +42,8 @@ const legacyEnabled = enabled && import.meta.env.PUBLIC_STAFF_LEGACY_LOGIN_ENABL
           <p id="staff-help-unavailable" class="admin-help" hidden={enabled}><span data-i18n="新しいログイン方式は移行準備中です。現在のログイン画面をご利用ください。">新しいログイン方式は移行準備中です。現在のログイン画面をご利用ください。</span></p>
           <div id="staff-help-options" hidden={!enabled}>
             <h2><span data-i18n="ログインできない場合">ログインできない場合</span></h2>
-            <p class="admin-help"><span data-i18n="パスワードが未設定・不明な場合やメールを利用できない場合は、運営責任者（Owner）にご相談ください。本人と既存アカウントを確認したうえで対応します。">パスワードが未設定・不明な場合やメールを利用できない場合は、運営責任者（Owner）にご相談ください。本人と既存アカウントを確認したうえで対応します。</span></p>
+            <p class="admin-help"><span data-i18n="ログインIDが不明な場合やパスワードを再設定する場合は、運営責任者（Owner）にご相談ください。本人と既存アカウントを確認したうえで管理画面から対応します。">ログインIDが不明な場合やパスワードを再設定する場合は、運営責任者（Owner）にご相談ください。本人と既存アカウントを確認したうえで管理画面から対応します。</span></p>
             <StaffSupportRecovery />
-            <!-- 기존 Owner의 새 비밀번호 로그인이 검증되기 전에는 기존 메일 복구 양식을 유지합니다. -->
-            <h3><span data-i18n="移行期間中のメール復旧">移行期間中のメール復旧</span></h3>
-            <p class="admin-help"><span data-i18n="既存アカウント向けの移行用手続きです。メールが届かない場合はOwnerにご相談ください。">既存アカウント向けの移行用手続きです。メールが届かない場合はOwnerにご相談ください。</span></p>
-            <p class="admin-help"><span data-i18n="登録した復旧用メールアドレスに確認リンクを送ります。招待後にパスワードを設定していない方もご利用いただけます。">登録した復旧用メールアドレスに確認リンクを送ります。招待後にパスワードを設定していない方もご利用いただけます。</span></p>
-            <p class="admin-help"><span data-i18n="確認メールのリンクは、送信を申請した同じブラウザーで開いてください。別のブラウザーで開いた場合は、そこで新しい確認メールを申請してください。">確認メールのリンクは、送信を申請した同じブラウザーで開いてください。別のブラウザーで開いた場合は、そこで新しい確認メールを申請してください。</span></p>
-            <p class="admin-help"><span data-i18n="メールの申請・受信・リンクの確認だけでは、パスワードは変更されません。新しいパスワードを入力し、保存完了の表示を確認してください。">メールの申請・受信・リンクの確認だけでは、パスワードは変更されません。新しいパスワードを入力し、保存完了の表示を確認してください。</span></p>
-            <form id="staff-recovery-form">
-              <label for="staff-recovery-email"><span data-i18n="確認・復旧用メールアドレス">確認・復旧用メールアドレス</span></label>
-              <input id="staff-recovery-email" placeholder="確認・復旧用メールアドレス" data-i18n-placeholder="確認・復旧用メールアドレス" name="email" type="email" autocomplete="email" required maxlength="254" spellcheck="false" autocapitalize="none" />
-              <button type="submit" class="admin-primary"><span data-i18n="確認リンクを送信">確認リンクを送信</span></button>
-            </form>
-            <p id="staff-help-request-status" class="admin-help" role="status" aria-live="polite"></p>
-            {legacyEnabled && <div class="staff-auth-alternate"><p class="admin-help"><span data-i18n="移行中の既存メンバーは、登録済みメールアドレスのリンクでもログインできます。">移行中の既存メンバーは、登録済みメールアドレスのリンクでもログインできます。</span></p><button type="button" id="staff-help-legacy" class="admin-secondary"><span data-i18n="移行期間中のメールリンクでログイン">移行期間中のメールリンクでログイン</span></button></div>}
           </div>
           <div id="staff-new-password-panel" hidden>
             <h2 tabindex="-1"><span data-i18n="新しいパスワードを設定">新しいパスワードを設定</span></h2>
@@ -70,7 +56,7 @@ const legacyEnabled = enabled && import.meta.env.PUBLIC_STAFF_LEGACY_LOGIN_ENABL
               <button type="submit" class="admin-primary"><span data-i18n="パスワードを保存">パスワードを保存</span></button>
             </form>
           </div>
-          <p class="admin-help"><span data-i18n="ログインIDが不明な場合や復旧用メールを受信できない場合は、運営責任者にご相談ください。">ログインIDが不明な場合や復旧用メールを受信できない場合は、運営責任者にご相談ください。</span></p>
+          <p class="admin-help"><span data-i18n="復旧の申請だけではパスワードや権限は変更されません。本人確認と管理者の承認が必要です。">復旧の申請だけではパスワードや権限は変更されません。本人確認と管理者の承認が必要です。</span></p>
         </div>
         <footer class="staff-auth-footer"><a href={page("admin/")} class="staff-auth-help"><span data-i18n="ログインに戻る">ログインに戻る</span></a></footer>
       </section>
