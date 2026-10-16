@@ -26,7 +26,13 @@ function initMobileMenu() {
     ?.querySelectorAll("a")
     .forEach((link) => link.addEventListener("click", closeMenu));
   document.addEventListener("keydown", (event) => {
-    if (event.key === "Escape") closeMenu();
+    if (event.key !== "Escape") return;
+    // Escape로 숨길 메뉴 안에 포커스가 있을 때만 여는 버튼으로 돌려보냅니다.
+    // 링크 이동·검색·다른 대화상자의 포커스는 각 동작이 관리하도록 유지합니다.
+    const restoreFocus = button?.getAttribute("aria-expanded") === "true" &&
+      navigation?.contains(document.activeElement);
+    closeMenu();
+    if (restoreFocus) button?.focus();
   });
 
   // CSS의 1024px 모바일 구간을 벗어나면 열린 메뉴를 닫습니다.

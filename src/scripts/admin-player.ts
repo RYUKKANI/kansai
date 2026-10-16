@@ -45,8 +45,22 @@ export async function attachPlayerEditor(
   o: Options,
 ): Promise<PlayerEditor | null> {
   const { client, role, form, fields, meta, actions, changed } = o;
+  let active = true;
+  const isCurrent = () => active && o.isCurrent();
+  async function read<T>(request: PromiseLike<{ data: T; error: unknown }>) {
+    try {
+      return await data(request);
+    } catch (error) {
+      // 폐기된 편집기의 늦은 조회 오류로 새 계정의 화면을 덮지 않습니다.
+      if (isCurrent()) throw error;
+      return null;
+    }
+  }
+  function assertCurrent() {
+    if (!isCurrent()) throw new Error("player_editor_inactive");
+  }
   const player = o.player
-    ? ((await data(
+    ? ((await read(
         client
           .from("players")
           .select(selectFields("players"))
@@ -54,9 +68,10 @@ export async function attachPlayerEditor(
           .single(),
       )) as unknown as Row)
     : null;
+  if (!isCurrent()) return null;
   const id = String(player?.id ?? crypto.randomUUID());
   const profile = player
-    ? ((await data(
+    ? ((await read(
         client
           .from("public_player_profiles")
           .select(selectFields("public_player_profiles"))
@@ -64,6 +79,7 @@ export async function attachPlayerEditor(
           .maybeSingle(),
       )) as Row | null)
     : null;
+  if (!isCurrent()) return null;
   const canApprove = ["owner", "administrator"].includes(role);
   let query = client
     .from("media_assets")
@@ -79,12 +95,13 @@ export async function attachPlayerEditor(
       .eq("status", "published")
       .eq("public_approved", true)
       .lte("published_at", new Date().toISOString());
-  const photos = ((await data(query)) ?? []) as Row[];
+  const photos = ((await read(query)) ?? []) as Row[];
+  if (!isCurrent()) return null;
   const albumIds = [
     ...new Set(photos.map((photo) => photo.album_id).filter(Boolean)),
   ];
   const albums = albumIds.length
-    ? await data(
+    ? await read(
         client
           .from("media_albums")
           .select("id")
@@ -92,6 +109,7 @@ export async function attachPlayerEditor(
           .eq("status", "published"),
       )
     : [];
+  if (!isCurrent()) return null;
   const publicAlbums = new Set(albums?.map((album) => album.id));
   const availablePhotos = canApprove
     ? photos
@@ -106,7 +124,7 @@ export async function attachPlayerEditor(
     : null;
   if (profile?.photo_path && !profilePhoto) {
     // 예전 프로필의 사진이 다른 카테고리여도 기존 승인 사진과 갱신 시각을 보존합니다.
-    profilePhoto = (await data(
+    profilePhoto = (await read(
       client
         .from("media_assets")
         .select("id,storage_path,legacy_path,alt_text,updated_at")
@@ -118,6 +136,7 @@ export async function attachPlayerEditor(
         )
         .maybeSingle(),
     )) as Row | null;
+    if (!isCurrent()) return null;
   }
   const registeredPhoto = photos.find(
     (photo) => photo.id === player?.photo_asset_id,
@@ -135,16 +154,22 @@ export async function attachPlayerEditor(
     profile?.photo_path ??
     registeredPhoto?.storage_path ??
     registeredPhoto?.legacy_path;
-  const sources = await imageSources(
-    client,
-    [
-      ...photos.map((photo) => photo.storage_path ?? photo.legacy_path),
-      initialPath,
-    ],
-    o.base,
-  );
+  let sources: Map<string, string>;
+  try {
+    sources = await imageSources(
+      client,
+      [
+        ...photos.map((photo) => photo.storage_path ?? photo.legacy_path),
+        initialPath,
+      ],
+      o.base,
+    );
+  } catch (error) {
+    if (isCurrent()) throw error;
+    return null;
+  }
   // 다른 선수를 열거나 로그아웃한 뒤 늦게 도착한 응답으로 양식을 다시 만들지 않습니다.
-  if (!o.isCurrent()) return null;
+  if (!isCurrent()) return null;
   const controls = new Map<
     string,
     HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
@@ -510,6 +535,7 @@ export async function attachPlayerEditor(
     if (publish) publish.disabled = !approved;
   }
   async function save(status: string): Promise<Row> {
+    assertCurrent();
     const values = new FormData(form);
     const text = (name: string) => String(values.get(name) ?? "").trim();
     const person = {
@@ -554,12 +580,28 @@ export async function attachPlayerEditor(
     )
       throw new Error(t("プロフィールと写真の公開同意を確認してください。"));
     // 파일은 저장할 때 업로드합니다. DB 저장이 실패하면 재시도 시 같은 비공개 파일을 재사용합니다.
-    if (file && uploaded?.file !== file)
+    if (file && uploaded?.file !== file) {
+      const uploadingFile = file;
+      const uploadingId = crypto.randomUUID();
+      let path: string;
+      try {
+        path = await uploadOfficePhoto(client, o.userId, uploadingFile);
+      } catch (error) {
+        assertCurrent();
+        throw error;
+      }
+      // 업로드는 Auth와 별도 요청입니다. 그 사이 계정·편집 화면이 바뀌었다면
+      // 새 세션을 사용하는 저장 RPC를 보내지 않고 이전 편집기를 중단합니다.
+      assertCurrent();
+      if (file !== uploadingFile)
+        throw new Error(t("選手写真の最新情報を確認してください。写真を選び直して保存してください。"));
       uploaded = {
-        id: crypto.randomUUID(),
-        path: await uploadOfficePhoto(client, o.userId, file),
-        file,
+        id: uploadingId,
+        path,
+        file: uploadingFile,
       };
+    }
+    assertCurrent();
     const selected = photos.find((row) => row.id === photo.value);
     const publishedPhoto = profilePhoto ?? registeredPhoto;
     const response = await data(
@@ -587,6 +629,7 @@ export async function attachPlayerEditor(
             : null,
       }),
     );
+    assertCurrent();
     return response as Row;
   }
   updateApproval();
@@ -594,6 +637,7 @@ export async function attachPlayerEditor(
     save,
     updateApproval,
     dispose() {
+      active = false;
       revokePreview();
     },
   };
