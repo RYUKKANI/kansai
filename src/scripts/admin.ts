@@ -321,6 +321,9 @@ function resetLogin(invalidateRequests = true) {
   $("#editor-fields").replaceChildren();
   $("#account-email").textContent = "";
   $("#account-role").textContent = "";
+  $("#account-avatar").textContent = "";
+  $("#account-name-status").textContent = "";
+  $("#account-name-status").hidden = true;
   $<HTMLFormElement>("#invite-form").reset();
   for (const name of [
     "invite-dialog",
@@ -341,6 +344,8 @@ async function authenticate() {
     resetLogin();
     return;
   }
+  // 같은 역할의 다른 계정으로 바뀌어도 이전 계정의 명부·편집 화면을 먼저 지웁니다.
+  if (userId && userId !== data.user.id) resetLogin(false);
   let identity: StaffAccountState | null = null;
   if (staffIdentityUiEnabled) {
     // 가입 대기자는 역할·선수·콘텐츠를 조회하기 전에 본인 상태만 받습니다.
@@ -364,14 +369,14 @@ async function authenticate() {
       return;
     }
   }
-  const membership = await result(
-    client
+  const membership = await client
       .from("admin_roles")
       .select("user_id,email,role,active")
       .eq("user_id", data.user.id)
-      .maybeSingle(),
-  );
+      .maybeSingle();
   if (attempt !== authenticationVersion) return;
+  // 폐기된 계정 조회의 오류가 새 계정의 로그인 화면까지 초기화하지 않도록 순서를 지킵니다.
+  if (membership.error) throw membership.error;
   if (
     !membership.data?.active ||
     !["owner", "administrator", "editor", "coach"].includes(
@@ -390,13 +395,19 @@ async function authenticate() {
   role = membership.data.role as StaffRole;
   userId = data.user.id;
   ownIdentity = identity;
-  const approvedName = identity?.approved_real_name;
+  // 등록한 이름과 운영진의 실명 확인은 별개입니다. 확인 전에도 서버에 저장한 이름·아이디를 표시합니다.
+  const approvedName = identity?.approved_real_name?.trim();
+  const registeredName = identity?.real_name?.trim();
+  const accountName = approvedName || registeredName || identity?.username?.trim();
   $("#account-email").textContent = staffIdentityUiEnabled
-    ? (approvedName || t("実名確認前のアカウント"))
+    ? (accountName || t("実名確認前のアカウント"))
     : (data.user.email ?? membership.data.email);
   $("#account-role").textContent = roleLabels[role] ?? role;
-  $("#account-avatar").textContent = (approvedName || (staffIdentityUiEnabled ? "KU" : data.user.email) || "KU")
-    .slice(0, 2)
+  const nameStatus = $("#account-name-status");
+  nameStatus.textContent = staffIdentityUiEnabled && !approvedName ? t("実名未確認") : "";
+  nameStatus.hidden = !staffIdentityUiEnabled || Boolean(approvedName);
+  $("#account-avatar").textContent = Array.from((staffIdentityUiEnabled ? accountName : data.user.email) || "KU")
+    .slice(0, 2).join("")
     .toUpperCase();
   $("#header-account").hidden = false;
   $("#office-breadcrumb").hidden = false;
@@ -406,7 +417,10 @@ async function authenticate() {
   staffAuth?.hide();
   syncSidebar();
   // 토큰 갱신 때 진행 중인 검색·달력·편집 화면을 덮어쓰지 않습니다.
-  if (unchanged) return;
+  if (unchanged) {
+    syncIdentityEnrollmentAction();
+    return;
+  }
   const capabilities = await client.rpc("office_capabilities");
   if (attempt !== authenticationVersion) return;
   configureOffice(
@@ -727,9 +741,32 @@ async function showStaffPage(page: StaffOfficePage) {
   });
   if (version !== requestId || !role) { controller.dispose(); return; }
   currentStaff = controller;
-  if (page === "staff_account" && ownIdentity && !ownIdentity.identity_enrolled) {
-    const identity = ownIdentity;
-    $("#admin-content").prepend(action(t("既存のアカウントにログインIDを登録"), "admin-primary", () => {
+  if (page === "staff_account") {
+    // 같은 창이 계속 활성 상태였어도 다른 운영진이 바꾼 본인 정보를 이전 값으로 다시 입력하지 않게 합니다.
+    const accountId = userId;
+    await authenticate();
+    if (version !== requestId || !role || userId !== accountId || current !== page) return;
+  }
+  syncIdentityEnrollmentAction();
+  $("#resource-title").focus();
+}
+function syncIdentityEnrollmentAction() {
+  const container = $("#admin-content");
+  const existing = container.querySelector<HTMLButtonElement>("[data-staff-migration]");
+  if (role && current === "staff_account" && ownIdentity && !ownIdentity.identity_enrolled &&
+      userId === ownIdentity.user_id && !$("#workspace").hidden) {
+    // 목록의 자체 재조회 후에도 등록 버튼을 복구하고, 갱신한 본인 상태로 남은 항목만 입력합니다.
+    const enrollmentLabel = ownIdentity.username
+      ? t("実名と所属・担当業務の登録を完了")
+      : t("既存のアカウントにログインIDを登録");
+    if (existing) {
+      existing.textContent = enrollmentLabel;
+      return;
+    }
+    const enroll = action(enrollmentLabel, "admin-primary", () => {
+      const identity = ownIdentity;
+      if (!role || current !== "staff_account" || $("#workspace").hidden || !identity ||
+          identity.user_id !== userId || identity.identity_enrolled) return;
       // 기존 UUID·역할을 유지한 채 본인 확인 세션에서만 아이디를 연결합니다.
       requestId++;
       currentStaff?.dispose();
@@ -737,9 +774,10 @@ async function showStaffPage(page: StaffOfficePage) {
       $("#workspace").hidden = true;
       $("#login-panel").hidden = false;
       staffAuth?.showMigration(identity);
-    }));
-  }
-  $("#resource-title").focus();
+    });
+    enroll.dataset.staffMigration = "true";
+    container.prepend(enroll);
+  } else existing?.remove();
 }
 async function createResource(resource: Resource) {
   await show(resource);
@@ -1779,6 +1817,8 @@ if (!client) {
   let authPending = false;
   let authRefreshQueued = false;
   const refresh = () => {
+    // Auth 이벤트와 실제 재조회 사이에도 이전 요청이 오래된 계정을 다시 표시하지 못하게 합니다.
+    authenticationVersion++;
     if (authPending) {
       authRefreshQueued = true;
       return;
@@ -1794,7 +1834,7 @@ if (!client) {
       });
     }, 0);
   };
-  client.auth.onAuthStateChange((event) => {
+  client.auth.onAuthStateChange((event, session) => {
     if (event === "SIGNED_OUT") resetLogin();
     else if (
       [
@@ -1803,13 +1843,17 @@ if (!client) {
         "TOKEN_REFRESHED",
         "USER_UPDATED",
       ].includes(event)
-    )
+    ) {
+      if (userId && session?.user.id && userId !== session.user.id) resetLogin();
       refresh();
+    }
   });
   refresh();
   document.addEventListener("visibilitychange", () => {
     if (document.visibilityState === "visible") refresh();
   });
+  // 다른 탭에서 본인 이름·권한이 바뀐 경우 창으로 돌아올 때도 서버 값을 다시 확인합니다.
+  window.addEventListener("focus", refresh);
 }
 $("#new-button").addEventListener("click", () => {
   if (isStaffOfficePage(current)) return;

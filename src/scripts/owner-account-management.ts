@@ -10,6 +10,7 @@ type Options = {
   userId: string;
   targetUserId: string;
   onChanged: () => void | Promise<void>;
+  onOwnIdentityChanged?: () => void | Promise<void>;
   isCurrent: () => boolean;
   notice: (message: string, error?: boolean) => void;
 };
@@ -58,10 +59,20 @@ function submit(form: HTMLFormElement, label: string, action: string) {
 }
 function safeIdentityError(error: unknown): string {
   const code = errorCode(error);
+  const detail =
+    error && typeof error === "object" ? text((error as Row).message) : code;
   if (code === "23505" || /username.*(unavailable|duplicate)/i.test(code))
     return t("このログインIDは利用できません。別のIDをご確認ください。");
-  if (/self.*(name|verif)|verified.*self/i.test(code))
+  if (/self_verified_name_requires_review/.test(detail))
     return t("確認済みの自分の実名は、別のOwnerに訂正を依頼してください。");
+  if (detail === "owner_mfa_required")
+    return t(
+      "ログアウトして再認証してからお試しください。MFAを設定しているアカウントはMFA認証も完了してください。",
+    );
+  if (code === "identity_save_uncertain")
+    return t(
+      "保存結果を確認できませんでした。一覧を更新して現在の情報を確認してから、再度操作してください。",
+    );
   if (code === "42501")
     return t(
       "現在のOwner権限を確認できません。画面を閉じてログインし直してください。",
@@ -170,6 +181,21 @@ export function renderOwnerAccountManagement(
         );
     }
   }
+  async function ownIdentityChanged() {
+    if (!live() || targetUserId !== userId || !options.onOwnIdentityChanged)
+      return;
+    try {
+      await options.onOwnIdentityChanged();
+    } catch {
+      if (live())
+        notice(
+          t(
+            "変更は保存されましたが、アカウント表示を更新できませんでした。画面を再読み込みしてください。",
+          ),
+          true,
+        );
+    }
+  }
   async function readAccount(): Promise<Row> {
     const result = await client.rpc("office_owner_account", {
       p_user_id: targetUserId,
@@ -269,6 +295,10 @@ export function renderOwnerAccountManagement(
     ) as HTMLInputElement;
     realName.value = text(account.real_name);
     realName.autocomplete = "name";
+    // 미완료된 기존 계정은 실명을 아직 등록하지 않았어도 아이디만 정정할 수 있습니다.
+    // 이미 등록한 실명을 지우는 동작은 UI와 서버 양쪽에서 계속 막습니다.
+    const originalName = text(account.real_name).trim();
+    realName.required = Boolean(originalName) || account.profile_enrollment_pending !== true;
     if (
       account.can_edit_real_name === false ||
       (targetUserId === userId && account.name_verified_at)
@@ -282,7 +312,14 @@ export function renderOwnerAccountManagement(
         ),
       );
     }
-    const originalName = text(account.real_name).trim();
+    else if (targetUserId === userId)
+      identity.append(
+        node(
+          "p",
+          t("未確認の実名は編集できます。保存しても実名確認済みにはなりません。"),
+          "owner-account-help",
+        ),
+      );
     const confirmsOtherName = () =>
       targetUserId !== userId &&
       account.profile_enrollment_pending !== true &&
@@ -337,10 +374,12 @@ export function renderOwnerAccountManagement(
         return;
       }
       const normalized = username.value.trim().toLowerCase();
+      const submittedName = realName.value.trim() || null;
+      const submittedReason = identityReason.value.trim();
       if (
         !/^[a-z0-9][a-z0-9._-]{2,31}$/.test(normalized) ||
-        !realName.value.trim() ||
-        !identityReason.value.trim()
+        (realName.required && !submittedName) ||
+        !submittedReason
       ) {
         showMessage(
           t("ログインID・実名・変更理由を確認してください。"),
@@ -358,17 +397,42 @@ export function renderOwnerAccountManagement(
           const result = await client.rpc("office_owner_update_identity", {
             p_user_id: targetUserId,
             p_username: normalized,
-            p_real_name: realName.value.trim(),
-            p_reason: identityReason.value.trim(),
+            p_real_name: submittedName,
+            p_reason: submittedReason,
           });
           if (result.error) throw result.error;
+          // 이 RPC는 저장된 계정을 반환합니다. 빈 응답이나 다른 계정 결과를
+          // 성공으로 처리하면 이름은 그대로인데 저장됐다는 알림만 남게 됩니다.
+          const saved = result.data;
+          if (
+            !saved ||
+            typeof saved !== "object" ||
+            Array.isArray(saved) ||
+            saved.success === false ||
+            saved.user_id !== targetUserId ||
+            saved.username !== normalized ||
+            !Object.hasOwn(saved, "real_name") ||
+            (saved.real_name ?? null) !== submittedName
+          )
+            throw new Error("identity_save_uncertain");
           if (!live()) return;
           notice(t("アカウント情報を保存しました。"));
-          if (visible(version)) await load();
+          // 저장 확인과 재조회 실패를 구분하며, 자기 계정의 상단 표시도 따로 갱신합니다.
+          // 성공 응답을 바로 그리므로 후속 목록 조회가 실패해도 예전 이름이 남지 않습니다.
+          if (visible(version)) renderAccount(saved as Row);
+          await ownIdentityChanged();
           await changed();
         } catch (error) {
           if (visible(version))
-            showMessage(safeIdentityError(error), true, true);
+            showMessage(
+              safeIdentityError(
+                /^[0-9A-Z]{5}$/.test(errorCode(error))
+                  ? error
+                  : new Error("identity_save_uncertain"),
+              ),
+              true,
+              true,
+            );
         } finally {
           busy = false;
           if (live()) controlsDisabled(false);
@@ -595,11 +659,15 @@ export function renderOwnerAccountManagement(
       const account = await readAccount();
       if (!visible(version)) return;
       renderAccount(account);
-    } catch {
+    } catch (error) {
       if (!visible(version)) return;
       content.replaceChildren();
+      const detail =
+        error && typeof error === "object" ? text((error as Row).message) : "";
       showMessage(
-        t("アカウント情報を取得できません。現在のOwner権限をご確認ください。"),
+        detail === "owner_mfa_required"
+          ? safeIdentityError(error)
+          : t("アカウント情報を取得できません。現在のOwner権限をご確認ください。"),
         true,
         true,
       );
