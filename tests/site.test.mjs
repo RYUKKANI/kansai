@@ -225,7 +225,7 @@ test("home keeps all three match cards visible and announces undetermined fixtur
     assert.equal(section.querySelectorAll('[role="tabpanel"]').length, 0);
     for (const kind of ["next", "upcoming"]) {
       const card = section.querySelector('[data-match-slot="' + kind + '"]');
-      assert.ok(card.textContent.includes("試合はまだ未定です"));
+      assert.ok(card.textContent.includes("現在、公開中の試合日程はありません。"));
       assert.equal(card.querySelector("time"), null);
       assert.ok(
         card.querySelector('a[href="/matches/#schedule-panel"]'),
@@ -234,7 +234,7 @@ test("home keeps all three match cards visible and announces undetermined fixtur
     assert.ok(
       section
         .querySelector('[data-match-slot="last"]')
-        .textContent.includes("試合結果は未発表です"),
+        .textContent.includes("現在、公開中の試合結果はありません。"),
     );
   } finally {
     dom.window.close();

@@ -69,7 +69,7 @@ export const officePages: Record<
     group: "CONTENT",
     english: "NEWSROOM",
     icon: "news",
-    description: t("ニュースの作成・編集と発行状況を管理します。"),
+    description: t("ニュースの作成・編集と公開状況を管理します。"),
   },
   media_albums: {
     group: "CONTENT",
@@ -82,7 +82,7 @@ export const officePages: Record<
     english: "MEDIA LIBRARY",
     icon: "image",
     description: t(
-      "写真・動画と掲載確認を管理します。未確認の素材は発行できません。",
+      "写真・動画と掲載確認を管理します。未確認の素材は公開できません。",
     ),
   },
   players: {
@@ -125,7 +125,7 @@ export const officePages: Record<
     group: "SYSTEM",
     english: "STAFF & ACCESS",
     icon: "shield",
-    description: t("運営メンバーの招待、権限、アクセス状態を管理します。"),
+    description: t("運営メンバーの権限と利用状態を管理します。"),
   },
   staff_directory: {
     group: "SYSTEM", english: "STAFF DIRECTORY", icon: "users",
@@ -133,7 +133,7 @@ export const officePages: Record<
   },
   staff_applications: {
     group: "SYSTEM", english: "MEMBER MANAGEMENT", icon: "shield",
-    description: t("Ownerのみが加入承認、ID・実名・パスワード、権限を管理します。"),
+    description: t("加入申請とアカウントを管理します。ID・実名・パスワードの変更は最高管理者が行います。"),
   },
   staff_account: {
     group: "SYSTEM", english: "MY ACCOUNT", icon: "profile",
@@ -147,7 +147,7 @@ export const officePages: Record<
 export const stateLabels: Record<string, string> = {
   draft: t("下書き"),
   pending: t("承認待ち"),
-  published: t("発行済み"),
+  published: t("公開済み"),
   active: t("活動中"),
   inactive: t("活動休止"),
   former: t("以前在籍"),
@@ -161,10 +161,10 @@ export const stateLabels: Record<string, string> = {
   disabled: t("無効"),
 };
 export const roleLabels: Record<string, string> = {
-  owner: t("Owner"),
-  administrator: t("Administrator"),
-  editor: t("Editor"),
-  coach: t("Coach"),
+  owner: t("最高管理者"),
+  administrator: t("管理者"),
+  editor: t("編集者"),
+  coach: t("コーチ"),
 };
 
 // 경로는 구단 UI 안에서만 쓰는 고정 SVG입니다. 사용자 입력을 SVG나 HTML로 해석하지 않습니다.
@@ -413,7 +413,7 @@ export const editorGroups: Record<
     {
       label: t("登録選手との連携"),
       fields: ["player_id", "slug"],
-      hint: t("既存の選手UUIDを維持して公開用の情報を管理します。"),
+      hint: t("同じ選手の記録を保ったまま、公開プロフィールを編集します。"),
     },
     {
       label: t("公開するプロフィール"),
@@ -493,7 +493,7 @@ export const editorGroups: Record<
       label: t("メンバーのアクセス"),
       fields: ["role", "active"],
       hint: t(
-        "最後のOwnerは無効化できません。退任時は削除せずアクセスを無効にします。",
+        "最後の最高管理者を停止するには、先に別の最高管理者を設定してください。退任者の記録は削除せず、利用を停止します。",
       ),
     },
   ],

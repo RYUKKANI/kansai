@@ -1,5 +1,6 @@
 // [편집 안내] 헤더·모바일 메뉴·푸터의 메뉴 이름과 링크를 한곳에서 관리합니다.
 // path는 배포 경로를 제외한 상대 경로입니다. 홈 내부 이동에는 #섹션-id를 사용합니다.
+// 팀 메뉴는 공개된 선수 프로필로 연결합니다. 스태프 공개 기록이 있다고 단정하지 않는 이름을 씁니다.
 export const joinNavigation = {
   id: "join",
   label: "チームに参加",
@@ -25,10 +26,10 @@ export const navigation = [
   },
   {
     id: "team",
-    label: "選手・スタッフ",
+    label: "チーム",
     english: "TEAM",
     path: "team/",
-    footerLabel: "選手・スタッフ",
+    footerLabel: "チーム",
   },
   {
     id: "media",

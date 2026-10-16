@@ -35,7 +35,7 @@ export function mountStaffAuthHelp({ root, client, callback = recoveryCallbackSt
   let checkingRecovery = false;
   let destroyed = false;
   const callbackPresent = callback.hasCode || callback.hasError;
-  const callbackFailure = () => message(t("確認リンクを読み取れませんでした。最新のリンクを申請した同じブラウザーで開くか、運営責任者に復旧をご相談ください。"), true);
+  const callbackFailure = () => message(t("確認リンクを読み取れませんでした。リンクを申請したブラウザーで開くか、最高管理者に復旧をご相談ください。"), true);
   function message(value: string, error = false) {
     if (destroyed) return;
     notice.textContent = value;
@@ -237,7 +237,7 @@ export function mountStaffAuthHelp({ root, client, callback = recoveryCallbackSt
   } };
 }
 
-initLanguageSwitcher(true);
+initLanguageSwitcher(true, t);
 const root = document.querySelector<HTMLElement>("#staff-auth-help");
 const url = import.meta.env.PUBLIC_SUPABASE_URL;
 const key = import.meta.env.PUBLIC_SUPABASE_PUBLISHABLE_KEY;

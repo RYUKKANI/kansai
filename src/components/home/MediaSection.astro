@@ -42,7 +42,7 @@ const videos = media.filter((m) => m.kind === "video").slice(0, 4);
         tabindex="0"
       >
         <Icon name="photo" size={17} />
-        {t("フォト")}
+        {t("写真")}
       </button>
       <button
         type="button"
@@ -60,7 +60,7 @@ const videos = media.filter((m) => m.kind === "video").slice(0, 4);
       {photos.length ? (
         <MediaGrid items={photos} />
       ) : (
-        <p class="content-empty">{t("写真は、公開準備中です。")}</p>
+        <p class="content-empty">{t("現在、公開中の写真はありません。")}</p>
       )}
     </div>
     <div id="video-panel" role="tabpanel" aria-labelledby="video-tab" hidden>
@@ -72,8 +72,7 @@ const videos = media.filter((m) => m.kind === "video").slice(0, 4);
             <Icon name="play" size={34} />
           </span>
           <p class="eyebrow">UNITED VIDEO</p>
-          <h3>{t("動画は、公開準備中です。")}</h3>
-          <p>{t("公式動画が公開されたら、こちらでご紹介します。")}</p>
+          <h3>{t("現在、公開中の動画はありません。")}</h3>
         </div>
       )}
     </div>

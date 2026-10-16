@@ -129,13 +129,13 @@ export function createList(options: Options): ListController {
     filterSelect("status", t("公開状態"), [
       { value: "draft", label: t("下書き") },
       { value: "pending", label: t("承認待ち") },
-      { value: "published", label: t("発行済み") },
+      { value: "published", label: t("公開済み") },
     ]);
   if (resource === "players") {
     filterSelect("profileStatus", t("プロフィールの公開状態"), [
       { value: "draft", label: t("下書き") },
       { value: "pending", label: t("承認待ち") },
-      { value: "published", label: t("発行済み") },
+      { value: "published", label: t("公開済み") },
     ]);
     filterSelect(
       "status",
@@ -309,13 +309,13 @@ export function createList(options: Options): ListController {
     const result: Column[] = [{ label: config.singular, render: titleCell }];
     if (contentEnabled && contentResources.includes(resource))
       result.push({
-        label: t("予約発行"),
+        label: t("予約公開"),
         render: (row) => {
           const release = row.office_release as Row | undefined;
           if (!release) return "—";
           const labels: Record<string, string> = {
             queued: t("予約済み"),
-            published: t("発行済み"),
+            published: t("公開済み"),
             cancelled: t("予約取消"),
             failed: t("要確認"),
           };

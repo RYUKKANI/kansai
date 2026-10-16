@@ -262,7 +262,7 @@ test("server denial displays no editable account fields", async () => {
     );
     assert.match(
       context.dialog.querySelector('[role="alert"]').textContent,
-      /Owner/,
+      /最高管理者/,
     );
   } finally {
     context.close();
@@ -441,8 +441,8 @@ test("verified self name remains unchanged for a login ID edit, while a missing 
 });
 test("identity errors distinguish an MFA challenge and verified self correction without exposing server details", async () => {
   for (const [message, expected] of [
-    ["owner_mfa_required", /MFA認証も完了/],
-    ["self_verified_name_requires_review", /別のOwner/],
+    ["owner_mfa_required", /多要素認証.*その認証も完了/],
+    ["self_verified_name_requires_review", /別の最高管理者/],
   ]) {
     const context = app({
       update: () => ({
@@ -556,7 +556,7 @@ test("verified self real name is read-only while an unverified self name remains
       const form = context.dialog.querySelector('[data-owner-form="identity"]');
       assert.equal(form.elements.namedItem("real_name").readOnly, verified);
       assert.equal(form.elements.namedItem("username").readOnly, false);
-      if (verified) assert.match(form.textContent, /別のOwner/);
+      if (verified) assert.match(form.textContent, /別の最高管理者/);
     } finally {
       context.close();
     }
@@ -745,8 +745,8 @@ test("reauthentication errors request a fresh login and never claim a password c
     await context.open();
     context.submit(context.resetForm());
     await until(() => context.notices.length > 0);
-    assert.match(context.notices.at(-1)[0], /ログアウトして再認証/);
-    assert.match(context.notices.at(-1)[0], /MFA/);
+    assert.match(context.notices.at(-1)[0], /ログインし直して/);
+    assert.match(context.notices.at(-1)[0], /多要素認証/);
     assert.equal(context.notices.at(-1)[1], true);
     assert.equal(context.counts().changed, 0);
     assert.equal(context.dialog.querySelector('[name="password"]').value, "");

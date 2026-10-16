@@ -1,7 +1,7 @@
 import { text as t, format } from "../lib/i18n";
 import { initLanguageSwitcher } from "./languages";
 // 서버 HTML은 일본어 기본 화면입니다. 세션을 읽기 전에 선택한 언어의 안내를 적용합니다.
-initLanguageSwitcher(true);
+initLanguageSwitcher(true, t);
 import { createClient } from "@supabase/supabase-js";
 import {
   resources,
@@ -160,14 +160,14 @@ function message(error: unknown): string {
   )
     return t("この操作に必要な権限がありません。運営責任者にご確認ください。");
   if (/last owner/i.test(raw))
-    return t("最後のOwnerは無効化・削除できません。");
+    return t("最後の最高管理者は無効化・削除できません。");
   if (code === "40001" || /content changed|schedule changed/i.test(raw))
     return t(
       "ほかの操作で内容が更新されています。編集画面を閉じて最新の内容を開き直してください。一時保存の内容は復元時に照合できます。",
     );
   if (/scheduled publisher is not enabled/i.test(raw))
     return t(
-      "予約発行はまだ有効になっていません。下書き保存をご利用ください。",
+      "予約公開はまだ有効になっていません。下書き保存をご利用ください。",
     );
   if (/schedule must be in the next year/i.test(raw))
     return t("予約日時は現在より後、1年以内で指定してください。");
@@ -179,7 +179,7 @@ function message(error: unknown): string {
     return t("先に選手登録画面で写真の公開同意を確認してください。");
   if (/incomplete translation/i.test(raw))
     return t(
-      "入力途中の翻訳があります。全項目を完成させるか、その言語を空欄にしてから発行してください。",
+      "入力途中の翻訳があります。全項目を完成させるか、その言語を空欄にしてから公開してください。",
     );
   if (/invalid translation/i.test(raw))
     return t("翻訳の入力内容を確認してください。");
@@ -192,15 +192,15 @@ function message(error: unknown): string {
       "選手写真の最新情報を確認してください。写真を選び直して保存してください。",
     );
   if (/album must be approved/i.test(raw))
-    return t("使用するアルバムを先に発行してください。");
+    return t("使用するアルバムを先に公開してください。");
   if (/photo upload is required/i.test(raw))
-    return t("写真をアップロードしてから発行してください。");
+    return t("写真をアップロードしてから公開してください。");
   if (/must be approved/i.test(raw))
-    return t("使用する写真を先に発行してください。");
+    return t("使用する写真を先に公開してください。");
   if (/approval requires/i.test(raw))
-    return t("プロフィールの発行はOwnerまたはAdministratorが承認します。");
+    return t("プロフィールの公開は最高管理者または管理者が承認します。");
   if (/published URL|UUID is immutable|record ID/i.test(raw))
-    return t("発行済みのURLと識別子は変更できません。");
+    return t("公開済みのURLと識別子は変更できません。");
   if (/duplicate key/i.test(raw))
     return t(
       "同じURLまたは登録情報がすでにあります。既存の項目を編集してください。",
@@ -214,7 +214,7 @@ function message(error: unknown): string {
       "必須項目、写真の掲載確認、得点、日時などの入力を確認してください。",
     );
   if (/future publication/i.test(raw))
-    return t("未来の日時で発行できません。下書きに保存してください。");
+    return t("未来の日時で公開できません。下書きに保存してください。");
   return raw;
 }
 async function run(callback: () => Promise<void>) {
@@ -489,7 +489,7 @@ async function publicationStatus(version = requestId) {
       .single(),
   );
   let text = t(
-    "発行した内容は次のサイト再構築で反映されます（通常15分間隔。処理待ちで遅れる場合があります）。",
+    "公開内容は次回の更新でサイトに反映されます（通常15分間隔。遅れる場合があります）。",
   );
   let status = "unknown";
   try {
@@ -500,10 +500,10 @@ async function publicationStatus(version = requestId) {
         !Number.isFinite(Number(deployed.version)) ||
         !Number.isFinite(Number(state.data?.version))
       )
-        throw new Error(t("発行版を確認できません。"));
+        throw new Error(t("公開版を確認できません。"));
       if (!deployed.fromCms)
         text = t(
-          "公開サイトへの接続は準備中です。発行した内容はまだ反映されていません。",
+          "サイトへの反映をまだ確認できません。時間をおいて再確認してください。",
         );
       else if (scheduleEnabled && deployed.schedulesEnabled !== true) {
         status = "waiting";
@@ -513,12 +513,12 @@ async function publicationStatus(version = requestId) {
       } else if (Number(deployed.version) < Number(state.data?.version)) {
         status = "waiting";
         text = t(
-          "発行内容のサイト反映待ちです。次の再構築で更新されます（通常15分間隔。遅れる場合があります）。",
+          "サイトへの反映待ちです。通常15分間隔で更新しますが、処理状況により遅れる場合があります。",
         );
       } else {
         status = "synced";
         text =
-          t("発行内容は公開サイトに反映済みです。最終更新：") +
+          t("公開サイトに反映済みです。最終更新：") +
           dateLabel(deployed.builtAt, true);
       }
     }
@@ -967,7 +967,7 @@ async function openEditor(
       node(
         "p",
         t(
-          "表示用に圧縮して保存します。写真を発行する前に掲載権限を確認してください。",
+          "表示用に圧縮して保存します。写真を公開する前に掲載権限を確認してください。",
         ),
         "admin-help",
       ),
@@ -1068,13 +1068,13 @@ async function openEditor(
         group.append(
           node(
             "p",
-            t("選択候補にない写真が含まれています。下書きには保持できます。発行前に写真を確認するか、選択を外してください。"),
+            t("選択候補にない写真が含まれています。下書きには保持できます。公開前に写真を確認するか、選択を外してください。"),
             "admin-help",
           ),
         );
       if (!group.children.length)
         group.append(
-          node("p", t("先に写真を登録して発行してください。"), "admin-help"),
+          node("p", t("先に写真を登録して公開してください。"), "admin-help"),
         );
       container.append(label, group);
     } else {
@@ -1192,7 +1192,7 @@ async function openEditor(
             node(
               "p",
               t(
-                "選手写真がありません。写真・動画で「選手写真」を選び、写真を登録して発行してください。",
+                "選手写真がありません。写真・動画で「選手写真」を選び、写真を登録して公開してください。",
               ),
               "admin-help",
             ),
@@ -1240,7 +1240,7 @@ async function openEditor(
     node(
       "h3",
       config.canPublish.length || resource === "public_player_profiles"
-        ? t("保存と発行")
+        ? t("保存と公開")
         : t("保存設定"),
     ),
   );
@@ -1265,7 +1265,7 @@ async function openEditor(
       node(
         "p",
         row
-          ? t("選手UUID：") + String(row[config.key])
+          ? t("選手の識別番号：") + String(row[config.key])
           : t("選手の識別子は登録後も維持されます。"),
         "admin-help",
       ),
@@ -1279,7 +1279,7 @@ async function openEditor(
     meta.append(
       node(
         "p",
-        t("保存・発行後、公開サイトの反映状態を別途ご確認ください。"),
+        t("保存・公開後、公開サイトの反映状態を別途ご確認ください。"),
         "admin-help",
       ),
     );
@@ -1296,7 +1296,7 @@ async function openEditor(
     save(t("承認待ちで保存"), "pending");
     if (config.canPublish.includes(role))
       save(
-        row?.status === "published" ? t("更新して発行") : t("発行する"),
+        row?.status === "published" ? t("更新して公開") : t("公開する"),
         "published",
       );
     if (row?.status === "published")
@@ -1457,7 +1457,7 @@ async function save(event: SubmitEvent) {
     notice(
       status === "published"
         ? t(
-            "選手・プロフィール・写真を保存して発行しました。公開サイトの反映状態をご確認ください。",
+            "選手・プロフィール・写真を保存して公開しました。公開サイトの反映状態をご確認ください。",
           )
         : t(
             "選手・プロフィール・写真を保存しました。公開前の情報は内部専用です。",
@@ -1515,7 +1515,7 @@ async function save(event: SubmitEvent) {
         if (!translationComplete(value, resource))
           throw new Error(
             t(
-              "入力途中の翻訳があります。全項目を完成させるか、その言語を空欄にしてから発行してください。",
+              "入力途中の翻訳があります。全項目を完成させるか、その言語を空欄にしてから公開してください。",
             ),
           );
   }
@@ -1537,7 +1537,7 @@ async function save(event: SubmitEvent) {
       (!scheduled || new Date(scheduled + "+09:00").getTime() <= Date.now())
     )
       throw new Error(
-        t("予約発行する未来の日時を日本時間で入力してください。"),
+        t("予約公開する未来の日時を日本時間で入力してください。"),
       );
     await saveResult(
       client.rpc("save_office_content", {
@@ -1611,10 +1611,10 @@ async function save(event: SubmitEvent) {
   editor.close();
   notice(
     status === "published"
-      ? t("発行しました。公開サイトの反映状態をご確認ください。")
+      ? t("公開しました。公開サイトの反映状態をご確認ください。")
       : status === "scheduled"
         ? t(
-            "予約を保存しました。予約時刻以降の発行と、公開サイトの反映は別に確認できます。",
+            "予約を保存しました。予約時刻以降の公開と、公開サイトの反映は別に確認できます。",
           )
         : t("保存しました。"),
   );
@@ -1740,7 +1740,7 @@ function updateProfileApproval() {
   $("#profile-consent-state").textContent = approved
     ? t("選手の公開同意は確認済みです。公開内容をご確認ください。")
     : t(
-        "発行には選手のプロフィール公開同意と、写真を使用する場合は写真の公開同意が必要です。選手登録画面でご確認ください。",
+        "公開には選手のプロフィール公開同意と、写真を使用する場合は写真の公開同意が必要です。選手登録画面でご確認ください。",
       );
   const publish = editorForm.querySelector<HTMLButtonElement>(
     '[data-save-status="published"]',

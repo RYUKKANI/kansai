@@ -23,7 +23,7 @@ const labels = {
 
 <article class="fixture-card" id={"fixture-" + fixture.id}>
   <div class="fixture-card-meta">
-    <span class="eyebrow">{fixture.competition || t("大会名 未発表")}</span>
+    <span class="eyebrow">{fixture.competition || t("大会名未発表")}</span>
     <span class="fixture-status">
       {labels[fixture.status]} / {fixture.homeAway.toUpperCase()}
     </span>
@@ -54,7 +54,7 @@ const labels = {
       <strong>{fixture.opponent}</strong>
     </div>
   </div>
-  <p class="fixture-venue">{fixture.venue || t("会場 未発表")}</p>
+  <p class="fixture-venue">{fixture.venue || t("会場未発表")}</p>
   {fixture.report.length > 0 && (
     <details class="fixture-report" id={"report-" + fixture.id}>
       <summary>{t("試合レポートを読む")}</summary>

@@ -110,7 +110,7 @@ test("translations preserve article facts, photos and the unknown match state", 
     );
     assert.ok(
       home.window.document.body.textContent.includes(
-        locale === "ko" ? "아직 경기 미정" : "The match is yet to be confirmed",
+        locale === "ko" ? "현재 공개된 경기 일정이 없습니다." : "No fixtures are currently published.",
       ),
     );
     article.window.close();

@@ -1,13 +1,16 @@
 import {
   currentLocale,
-  text,
   languageCodes,
   languageUrl,
   isLocale,
   localizedPage,
-} from "../lib/i18n";
+} from "../lib/locale";
+import { publicText } from "../lib/public-i18n";
 // 언어 선택은 실제 링크로 동작합니다. JavaScript가 없어도 공개 번역 페이지로 이동할 수 있습니다.
-export function initLanguageSwitcher(admin = false) {
+// 관리자는 전체 사전의 동기 번역 함수를 전달하고, 공개 화면은 현재 언어의 작은 사전만 사용합니다.
+export function initLanguageSwitcher(admin: true, text: (source: string) => string): void;
+export function initLanguageSwitcher(admin?: false, text?: (source: string) => string): void;
+export function initLanguageSwitcher(admin = false, text = publicText) {
   const locale = currentLocale();
   try {
     localStorage.setItem("kansai-language", locale);

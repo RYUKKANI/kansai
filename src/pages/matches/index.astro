@@ -20,9 +20,7 @@ const results = [...fixtures].reverse().filter((f) => f.status === "completed");
   <PageHero
     title="MATCHES"
     japanese={t("試合日程・結果")}
-    description={t(
-      "次の試合も、ピッチでの歩みも。正式に発表された試合情報をお届けします。",
-    )}
+    description={t("試合日程と結果をお知らせします。")}
   />
   <div class="shell subpage-content" data-tabs>
     <div class="media-tabs" role="tablist" aria-label={t("日程と結果")}>
@@ -60,10 +58,7 @@ const results = [...fixtures].reverse().filter((f) => f.status === "completed");
       ) : (
         <div class="content-empty">
           <span class="display empty-mark">NEXT MATCH</span>
-          <h3>{t("試合日程は、正式発表をお待ちください。")}</h3>
-          <p>
-            {t("対戦相手・大会・日時・会場は、確認された情報を掲載します。")}
-          </p>
+          <h3>{t("現在、公開中の試合日程はありません。")}</h3>
         </div>
       )}
     </section>
@@ -84,8 +79,7 @@ const results = [...fixtures].reverse().filter((f) => f.status === "completed");
         </div>
       ) : (
         <div class="content-empty">
-          <h3>{t("試合結果は、公開準備中です。")}</h3>
-          <p>{t("確認された公式記録を掲載します。")}</p>
+          <h3>{t("現在、公開中の試合結果はありません。")}</h3>
         </div>
       )}
     </section>

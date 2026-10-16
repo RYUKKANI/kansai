@@ -92,7 +92,7 @@ export function attachTranslationEditor(
         node(
           "p",
           t(
-            "翻訳しない言語は空欄のままにできます。入力した言語は全項目を完成させてから発行してください。",
+            "翻訳しない言語は空欄のままにできます。入力した言語は全項目を完成させてから公開してください。",
           ),
           "admin-help admin-field-wide",
         ),

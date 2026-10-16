@@ -81,10 +81,11 @@ try {
   await privileged("service_role"); await reject("select public.staff_auth_support_recovery_claim($1,$2)", [user(703), proof]);
   await privileged(); await db.query("update public.admin_roles set role='administrator' where user_id=$1", [user(2)]);
   // 실제 만료 시간은 기존 제약을 지키는 과거 타임스탬프로 이동합니다.
-  await db.query("update private.staff_support_recovery_requests set requested_at=clock_timestamp()-interval '20 minutes',expires_at=clock_timestamp()-interval '10 minutes' where request_id=$1", [user(704)]);
+  // 만료 시나리오는 한 SQL 문장의 같은 기준 시각으로 만듭니다. clock_timestamp()를 두 번 부르면 미세한 차이로 최대 유효기간 CHECK를 넘을 수 있습니다.
+  await db.query("update private.staff_support_recovery_requests set requested_at=statement_timestamp()-interval '20 minutes',expires_at=statement_timestamp()-interval '10 minutes' where request_id=$1", [user(704)]);
   await assert.rejects(approve(704)); checks++;
   await approve(705);
-  await db.query("update private.staff_support_recovery_requests set approved_at=clock_timestamp()-interval '6 minutes',approval_expires_at=clock_timestamp()-interval '1 minute' where request_id=$1", [user(705)]);
+  await db.query("update private.staff_support_recovery_requests set approved_at=statement_timestamp()-interval '6 minutes',approval_expires_at=statement_timestamp()-interval '1 minute' where request_id=$1", [user(705)]);
   await privileged("service_role"); check((await status(705)).state === "expired", "approval expires even while original request remains within TTL");
   await reject("select public.staff_auth_support_recovery_claim($1,$2)", [user(705), proof]);
   await privileged(); await approve(706); await approve(707);

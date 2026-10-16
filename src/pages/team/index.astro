@@ -16,13 +16,11 @@ const active = players.filter((p) => p.activityStatus === "active");
 const others = players.filter((p) => p.activityStatus !== "active");
 ---
 
-<SiteLayout title={t("選手・スタッフ | ") + club.name}>
+<SiteLayout title={t("チーム | ") + club.name}>
   <PageHero
     title="OUR SQUAD"
-    japanese={t("選手・スタッフ")}
-    description={t(
-      "ピッチでプレーする人。チームを支える人。チームの仲間たちをご紹介します。",
-    )}
+    japanese={t("チーム")}
+    description={t("関西ユナイテッドFCの選手をご紹介します。")}
   />
   <div class="shell subpage-content">
     <nav class="position-nav" aria-label={t("ポジション")}>
@@ -54,8 +52,7 @@ const others = players.filter((p) => p.activityStatus !== "active");
             <div class="roster-empty">
               <span class="display">{position.id}</span>
               <div>
-                <h3>{t("プロフィール掲載準備中")}</h3>
-                <p>{t("選手プロフィールは、正式公開をお待ちください。")}</p>
+                <h3>{t("プロフィール未公開")}</h3>
               </div>
             </div>
           )}
