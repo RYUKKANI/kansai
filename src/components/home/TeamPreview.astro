@@ -23,11 +23,11 @@ const featured = players
 >
   <div class="shell squad-home">
     <div class="team-copy">
-      <p class="eyebrow">{t("選手・スタッフ")}</p>
+      <p class="eyebrow">{t("チーム")}</p>
       <h2 id="team-title" class="display">
         OUR SQUAD<span>.</span>
       </h2>
-      <p>{t("ピッチでプレーする人。チームを支える人。")}</p>
+      <p>{t("関西ユナイテッドFCの選手をご紹介します。")}</p>
       <a class="squad-all-link" href={page("team/")}>
         {t("選手プロフィールを見る")}
         <Icon name="arrow" size={20} />
@@ -45,7 +45,7 @@ const featured = players
           <a class="position-preview" href={page("team/#" + position.id)}>
             <span class="display">{position.id}</span>
             <strong>{position.english}</strong>
-            <small>{t("プロフィール掲載準備中")}</small>
+            <small>{t("プロフィール未公開")}</small>
             <Icon name="arrow" size={18} />
           </a>
         ))}
