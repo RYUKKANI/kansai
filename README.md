@@ -57,11 +57,13 @@ Node.js 24를 사용합니다. 의존성 버전과 잠금 파일을 함께 관�
 ~~~sh
 npm ci
 npm run dev
-npm run check
-npm run build
-npm run export:preview
-npm test
+npm run test:parts
+npm run test:dashboard
 ~~~
+
+수정한 기능의 `test:<파트 ID>` 명령으로 필요한 테스트용 빌드를 준비하고 해당 파트만 검사합니다. 준비와 실행을 나누거나 여러 파트를 함께 고쳤다면 `npm run test:prepare -- --parts members,players` 후 `npm test -- --parts members,players`처럼 선택합니다.
+화면·번들을 바꾸면 `npm run check`, `npm run build`, `npm run export:preview`로 공통 생성 결과도 확인합니다.
+파트별 범위, CI의 변경 파일 선택, 새 테스트 등록은 [기능별 검사 안내](docs/PART_CHECKS.md)를 참고하세요.
 
 .env.example을 .env로 복사하고 간사이 프로젝트 URL과 **publishable key**를 설정합니다.
 PUBLIC_CMS_ENABLED=true이면 실제로 발행한 공개 데이터를 빌드합니다.
@@ -69,7 +71,7 @@ PUBLIC_CMS_ENABLED=true이면 실제로 발행한 공개 데이터를 빌드합�
 
 npm run preview는 빌드된 사이트를 확인합니다. preview/index.html은 CSS·사진·글꼴·스크립트를 포함한 파일 미리보기입니다.
 관리자 로그인과 실제 저장은 웹으로 제공되는 관리자 주소에서 사용합니다.
-npm test는 PostgreSQL 권한과 실제 빌드 UI의 메뉴·검색·탭·사진 확대·관리자 편집을 검사합니다.
+`npm test -- --part <파트>`는 선택한 업무의 PostgreSQL 권한과 빌드 UI를 검사합니다. 인자 없는 `npm test`는 목록·사용법만 보여줍니다. 전체 회귀 검사는 명시적으로 필요할 때 `npm run test:full`로 실행합니다.
 UI 테스트는 서버 응답을 대체하며 화면 배치를 확인하지 않습니다.
 실제 DB 권한 검사는 supabase/tests/remote-permissions.sql로 별도 실행하고 테스트 행을 전부 롤백합니다.
 실제 공개 API는 공개 환경 변수를 설정한 뒤 node scripts/verify-public-api.mjs로 검사합니다.
@@ -85,10 +87,10 @@ GitHub Actions Variables에 다음 값을 설정합니다.
 - PUBLIC_SUPABASE_URL: 간사이 프로젝트 URL
 - PUBLIC_SUPABASE_PUBLISHABLE_KEY: 간사이 publishable key
 
-PR과 개발 브랜치의 수동 실행은 검사·빌드만 합니다. 운영 배포는 main에서만 합니다.
+PR의 CI는 변경 파일과 공통 의존 관계로 파트를 선택해 각각 검사합니다. 문서만 바꾸면 빌드·배포·업무 검사를 생략합니다. 운영 배포는 main에서만 합니다.
 발행 내용은 보통 15분 간격의 재구축으로 반영되며 GitHub 작업 지연으로 더 늦어질 수 있습니다.
 변경이 없으면 예약 빌드를 건너뜁니다. 관리자에서 발행 상태와 공개 사이트의 반영 상태를 구분합니다.
-즉시 반영할 때는 공식 배포 workflow를 main에서 수동 실행합니다.
+즉시 반영할 때는 공식 배포 workflow를 main에서 수동 실행합니다. 검사 파트의 기본 선택은 `dashboard`이며, 공개 콘텐츠 반영에는 `public`을 선택합니다. 전체 검사가 필요하면 `all`을 명시합니다.
 
 공개 사진을 비공개로 바꾸면 연결된 기사·프로필도 비공개로 전환하고 다음 배포에서 생성 파일을 제거합니다.
 기존 배포와 방문자 캐시는 재구축 전에 남을 수 있습니다. 즉시 철회가 필요하면 수동 재구축과 캐시를 점검합니다.

@@ -2,6 +2,8 @@ node_modules/
 dist/
 dist-identity/
 dist-legacy/
+dist-site/
+part-fixtures/
 preview/
 public/cms-assets/
 supabase/.temp/
