@@ -33,7 +33,8 @@ function verify(condition, code) {
 function safeFailure(status, code) {
   const allowed = new Set(["email_provider_disabled", "invalid_credentials", "email_not_confirmed", "signup_disabled",
     "over_request_rate_limit", "over_email_send_rate_limit", "captcha_failed", "unexpected_failure", "validation_failed",
-    "bad_jwt", "not_authenticated", "invalid_api_key", "origin_denied", "feature_unavailable", "service_unavailable", "rate_limited", "invalid_request"]);
+    "bad_jwt", "not_authenticated", "invalid_api_key", "origin_denied", "feature_unavailable", "service_unavailable", "rate_limited", "invalid_request",
+    "42501", "22023", "23502", "23503", "23505", "23514", "P0001", "PGRST202"]);
   const http = Number.isInteger(status) && status >= 100 && status <= 599 ? status : "unknown";
   return `http_${http}_${allowed.has(code) ? code : "unclassified"}`;
 }
@@ -229,6 +230,9 @@ async function main() {
     });
     return { status: response.status, body: await response.json().catch(() => null) };
   }
+  // PostgREST는 RETURNS void RPC의 성공을 204로 돌려줍니다. JSON RPC의 200과
+  // 구분하되 성공 뒤 실제 DB 상태 검사를 생략하지 않아 저장 실패를 숨기지 않습니다.
+  function voidRpcSucceeded(result) { return result.status === 200 || result.status === 204; }
   // 실제 GoTrue JWT를 PostgREST에 그대로 전달합니다. 서비스 키 조회는 검증용 DB 상태
   // 비교에만 쓰며, 업무 요청을 서비스 권한으로 대신 실행해 RLS 검사를 건너뛰지 않습니다.
   async function rest(resource, token, { method = "GET", body } = {}) {
@@ -473,8 +477,8 @@ async function main() {
     verify(mutation.status >= 400, "pending_grade_created_business_content");
   }
   for (const account of gradeAccounts) {
-    verify((await rpc("office_review_staff", { p_user_id: account.userId, p_decision: "approved", p_role: account.requestedGrade, p_reason: "CI native grade approval" }, currentToken)).status === 200,
-      "owner_grade_approval_failed");
+    const approval = await rpc("office_review_staff", { p_user_id: account.userId, p_decision: "approved", p_role: account.requestedGrade, p_reason: "CI native grade approval" }, currentToken);
+    verify(voidRpcSucceeded(approval), "owner_grade_approval_failed_" + safeFailure(approval.status, approval.body?.code));
     // 새 로그인이나 토큰 갱신 없이 같은 세션이 DB의 승인 결과를 읽어야 합니다.
     const state = await rpc("office_account_state", {}, account.token);
     verify(state.status === 200 && state.body.user_id === account.userId && state.body.role === account.requestedGrade &&
@@ -563,7 +567,7 @@ async function main() {
   verify(await sql("select count(*) from public.players;") === playersBeforeLink, "player_link_created_extra_player");
   // 총괄을 희망했어도 운영자가 부여한 선수 권한만 생깁니다. 동명이인/UUID 연결도
   // 신청 이름이나 Auth UUID를 추측하지 않고 명시한 기존 선수 행의 고유 제약을 따릅니다.
-  verify((await rpc("office_review_staff", { p_user_id: pendingAuth.id, p_decision: "approved", p_role: "player", p_reason: "CI requested grade is only a preference" }, currentToken)).status === 200,
+  verify(voidRpcSucceeded(await rpc("office_review_staff", { p_user_id: pendingAuth.id, p_decision: "approved", p_role: "player", p_reason: "CI requested grade is only a preference" }, currentToken)),
     "owner_override_of_requested_grade_failed");
   const formerOwnerRequest = await rpc("office_account_state", {}, pendingToken);
   verify(formerOwnerRequest.status === 200 && formerOwnerRequest.body.requested_grade === "owner" && formerOwnerRequest.body.member_grade === "player" && formerOwnerRequest.body.role === "player",
@@ -611,7 +615,7 @@ async function main() {
     !publicSchedule.body.some(row => row.id === privateTraining) && !JSON.stringify(publicSchedule.body).includes("CI SECRET") && !JSON.stringify(publicSchedule.body).includes('"notes"'),
     "player_schedule_exposed_nonpublic_source");
   const staffJwtBeforeGradeChange = staffGrade.token;
-  verify((await rpc("office_set_staff_access", { p_user_id: staffGrade.userId, p_role: "player", p_active: true, p_reason: "CI same JWT grade downgrade" }, currentToken)).status === 200,
+  verify(voidRpcSucceeded(await rpc("office_set_staff_access", { p_user_id: staffGrade.userId, p_role: "player", p_active: true, p_reason: "CI same JWT grade downgrade" }, currentToken)),
     "owner_grade_downgrade_failed");
   const downgraded = await rpc("office_account_state", {}, staffJwtBeforeGradeChange);
   verify(downgraded.status === 200 && downgraded.body.role === "player" && downgraded.body.member_grade === "player", "existing_jwt_kept_old_staff_grade");
@@ -620,9 +624,12 @@ async function main() {
   verify((await rest("articles", staffJwtBeforeGradeChange, { method: "POST", body: { slug: "ci-forbidden-downgraded", title: "CI forbidden downgraded write", status: "draft" } })).status >= 400,
     "downgraded_jwt_created_business_content");
   verify((await rpc("office_player_portal", {}, staffJwtBeforeGradeChange)).status === 200, "downgraded_player_portal_not_available");
-  verify((await rpc("office_set_staff_access", { p_user_id: staffGrade.userId, p_role: "staff", p_active: true, p_reason: "CI restore before suspension test" }, currentToken)).status === 200,
+  verify(voidRpcSucceeded(await rpc("office_set_staff_access", { p_user_id: staffGrade.userId, p_role: "staff", p_active: true, p_reason: "CI restore before suspension test" }, currentToken)),
     "owner_staff_restore_failed");
-  verify((await rpc("office_set_staff_access", { p_user_id: staffGrade.userId, p_role: "staff", p_active: false, p_reason: "CI same JWT suspension" }, currentToken)).status === 200,
+  const restoredStaff = await rpc("office_account_state", {}, staffJwtBeforeGradeChange);
+  verify(restoredStaff.status === 200 && restoredStaff.body.role === "staff" && restoredStaff.body.member_grade === "staff" && restoredStaff.body.active === true,
+    "same_jwt_staff_restore_not_saved");
+  verify(voidRpcSucceeded(await rpc("office_set_staff_access", { p_user_id: staffGrade.userId, p_role: "staff", p_active: false, p_reason: "CI same JWT suspension" }, currentToken)),
     "owner_staff_suspension_failed");
   const suspended = await rpc("office_account_state", {}, staffJwtBeforeGradeChange);
   verify(suspended.status === 200 && suspended.body.role === null && suspended.body.active === false && suspended.body.approval_status === "suspended", "suspended_jwt_kept_staff_authority");
@@ -631,8 +638,11 @@ async function main() {
   verify((await rest("articles", staffJwtBeforeGradeChange, { method: "POST", body: { slug: "ci-forbidden-suspended", title: "CI forbidden suspended write", status: "draft" } })).status >= 400,
     "suspended_jwt_created_business_content");
   verify((await rpc("office_player_portal", {}, staffJwtBeforeGradeChange)).status >= 400, "suspended_jwt_retained_player_portal");
-  verify((await rpc("office_set_staff_access", { p_user_id: playerGrade.userId, p_role: "player", p_active: false, p_reason: "CI same player JWT suspension" }, currentToken)).status === 200,
+  verify(voidRpcSucceeded(await rpc("office_set_staff_access", { p_user_id: playerGrade.userId, p_role: "player", p_active: false, p_reason: "CI same player JWT suspension" }, currentToken)),
     "owner_player_suspension_failed");
+  const suspendedPlayer = await rpc("office_account_state", {}, playerGrade.token);
+  verify(suspendedPlayer.status === 200 && suspendedPlayer.body.role === null && suspendedPlayer.body.member_grade === "player" && suspendedPlayer.body.active === false &&
+    suspendedPlayer.body.approval_status === "suspended", "same_jwt_player_suspension_not_saved");
   verify((await rpc("office_player_portal", {}, playerGrade.token)).status >= 400, "suspended_player_jwt_retained_portal");
   const preservedDraftAudit = JSON.parse(await sql(`select coalesce(jsonb_agg(jsonb_build_object('actor_id',actor_id,'actor_role',actor_role)),'[]'::jsonb)::text from public.audit_logs where entity='articles' and record_id=${sqlLiteral(articleId)};`));
   verify(preservedDraftAudit.length === 2 && preservedDraftAudit.every(row => row.actor_id === staffGrade.userId && row.actor_role === "staff"), "later_grade_changes_rewrote_historical_audit_actor");
