@@ -61,7 +61,7 @@ try {
   // Owner MFA 정책을 일반 레거시 관계자의 기존 초기 전환에 확장하지 않습니다.
   await db.query("insert into auth.mfa_factors(user_id,status) values($1,'verified')", [user(2)]);
   await as(2);
-  check((await enroll("admin.two")).role === "administrator", "ordinary legacy staff retain their existing initial enrollment at AAL1");
+  check((await enroll("admin.two")).role === "staff", "ordinary legacy staff retain their existing initial enrollment at AAL1");
   await privileged();
   await db.query("insert into auth.users(id,email) values($1,'test-nine@example.invalid')", [user(9)]);
   await db.query("insert into auth.sessions(id,user_id) values($1,$2)", [user(10009), user(9)]);
@@ -129,10 +129,10 @@ try {
   for (const n of [3,4]) { await as(n); await enroll(`staff.${n}`); }
   await as(3);
   const editorLogs = await audit();
-  check(editorLogs.length > 0 && editorLogs.every((row) => ["articles","media_assets","media_albums"].includes(row.entity)), "editor retains only editorial history");
+  check(editorLogs.length > 0 && editorLogs.every((row) => !staffEntities.has(row.entity)) && editorLogs.some((row) => row.entity === "players") && editorLogs.some((row) => row.entity === "articles"), "legacy editor shares business history while account audits remain restricted");
   await as(4);
   const coachLogs = await audit();
-  check(coachLogs.length > 0 && coachLogs.every((row) => ["players","public_player_profiles","fixtures","training_sessions","training_series","match_events","club_events"].includes(row.entity)), "coach retains only football business history");
+  check(coachLogs.length > 0 && coachLogs.every((row) => !staffEntities.has(row.entity)) && coachLogs.some((row) => row.entity === "players") && coachLogs.some((row) => row.entity === "articles"), "legacy coach shares business history while account audits remain restricted");
   await ownerAal("aal1","aal1");
   check((await audit()).length > 0 && (await audit()).every((row) => !staffEntities.has(row.entity)), "MFA Owner AAL1 hides staff details while leaving permitted general history available");
   check((await directAudit()).every((row) => !staffEntities.has(row.entity)), "MFA restriction also applies to direct audit SELECT");

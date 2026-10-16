@@ -40,10 +40,8 @@ try {
     status: "draft",
   };
   await as(4);
-  await reject(
-    "select public.save_office_content('articles',null,null,$1,null)",
-    [draft],
-  );
+  const crossBusiness = await save("articles", null, null, { ...draft, slug: "shared-staff-draft" });
+  check(crossBusiness.status === "draft", "legacy coach can draft editorial work under the shared staff grade");
   await as(5);
   await reject(
     "select public.save_office_content('articles',null,null,$1,null)",
@@ -91,10 +89,8 @@ try {
     restored.updated_at,
     { id: user(4) },
   ]);
-  await reject(
-    "select public.save_office_content('site_pages',null,null,$1,null)",
-    [{ id: "club", title: "forbidden" }],
-  );
+  const pageDraft = await save("site_pages", null, null, { id: "club", title: "TEST Staff draft", status: "draft" });
+  check(pageDraft.status === "draft", "staff can draft club page content without publishing");
   const future = new Date(Date.now() + 3600000).toISOString();
   await reject("select public.save_office_content('articles',$1,$2,$3,$4)", [
     first.id,
@@ -106,6 +102,8 @@ try {
     "reset role; update private.office_automation_settings set publisher_enabled=true where id=1",
   );
   await as(3);
+  await reject("select public.save_office_content('articles',$1,$2,$3,$4)", [first.id, restored.updated_at, { title: "Staff cannot approve a release" }, future]);
+  await as(1);
   let booked = await save(
     "articles",
     first.id,
@@ -164,6 +162,8 @@ try {
       [first.id],
     )
   ).rows[0].item;
+  await reject("select public.save_office_content('articles',$1,$2,$3,null)", [first.id, current.updated_at, { title: "Staff cannot edit live content" }]);
+  await as(1);
   booked = await save(
     "articles",
     first.id,
@@ -192,6 +192,9 @@ try {
     (await state("articles", first.id)).release.state === "cancelled",
     "explicit cancellation works",
   );
+  // 예약 공개자는 총괄이어야 합니다. 이 사례에만 두 번째 총괄을 정식 RPC로 부여한 뒤 회수합니다.
+  await db.query("select public.office_set_staff_access($1,'owner',true,'TEST second Owner for release revocation')", [user(2)]);
+  await as(2);
   booked = await save(
     "articles",
     first.id,
@@ -204,8 +207,8 @@ try {
   );
   await as(1);
   await db.query(
-    "select public.office_set_staff_access($1,'editor',false,'TEST ONLY permission revocation')",
-    [user(3)],
+    "select public.office_set_staff_access($1,'staff',false,'TEST ONLY permission revocation')",
+    [user(2)],
   );
   await service();
   check(
@@ -259,9 +262,7 @@ try {
     "restore never restores withdrawn consent",
   );
   await as(4);
-  await reject("select public.office_content_state('articles',$1)", [
-    invalid.id,
-  ]);
+  check(Boolean(await state("articles", invalid.id)), "shared staff grade can inspect permitted content history");
   await as(1);
   const releaseList = (
     await db.query(
@@ -277,9 +278,8 @@ try {
     Array(51).fill(first.id),
   ]);
   await as(4);
-  await reject("select public.office_release_states('articles',$1)", [
-    [first.id],
-  ]);
+  const staffReleaseList = (await db.query("select public.office_release_states('articles',$1) as items", [[first.id]])).rows[0].items;
+  check(staffReleaseList.length === 1, "staff can read scoped release status without approving it");
   await db.exec("reset role");
   const exposed = (
     await db.query(

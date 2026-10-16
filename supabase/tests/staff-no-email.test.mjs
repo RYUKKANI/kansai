@@ -51,7 +51,7 @@ try {
   check(!JSON.stringify(pending).includes(alias), "own account state contains no technical contact address");
   check((await db.query("select * from public.admin_roles")).rows.length===0, "pending account cannot read any staff role rows");
   check((await db.query("select * from public.players")).rows.length===0, "pending account cannot access internal player rows");
-  await reject("select public.office_staff_directory()",[],/approved_staff_required/);
+  await reject("select public.office_staff_directory()",[],/staff_directory_required/);
   await reject("select public.office_staff_applications()",[],/live_owner_required/);
   await reject("select public.office_review_staff($1,'approved','owner','TEST self review')",[user(10)],/live_owner_required/);
   for (const n of [null,2,3,4,10,11]) {
@@ -70,9 +70,9 @@ try {
     "same real names remain valid distinct UUID accounts");
 
   // 연락처 조회 여부는 승인 조건이 아닙니다. 실제 Owner의 관계/실명 확인 결과로만 승인합니다.
-  await db.query("select public.office_review_staff($1,'approved','coach','TEST verified club relationship and name')",[user(10)]);
+  await db.query("select public.office_review_staff($1,'approved','staff','TEST verified club relationship and name')",[user(10)]);
   const managed = await value("select public.office_owner_account($1) as value",[user(10)]);
-  check(managed.user_id===user(10) && managed.username==="opaque.ten" && managed.role==="coach" && managed.active,
+  check(managed.user_id===user(10) && managed.username==="opaque.ten" && managed.role==="staff" && managed.active,
     "Owner approves the original technical-address UUID without collecting a contact or replacing an account");
   check(!Object.hasOwn(managed,"email") && !JSON.stringify(managed).includes(alias), "Owner identity/password-management result is contact-free");
   await reject(contactSql,[user(10)],/pending_manual_application_required/);

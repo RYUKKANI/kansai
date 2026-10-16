@@ -66,6 +66,8 @@ try {
       invalid,
       article.id,
     ]);
+  await denied("select public.save_office_content('articles',$1,$2,$3,null)", [article.id, article.updated_at, { translations: complete, status: "published" }]);
+  await as(1);
   article = await save(article.id, article.updated_at, {
     translations: complete,
     status: "published",
@@ -108,6 +110,8 @@ try {
     "translation save captured in actual revision",
   );
   const publishedRevision = state.revisions[0];
+  await denied("select public.save_office_content('articles',$1,$2,$3,null)", [article.id, article.updated_at, { translations: {}, status: "draft" }]);
+  await as(1);
   article = await save(article.id, article.updated_at, {
     translations: {},
     status: "draft",
@@ -163,6 +167,7 @@ try {
     "insert into storage.objects(bucket_id,name) values('kansai-media',$1)",
     [path],
   );
+  await as(1);
   const photo = (
     await db.query(
       "insert into public.media_assets(title,alt_text,storage_path,consent_confirmed,status,media_category) values('Test photo','Test description',$1,true,'published','player') returning *",
@@ -202,15 +207,7 @@ try {
     ).rows.length === 0,
     "registering player never auto publishes profile",
   );
-  check(
-    (
-      await db.query(
-        "update public.media_assets set media_category=$1 where id=$2 returning id",
-        ["training", photo.id],
-      )
-    ).rows.length === 0,
-    "coach cannot edit media categories",
-  );
+  await denied("update public.media_assets set media_category=$1 where id=$2", ["training", photo.id]);
   await as(null);
   check(
     (
@@ -236,6 +233,8 @@ try {
     [player.id, path],
   );
   await as(3);
+  await denied("update public.media_assets set consent_confirmed=false,status=$1 where id=$2", ["draft", photo.id]);
+  await as(1);
   await db.query(
     "update public.media_assets set consent_confirmed=false,status=$1 where id=$2",
     ["draft", photo.id],
@@ -258,10 +257,8 @@ try {
     "owner can link a private player photo internally without publishing it",
   );
   await as(4);
-  await denied(
-    "insert into public.players(internal_name,photo_asset_id) values($1,$2)",
-    ["Coach cannot select private", photo.id],
-  );
+  const staffPrivatePhoto = (await db.query("insert into public.players(internal_name,photo_asset_id) values($1,$2) returning photo_asset_id", ["TEST Staff private draft", photo.id])).rows[0];
+  check(staffPrivatePhoto.photo_asset_id === photo.id, "staff can select private photos for internal unpublished drafts");
   await as(1);
   await denied("delete from public.media_assets where id=$1", [photo.id]);
   console.log("Translation/photo PostgreSQL checks passed:", checks);

@@ -52,7 +52,7 @@ try {
   await reject("select public.office_staff_applications()");
   await reject("select public.office_staff_name_requests()");
   await reject("select public.office_verify_staff_identity($1,'TEST Person 3','not Owner')", [user(3)]);
-  await reject("select public.office_set_staff_access($1,'coach',true,'not Owner')", [user(3)]);
+  await reject("select public.office_set_staff_access($1,'staff',true,'not Owner')", [user(3)]);
   await as(1);
   await db.query("select public.office_verify_staff_identity($1,'TEST Person 3','TEST verified')", [user(3)]);
   await as(3);
@@ -62,7 +62,7 @@ try {
   await reject("select public.office_review_name_change($1,true,'not Owner')", [nameRequest]);
   await as(1);
   const corrected = await update(3,"editor.changed","別人 Test Hyphen-Name");
-  check(corrected.user_id === user(3) && corrected.name_verified_by === user(1) && corrected.role === "editor", "different Owner confirms provided name without granting role or changing UUID");
+  check(corrected.user_id === user(3) && corrected.name_verified_by === user(1) && corrected.role === "staff", "different Owner confirms provided name without granting role or changing UUID");
   check((await value("select public.office_staff_name_requests() as value")).find((r) => r.id === nameRequest).status === "rejected", "direct correction closes stale pending request atomically");
   await reject("select public.office_review_name_change($1,true,'stale cannot overwrite')", [nameRequest]);
   await reject("select public.office_owner_update_identity($1,'EDITOR.CHANGED','TEST Person 4','duplicate')", [user(4)]);

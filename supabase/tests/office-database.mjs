@@ -28,6 +28,8 @@ export async function officeDatabase() {
     .sort())
     await db.exec(await readFile("supabase/migrations/" + file, "utf8"));
   const user = (n) => "00000000-0000-4000-8000-" + String(n).padStart(12, "0");
+  // 이전 역할 행을 그대로 보존한 계정도 런타임에서 세 등급으로 해석되는지 검사합니다.
+  // 테스트를 통과시키기 위해 일반 운영 계정을 총괄로 바꾸지 않습니다.
   for (const [n, role, active] of [
     [1, "owner", true],
     [2, "administrator", true],

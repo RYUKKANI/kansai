@@ -72,10 +72,15 @@ async function main() {
   await db.exec(
     "insert into public.articles(slug,title,summary,body,cover_alt) values('draft-news','Draft','summary','body','description')",
   );
+  await denied(
+    "insert into public.articles(slug,title,summary,body,cover_alt,status) values('staff-public-news','Forbidden','summary','body','description','published')",
+  );
+  await as(1);
   await db.exec(
     "insert into public.articles(slug,title,summary,body,cover_alt,status) values('public-news','Public','summary','body','description','published')",
   );
-  await denied("insert into public.players(internal_name) values('forbidden')");
+  await as(3);
+  await db.exec("insert into public.players(internal_name) values('TEST staff draft')");
   await denied(
     "insert into public.admin_roles(user_id,email,role) values($1,'escalation@example.invalid','owner')",
     [user(5)],
@@ -117,9 +122,7 @@ async function main() {
     "update public.public_player_profiles set status='published' where player_id=$1",
     [player],
   );
-  await denied(
-    "insert into public.articles(slug,title) values('coach-write','forbidden')",
-  );
+  await db.exec("insert into public.articles(slug,title) values('staff-write','TEST shared staff draft')");
   await db.exec("insert into public.fixtures(opponent) values('TEST ONLY')");
   await db.exec(
     "insert into public.training_sessions(title,starts_at) values('TEST ONLY',now())",
@@ -136,6 +139,11 @@ async function main() {
   await db.query("update public.players set profile_consent=true where id=$1", [
     player,
   ]);
+  await denied(
+    "update public.public_player_profiles set status='published' where player_id=$1",
+    [player],
+  );
+  await as(1);
   await db.query(
     "update public.public_player_profiles set status='published' where player_id=$1",
     [player],
@@ -151,6 +159,8 @@ async function main() {
   );
   await denied("select approved_by from public.public_player_profiles");
   await as(4);
+  await denied("update public.players set profile_consent=false where id=$1", [player]);
+  await as(1);
   await db.query(
     "update public.players set profile_consent=false where id=$1",
     [player],
@@ -183,6 +193,11 @@ async function main() {
   await as(null);
   await count("select count(*)::int from storage.objects", 0);
   await as(3);
+  await denied(
+    "update public.media_assets set consent_confirmed=true,status='published' where storage_path=$1",
+    [path],
+  );
+  await as(1);
   await db.query(
     "update public.media_assets set consent_confirmed=true,status='published' where storage_path=$1",
     [path],
@@ -190,10 +205,8 @@ async function main() {
   await as(null);
   await count("select count(*)::int from storage.objects", 1);
   await as(4);
-  await denied(
-    "insert into storage.objects(bucket_id,name) values('kansai-media',$1)",
-    [user(4) + "/" + user(32) + ".jpg"],
-  );
+  await db.query("insert into storage.objects(bucket_id,name) values('kansai-media',$1)", [user(4) + "/" + user(32) + ".jpg"]);
+  await denied("insert into storage.objects(bucket_id,name) values('kansai-media',$1)", [user(1) + "/" + user(33) + ".jpg"]);
   await as(1);
   await denied("update public.admin_roles set active=false where user_id=$1", [
     user(1),
@@ -201,7 +214,7 @@ async function main() {
   await denied("delete from public.admin_roles where user_id=$1", [user(1)]);
   await count(
     "select count(*)::int from public.audit_logs where operation='INSERT' and entity='articles'",
-    2,
+    3,
   );
   await count(
     "select count(*)::int from public.publication_state where version > 0",

@@ -28,7 +28,7 @@ async function deniedStaff(message) {
 try {
   await as(3);
   await db.exec("insert into public.articles(slug,title) values('session-test','TEST ONLY original')");
-  check(await value("select private.current_role() as value") === "editor", "valid native session retains current DB role");
+  check(await value("select private.current_role() as value") === "staff", "valid native session retains current DB role");
   const auditBefore = await value("select count(*)::int as value from public.audit_logs where entity='articles'");
   for (const [label, sid] of [["missing claim", ""], ["malformed claim", "not-a-uuid"], ["different user's session", user(10004)], ["absent session", user(99999)]]) {
     await as(3);
@@ -47,7 +47,7 @@ try {
   await admin();
   await db.query("update auth.users set banned_until=now()-interval '1 minute' where id=$1", [user(3)]);
   await as(3);
-  check(await value("select private.current_role() as value") === "editor", "expired platform ban restores unchanged active role");
+  check(await value("select private.current_role() as value") === "staff", "expired platform ban restores unchanged active role");
   await admin();
   await db.query("delete from auth.sessions where user_id=$1", [user(3)]);
   await as(3);
@@ -55,12 +55,12 @@ try {
   await admin();
   check(await value("select title as value from public.articles where slug='session-test'") === "TEST ONLY original", "all denied attempts preserve actual content");
   check(await value("select count(*)::int as value from public.audit_logs where entity='articles'") === auditBefore, "failed or zero-row mutations create no successful audit");
-  check(await value("select private.staff_role_for($1) as value", [user(3)]) === "editor", "session-independent role resolver remains available to scheduled jobs");
+  check(await value("select private.staff_role_for($1) as value", [user(3)]) === "staff", "session-independent role resolver remains available to scheduled jobs");
   check(await value("select count(*)::int as value from public.admin_roles where role='owner' and private.staff_role_for(user_id)='owner'") === 1, "session revocation does not change preserved Owner count");
   await db.query("insert into auth.sessions(id,user_id) values($1,$2)", [user(11003),user(3)]);
   await as(3);
   await db.query("select set_config('request.jwt.claim.session_id',$1,false)", [user(11003)]);
-  check(await value("select private.current_role() as value") === "editor", "new native login session restores unchanged UUID and role");
+  check(await value("select private.current_role() as value") === "staff", "new native login session restores unchanged UUID and role");
   await db.exec("update public.articles set title='TEST ONLY new authenticated save' where slug='session-test'");
   check(await value("select title as value from public.articles where slug='session-test'") === "TEST ONLY new authenticated save", "new session can perform normal content save");
 

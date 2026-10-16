@@ -21,7 +21,7 @@ try {
     public_description: "Public invitation",
   };
   await as(3);
-  await reject("select public.create_training_series($1,1,3)", [template]);
+  await reject("select public.create_training_series($1,1,3)", [{ ...template, is_public: true }]);
   await as(5);
   await reject("select public.create_training_series($1,1,3)", [template]);
   await as(4);
@@ -53,6 +53,8 @@ try {
   check(count.rows[0].n === 3, "failed series is rolled back");
   let first = result.rows[0];
   const single = { ...template, title: "One occurrence", is_public: true };
+  await reject("select public.update_training_occurrences($1,$2,$3,$4)", [first.id, first.updated_at, single, "single"]);
+  await as(1);
   await db.query("select public.update_training_occurrences($1,$2,$3,$4)", [
     first.id,
     first.updated_at,
@@ -122,10 +124,12 @@ try {
   await as(3);
   check(
     (await db.query("select * from public.training_sessions")).rows.length ===
-      0,
-    "editor cannot read internal notes",
+      3,
+    "legacy editor uses the shared staff schedule permission",
   );
   await as(4);
+  await reject("update public.training_sessions set is_public=false where id=$1", [first.id]);
+  await as(1);
   await db.query(
     "update public.training_sessions set is_public=false where id=$1",
     [first.id],

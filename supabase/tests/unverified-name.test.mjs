@@ -51,7 +51,7 @@ try {
     "rejected input never clears the existing name or records a successful update");
   await reject("select public.office_update_unverified_name($1,$2,$3)", ["forged target", "reason", user(2)]);
   await reject("select public.office_verify_staff_identity($1,'佐藤 李 A-B','self verify')", [user(1)], /self_review_forbidden/);
-  await reject("select public.office_set_staff_access($1,'administrator',true,'self demote')", [user(1)], /self_review_forbidden/);
+  await reject("select public.office_set_staff_access($1,'staff',true,'self demote')", [user(1)], /self_review_forbidden/);
   await reject("select public.office_request_name_change('Other Name','enroll first')", [], /identity_enrollment_required/);
 
   await db.query("select public.office_enroll_identity('owner.one','佐藤 李 A-B','TEST staff',true)");
@@ -100,11 +100,11 @@ try {
   }
   await as(3);
   const editor = await save("同姓 同名 Hyphen-Name");
-  check(editor.user_id === user(3) && editor.role === "editor" && editor.active && editor.name_verified_at === null,
+  check(editor.user_id === user(3) && editor.role === "staff" && editor.active && editor.name_verified_at === null,
     "ordinary approved staff can update only their own unverified name");
   await as(4);
   const coach = await save("同姓 同名 Hyphen-Name");
-  check(coach.real_name === editor.real_name && coach.user_id !== editor.user_id && coach.role === "coach",
+  check(coach.real_name === editor.real_name && coach.user_id !== editor.user_id && coach.role === "staff",
     "duplicate real names remain valid separate stable UUIDs");
   await reject("update private.staff_accounts set real_name='Forged' where user_id=$1", [user(3)]);
   await reject("select public.office_owner_update_identity($1,'owner.one','Forged','not owner')", [user(1)]);

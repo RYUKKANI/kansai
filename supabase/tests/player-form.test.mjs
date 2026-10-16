@@ -176,10 +176,11 @@ try {
   );
   await assert.rejects(db.query("select internal_name from public.players"));
   checks++;
-  for (const actor of [3, 5]) {
-    await as(actor);
-    await denied({ id: id(3), profile: details(3) }, /permission/);
-  }
+  await as(3);
+  const editorialStaffDraft = await save({ id: id(13), profile: details(13) });
+  check(editorialStaffDraft.profile_status === "draft", "legacy editor shares staff player draft access");
+  await as(5);
+  await denied({ id: id(3), profile: details(3) }, /permission/);
   await as(4);
   const photo = (
     await db.query("select updated_at from public.media_assets where id=$1", [
@@ -195,7 +196,7 @@ try {
   });
   check(
     coachDraft.photo_asset_id === failedPhoto.id,
-    "coach can choose an approved player photo in the same form",
+    "staff can choose an approved player photo in the same form",
   );
   await denied(
     {
@@ -204,16 +205,15 @@ try {
       profile: details(4),
       status: "published",
     },
-    /approval/,
+    /approval|owner_publication_required/,
   );
   await denied(
     { id: id(4), profile: details(4), photoChanged: true, upload },
-    /permission/,
+    /upload/,
   );
-  await denied(
-    { id: id(4), profile: details(4), photoChanged: true, photoId: upload.id },
-    /unavailable/,
-  );
+  const privatePhotoVersion = (await db.query("select updated_at from public.media_assets where id=$1", [upload.id])).rows[0].updated_at;
+  const privatePhotoDraft = await save({ id: id(14), profile: details(14), photoChanged: true, photoId: upload.id, photoExpected: privatePhotoVersion });
+  check(privatePhotoDraft.photo_asset_id === upload.id && privatePhotoDraft.profile_status === "draft", "shared staff may select a private photo for an unpublished draft only");
   await as(1);
   await denied(
     { id: id(5), player: { ...person, role: "owner" } },
