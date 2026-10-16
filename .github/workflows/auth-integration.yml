@@ -1,10 +1,8 @@
 name: Verify native staff authentication
 
+# 실제 Auth는 deploy.yml에서 변경 파트에 따라 한 번만 실행합니다.
+# 이 workflow는 운영 장애 조사 등 명시적으로 요청한 독립 검사에만 사용합니다.
 on:
-  pull_request:
-    branches: [main]
-  push:
-    branches: [main, 'fix/staff-auth-recovery-*']
   workflow_dispatch:
 
 permissions:
