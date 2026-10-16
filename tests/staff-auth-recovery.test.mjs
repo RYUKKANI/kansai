@@ -14,9 +14,9 @@ function storage() {
   const values = new Map();
   return { values, getItem: (key) => values.get(key) ?? null, setItem: (key, value) => values.set(key, value), removeItem: (key) => values.delete(key) };
 }
-function sdk(memory, network) {
+function sdk(memory, network, extraAuth = {}) {
   return createClient(url, key, {
-    auth: { storageKey: "staff-pkce-test", storage: memory, persistSession: true, autoRefreshToken: false, detectSessionInUrl: false, flowType: "pkce" },
+    auth: { storageKey: "staff-pkce-test", storage: memory, persistSession: true, autoRefreshToken: false, detectSessionInUrl: false, flowType: "pkce", ...extraAuth },
     global: { fetch: createStaffRecoveryFetch(url, key, network) },
   });
 }
@@ -91,6 +91,55 @@ test("gateway recovery throttling remains an SDK error with no raw server detail
   } finally { await client.auth.stopAutoRefresh(); }
 });
 
+test("a malformed successful HTTP response is never converted into an SDK recovery receipt", async () => {
+  for (const body of [{}, { success: false, code: "recovery_received" }, { success: true }, { success: true, code: "registration_received" }]) {
+    const client = sdk(storage(), async () => Response.json(body));
+    try {
+      const result = await client.auth.resetPasswordForEmail("test@example.invalid");
+      assert.ok(result.error);
+      assert.equal(result.error.status, 503);
+      assert.equal(result.data, null);
+    } finally { await client.auth.stopAutoRefresh(); }
+  }
+});
+
+test("pinned SDK flow correlation preserves an earlier emailed verifier after a throttled resend", async () => {
+  const memory = storage();
+  const requests = [];
+  let sent = null;
+  const network = async (input, init) => {
+    const request = new Request(input, init);
+    const body = await request.json();
+    requests.push({ url: request.url, body });
+    if (request.url.endsWith("/functions/v1/staff-auth")) {
+      if (sent) return Response.json({ error: "rate_limited" }, { status: 429 });
+      sent = body;
+      return Response.json({ success: true, code: "recovery_received" });
+    }
+    if (new URL(request.url).searchParams.get("grant_type") === "pkce") {
+      assert.equal(createHash("sha256").update(body.code_verifier).digest("base64url"), sent.code_challenge);
+      return Response.json(session());
+    }
+    throw new Error("Unexpected Auth request");
+  };
+  const client = sdk(memory, network, { experimental: { appendPkceFlowIdToRedirects: true } });
+  try {
+    const redirectTo = "https://club.example.invalid/admin/help/";
+    assert.equal((await client.auth.resetPasswordForEmail("test@example.invalid", { redirectTo })).error, null);
+    const first = requests[0].body;
+    assert.match(first.flow_id, /^[A-Za-z0-9_-]{8,64}$/);
+    assert.equal(first.redirect_to, undefined);
+    assert.equal((await client.auth.resetPasswordForEmail("test@example.invalid", { redirectTo })).error.code, "rate_limited");
+    const second = requests[1].body;
+    assert.notEqual(first.flow_id, second.flow_id);
+    assert.ok(memory.getItem(`staff-pkce-test-flow-${first.flow_id}-code-verifier`));
+    assert.equal(memory.getItem(`staff-pkce-test-flow-${second.flow_id}-code-verifier`), null);
+    const result = await client.auth.exchangeCodeForSession("earlier-emailed-code", { flowId: first.flow_id });
+    assert.equal(result.error, null);
+    assert.equal(result.data.user.id, session().user.id);
+  } finally { await client.auth.stopAutoRefresh(); }
+});
+
 // 실제 브라우저 분기와 자동 URL 처리를 검사합니다. Auth 네트워크·서명 키는 이 테스트 전용입니다.
 const browserBundle = await build({ stdin: {
   contents: `import { createClient } from '@supabase/supabase-js';
@@ -99,7 +148,7 @@ const browserBundle = await build({ stdin: {
     export function boot(root, network) {
       const callback = recoveryCallbackState(window.location.href);
       const client = createClient('${url}', '${key}', {
-        auth: { storageKey: 'browser-recovery-test', persistSession: true, autoRefreshToken: false, detectSessionInUrl: true, flowType: 'pkce' },
+        auth: { storageKey: 'browser-recovery-test', persistSession: true, autoRefreshToken: false, detectSessionInUrl: true, flowType: 'pkce', experimental: { appendPkceFlowIdToRedirects: true } },
         global: { fetch: createStaffRecoveryFetch('${url}', '${key}', network) }
       });
       const controller = mountStaffAuthHelp({ root, client, callback });
@@ -152,7 +201,8 @@ test("actual browser SDK auto-initializes callback and resumes a signed recovery
   const network = async (input, init) => {
     const request = new Request(input, init);
     const target = new URL(request.url);
-    requests.push({ path: target.pathname, method: request.method });
+    const body = request.method === "POST" ? await request.clone().json() : null;
+    requests.push({ path: target.pathname, method: request.method, body });
     if (target.pathname === "/functions/v1/staff-auth") return Response.json({ success: true, code: "recovery_received" });
     if (target.pathname === "/auth/v1/token" && target.searchParams.get("grant_type") === "pkce") return Response.json(result);
     if (target.pathname === "/auth/v1/user") return Response.json(result.user);
@@ -162,11 +212,15 @@ test("actual browser SDK auto-initializes callback and resumes a signed recovery
   const first = browser("https://club.example.invalid/admin/help/?lang=ja", network);
   let saved;
   try {
-    assert.equal((await first.runtime.client.auth.resetPasswordForEmail("test@example.invalid")).error, null);
+    const form = first.window.document.querySelector("#staff-recovery-form");
+    form.elements.namedItem("email").value = "test@example.invalid";
+    form.dispatchEvent(new first.window.Event("submit", { bubbles: true, cancelable: true }));
+    await until(() => first.window.document.querySelector("#staff-help-message").textContent.includes("送信を受け付けました"));
+    assert.match(requests[0].body.flow_id, /^[A-Za-z0-9_-]{8,64}$/);
     saved = first.snapshot();
     assert.ok(saved.some(([name]) => name.endsWith("-code-verifier")));
   } finally { await first.close(); }
-  const callback = browser("https://club.example.invalid/admin/help/?lang=ja&code=fake-one-time-code", network, saved);
+  const callback = browser("https://club.example.invalid/admin/help/?lang=ja&code=fake-one-time-code&sb_flow_id=" + requests[0].body.flow_id, network, saved);
   let resumed;
   try {
     await until(() => !callback.window.document.querySelector("#staff-new-password-panel").hidden);
@@ -236,7 +290,7 @@ test("actual recovery controller rejects more than 72 UTF-8 bytes and accepts th
       if (path === "/auth/v1/.well-known/jwks.json")
         return Response.json({ keys: [browserJwk] });
       if (path === "/functions/v1/staff-auth")
-        return Response.json({ success: true });
+        return Response.json({ success: true, code: "password_updated" });
       if (path === "/auth/v1/logout")
         return new Response(null, { status: 204 });
       throw new Error("Unexpected fake Auth operation");
@@ -318,7 +372,7 @@ test("signup and help describe Owner approval, retained contact email and transi
   for (const field of signup.querySelectorAll('[autocomplete="new-password"]'))
     assert.equal(field.maxLength, 72);
   const options = help.querySelector("#staff-help-options");
-  assert.match(options.textContent, /信頼できる管理用端末/);
+  assert.match(options.textContent, /申請・受信・リンクの確認だけでは/);
   assert.match(options.textContent, /移行期間中のメール復旧/);
   assert.ok(options.querySelector("#staff-recovery-form"));
   assert.equal(options.textContent.includes("reset-staff-password.mjs"), false);
