@@ -20,6 +20,7 @@ export type StaffAccountState = {
   can_edit_real_name?: boolean;
   name_verified_at: string | null;
   name_verified_by: string | null;
+  name_verification_source?: "staff_review" | "initial_owner_setup" | null;
   legacy_account: boolean;
   legacy?: boolean;
   approved_real_name?: string | null;
