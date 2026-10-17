@@ -7,6 +7,7 @@ interface Props {
 }
 const { office = false } = Astro.props;
 const endpoints: string[] = [];
+const connections: string[] = [];
 if (office && import.meta.env.PUBLIC_SUPABASE_URL) {
   const configured = new URL(import.meta.env.PUBLIC_SUPABASE_URL);
   const local = ["localhost", "127.0.0.1", "[::1]"].includes(configured.hostname);
@@ -14,9 +15,14 @@ if (office && import.meta.env.PUBLIC_SUPABASE_URL) {
     throw new Error("관리자 연결은 HTTPS 또는 로컬 테스트 주소여야 합니다.");
   }
   endpoints.push(configured.origin);
+  connections.push(configured.origin);
+  // 채팅의 WebSocket도 현재 설정한 프로젝트 한 곳만 허용합니다. 이미지 출처는 HTTPS 그대로입니다.
+  const realtime = new URL(configured.origin);
+  realtime.protocol = configured.protocol === "https:" ? "wss:" : "ws:";
+  connections.push(realtime.origin);
 }
 // Vite 개발 서버에는 CSP 런타임이 없습니다. 배포 빌드에서는 config의 CSP가 활성화됩니다.
-Astro.csp?.insertDirective(`connect-src ${["'self'", ...endpoints].join(" ")}`);
+Astro.csp?.insertDirective(`connect-src ${["'self'", ...connections].join(" ")}`);
 Astro.csp?.insertDirective(`img-src ${["'self'", "data:", "blob:", ...endpoints].join(" ")}`);
 Astro.csp?.insertDirective(office ? "frame-src 'none'" : "frame-src https://www.youtube-nocookie.com");
 ---
