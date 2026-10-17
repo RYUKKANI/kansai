@@ -4734,5 +4734,25 @@
   "検索結果に戻る": {
     "ko": "검색 결과로 돌아가기",
     "en": "Back to search results"
+  },
+  "一覧から管理するアカウントを選択してください。ログインIDまたは実名で絞り込めます。": {
+    "ko": "목록에서 관리할 계정을 선택하세요. 로그인 아이디 또는 실명으로 검색할 수 있습니다.",
+    "en": "Select an account from the list to manage it. Search by login ID or real name to narrow the list."
+  },
+  "メンバー一覧": {
+    "ko": "멤버 목록",
+    "en": "Member list"
+  },
+  "全{0}件": {
+    "ko": "전체 {0}명",
+    "en": "All {0} members"
+  },
+  "表示できるメンバーはいません。": {
+    "ko": "표시할 멤버가 없습니다.",
+    "en": "There are no members to display."
+  },
+  "一覧に戻る": {
+    "ko": "목록으로 돌아가기",
+    "en": "Back to member list"
   }
 }
