@@ -39,10 +39,16 @@ async function app(page, response = {}, options = {}) {
     pretendToBeVisual: true,
   });
   const { window } = dom;
+  window.HTMLDialogElement.prototype.showModal = function () { this.open = true; };
+  window.HTMLDialogElement.prototype.close = function () {
+    this.open = false;
+    this.dispatchEvent(new window.Event("close"));
+  };
   window.eval(compiled + "\nwindow.staffUi = staffUi;");
   const calls = [];
   const notices = [];
   let active = true;
+  let subscriptions = 0;
   const client = {
     // 총괄의 계정↔선수 연결 선택지만 읽습니다. 이 조회가 다른 등급에서 발생하면 별도 검사가 잡습니다.
     from(table) {
@@ -60,7 +66,11 @@ async function app(page, response = {}, options = {}) {
     },
     auth: {
       onAuthStateChange() {
-        return { data: { subscription: { unsubscribe() {} } } };
+        subscriptions++;
+        let unsubscribed = false;
+        return { data: { subscription: { unsubscribe() {
+          if (!unsubscribed) { subscriptions--; unsubscribed = true; }
+        } } } };
       },
     },
     async rpc(name, args) {
@@ -91,6 +101,7 @@ async function app(page, response = {}, options = {}) {
     controller,
     calls,
     notices,
+    subscriptions: () => subscriptions,
     logout() {
       active = false;
       controller.dispose();
@@ -110,6 +121,24 @@ function send(window, form) {
   );
 }
 
+// 멤버 업무는 명시적으로 검색하고 UUID가 일치하는 결과를 선택한 다음에만 열립니다.
+// 기존 권한·저장 검사는 이 실제 진입 절차를 함께 통과하며, 검색 자체를 권한으로 취급하지 않습니다.
+function searchMembers(context, query) {
+  const form = context.container.querySelector(".member-search-form");
+  assert.ok(form, "Owner member search must be available");
+  form.elements.namedItem("member_query").value = query;
+  send(context.window, form);
+}
+function selectMember(context, query, userId = peerId) {
+  searchMembers(context, query);
+  const result = context.container.querySelector(`[data-member-target="${userId}"]`);
+  assert.ok(result, "search must return the intended account UUID");
+  result.click();
+  const panel = context.container.querySelector(`[data-member-workspace="${userId}"]`);
+  assert.ok(panel, "only the chosen account management panel should open");
+  return panel;
+}
+
 const manualApplicant = { user_id: peerId, username: "peer.staff", real_name: "李 Jean-Luc",
   department: "コーチ", approval_status: "pending", email_confirmed: false,
   email_confirmation_required: false, email_verification_status: "not_required" };
@@ -120,7 +149,8 @@ test("Owner approves an ID-only applicant after checking real name, login ID and
     office_staff_name_requests: [], office_review_staff: null,
   });
   try {
-    const form = context.container.querySelector("form");
+    selectMember(context, 'peer.staff', peerId);
+    const form = context.container.querySelector(".member-workspace form");
     assert.equal(form.querySelector('[data-staff-action="review"]').disabled, false);
     assert.equal(context.container.querySelector('[data-staff-action="contact"]'), null);
     assert.doesNotMatch(context.container.textContent, /メール確認|メールアドレス|accounts\.kansai\.invalid/);
@@ -147,7 +177,8 @@ test("failed ID-only approval retains review input and enables retry without an 
     office_review_staff: () => new Promise(resolve => { settle = resolve; }),
   });
   try {
-    const form = context.container.querySelector("form");
+    selectMember(context, 'peer.staff', peerId);
+    const form = context.container.querySelector(".member-workspace form");
     const save = form.querySelector('[data-staff-action="review"]');
     form.querySelector('[name="identity_confirmed"]').checked = true;
     form.querySelector('[name="reason"]').value = "Confirmed club role";
@@ -198,6 +229,7 @@ for (const linked of [true, false]) {
       office_owner_set_player_link: args => ({ data: { user_id: args.p_user_id, player_id: args.p_player_id }, error: null }),
     });
     try {
+      selectMember(context, '山田 韓-花', peerId);
       const form = context.container.querySelector('[data-staff-action="player-link"]').form;
       const choice = form.elements.namedItem("player_id");
       assert.deepEqual([...choice.options].map(option => option.value), ["", playerId]);
@@ -222,7 +254,8 @@ test("ID-only review response arriving after logout cannot restore private data 
     office_review_staff: () => new Promise(resolve => { settle = resolve; }),
   });
   try {
-    const form = context.container.querySelector('form');
+    selectMember(context, 'peer.staff', peerId);
+    const form = context.container.querySelector('.member-workspace form');
     form.querySelector('[name="identity_confirmed"]').checked = true;
     form.querySelector('[name="reason"]').value = "Club member identity checked";
     send(context.window, form);
@@ -374,14 +407,20 @@ test("server state controls management access even if caller-provided role claim
   }
 });
 
-test("Owner member cards expose account windows without fetching account details before opening", async () => {
+test("Owner search creates only the selected account window and defers account details until opening", async () => {
   const context = await app("staff_applications", {
     office_staff_applications: [owner, { ...owner, user_id: peerId }],
     office_staff_name_requests: [],
   });
   try {
-    assert.equal(context.container.querySelectorAll('[data-owner-account]').length, 2);
-    assert.equal(context.container.querySelectorAll('dialog').length, 2);
+    assert.equal(context.container.querySelectorAll('[data-owner-account],dialog,[data-member-target]').length, 0);
+    searchMembers(context, owner.real_name);
+    assert.equal(context.container.querySelectorAll('[data-member-target]').length, 2);
+    assert.equal(context.container.querySelectorAll('[data-owner-account],dialog').length, 0);
+    context.container.querySelector(`[data-member-target="${peerId}"]`).click();
+    assert.equal(context.container.querySelectorAll('[data-owner-account]').length, 1);
+    assert.equal(context.container.querySelectorAll('dialog').length, 1);
+    assert.ok(context.container.querySelector(`[data-owner-account-target="${peerId}"]`));
     assert.equal(context.calls.some(call => call.name === "office_owner_account"), false);
     assert.equal(context.container.querySelectorAll('input[autocomplete="new-password"]').length, 0);
   } finally { context.controller.dispose(); context.dom.window.close(); }
@@ -399,6 +438,7 @@ for (const [reason, fields] of [
       name_verified_by: null, name_verification_source: null, approved_real_name: null };
     const context = await app("staff_applications", { office_staff_applications: [member] });
     try {
+      selectMember(context, 'test_owner', peerId);
       const card = context.container.querySelector(`[data-staff-id="${peerId}"]`);
       assert.equal(card.querySelector('[data-staff-action="verify"]'), null);
       assert.ok(card.querySelector('[data-owner-account]'), "the Owner must still be able to correct the account");
@@ -414,6 +454,7 @@ test("a completely enrolled unverified peer still requires an explicit verificat
     name_verified_by: null, name_verification_source: null, approved_real_name: null };
   const context = await app("staff_applications", { office_staff_applications: [member] });
   try {
+    selectMember(context, 'test_owner', peerId);
     const button = context.container.querySelector('[data-staff-action="verify"]');
     assert.ok(button);
     assert.equal(context.calls.some(call => call.name === "office_verify_staff_identity"), false);
@@ -440,6 +481,7 @@ for (const [lang, label, disclaimer] of [
         name_verification_source: "initial_owner_setup" };
       const context = await app(page, { office_account_state: initial, office_staff_applications: [initial] }, { lang });
       try {
+        if (page === "staff_applications") selectMember(context, initial.username, ownerId);
         const card = context.container.querySelector('[data-name-verification-source="initial_owner_setup"]');
         assert.ok(card);
         assert.ok(card.querySelector(".staff-details").textContent.includes(label));
@@ -465,6 +507,7 @@ test("another Owner can explicitly verify the same initially registered name and
     },
   });
   try {
+    selectMember(context, 'test_owner', peerId);
     const initial = context.container.querySelector(`[data-staff-id="${peerId}"]`);
     assert.equal(initial.dataset.nameVerificationSource, "initial_owner_setup");
     const verify = initial.querySelector('[data-staff-action="verify"]');
@@ -505,10 +548,12 @@ test("Owner management suppresses self approval and separates requested duty fro
     office_staff_name_requests: [],
   });
   try {
+    selectMember(context, owner.username, ownerId);
     assert.equal(
       context.container.querySelector(`[data-staff-id="${ownerId}"] form`),
       null,
     );
+    selectMember(context, "韓 Hana", peerId);
     const form = context.container.querySelector(
       `[data-staff-id="${peerId}"] form`,
     );
@@ -557,7 +602,8 @@ test("membership save is duplicate-safe, sends only reviewed values and reports 
     office_review_staff: () => pending,
   });
   try {
-    const form = context.container.querySelector("form");
+    selectMember(context, '李 Jean-Luc', peerId);
+    const form = context.container.querySelector(".member-workspace form");
     form.querySelector('[name="reason"]').value = "所属確認済み";
     form.querySelector('[name="identity_confirmed"]').checked = true;
     send(context.window, form);
@@ -599,7 +645,8 @@ test("failed access save retains input, announces error, restores focus and neve
     }),
   });
   try {
-    const form = context.container.querySelector("form");
+    selectMember(context, 'test_owner', peerId);
+    const form = context.container.querySelector(".member-workspace form");
     form.querySelector('[name="reason"]').value = "検証理由";
     send(context.window, form);
     await eventually(
@@ -847,6 +894,7 @@ test("void membership RPC with success:false is not a committed access change", 
   const context = await app("staff_applications", { office_staff_applications: [{ ...owner, user_id: peerId }],
     office_set_staff_access: () => ({ data: { success: false }, error: null }) });
   try {
+    selectMember(context, 'test_owner', peerId);
     const form = context.container.querySelector('[data-staff-action="access"]').form;
     form.querySelector('[name="reason"]').value = "理由";
     send(context.window, form);
@@ -896,3 +944,315 @@ for (const [lang, labels] of [
     } finally { context.controller.dispose(); context.dom.window.close(); }
   });
 }
+
+// 검색은 조회 편의 기능입니다. 서버 권한 검사는 유지하면서 초기 화면·선택·폐기 경계를 따로 확인합니다.
+for (const lang of ["ja", "ko", "en"]) {
+  test(`member search starts without private management forms and requires an explicit search in ${lang}`, async () => {
+    const context = await app("staff_applications", { office_staff_applications: [owner, manualApplicant] }, { lang });
+    try {
+      const input = context.container.querySelector('input[type="search"][name="member_query"]');
+      assert.ok(input);
+      assert.ok(input.labels.length, "the search field needs a visible, associated label");
+      assert.ok(context.container.querySelector('[data-member-search-action="search"]'));
+      assert.equal(context.container.querySelectorAll("form").length, 1);
+      assert.equal(context.container.querySelectorAll('[data-member-target],[data-member-workspace],dialog,[data-owner-account]').length, 0);
+      assert.equal(context.container.textContent.includes(manualApplicant.real_name), false);
+      assert.equal(context.container.textContent.includes(peerId), false);
+      input.value = "peer.staff";
+      input.dispatchEvent(new context.window.Event("input", { bubbles: true }));
+      assert.equal(context.container.querySelectorAll('[data-member-target]').length, 0,
+        "typing alone must not enumerate accounts or auto-open a panel");
+      send(context.window, input.form);
+      assert.equal(context.container.querySelectorAll('[data-member-target]').length, 1);
+      assert.equal(context.container.querySelector('[data-member-workspace]'), null);
+      assert.equal(context.calls.some(call => call.name === "office_owner_account"), false);
+    } finally { context.controller.dispose(); context.dom.window.close(); }
+  });
+}
+
+test("blank, whitespace, and unmatched searches never enumerate accounts or preserve an old panel", async () => {
+  const context = await app("staff_applications", { office_staff_applications: [owner, manualApplicant] });
+  try {
+    selectMember(context, "peer.staff");
+    for (const query of ["", " \t\n ", "does-not-exist"]) {
+      searchMembers(context, query);
+      assert.equal(context.container.querySelectorAll('[data-member-target],[data-member-workspace],dialog').length, 0);
+      assert.equal(context.container.querySelectorAll('[data-staff-action]').length, 0);
+      assert.equal(context.subscriptions(), 0);
+    }
+    assert.equal(context.calls.some(call => call.name === "office_owner_account"), false);
+    assert.equal(context.notices.length, 0);
+  } finally { context.controller.dispose(); context.dom.window.close(); }
+});
+
+test("ID case, international names, normalized accents and duplicate names retain explicit UUID selection", async () => {
+  const otherId = "00000000-0000-4000-8000-000000000003";
+  const name = "김 José サトウ Jean-Luc";
+  const context = await app("staff_applications", { office_staff_applications: [
+    { ...manualApplicant, username: "one.member", real_name: name },
+    { ...manualApplicant, user_id: otherId, username: "two.member", real_name: name },
+  ] });
+  try {
+    searchMembers(context, " ONE.MEMBER ");
+    assert.deepEqual([...context.container.querySelectorAll('[data-member-target]')].map(node => node.dataset.memberTarget), [peerId]);
+    assert.equal(context.container.querySelector('[data-member-workspace]'), null);
+    searchMembers(context, "김   Jose\u0301 サトウ");
+    const results = [...context.container.querySelectorAll('[data-member-target]')];
+    assert.equal(results.length, 2);
+    for (const result of results) {
+      assert.ok(result.textContent.includes(name));
+      assert.equal(result.getAttribute("aria-pressed"), "false");
+    }
+    assert.ok(results[0].textContent.includes("one.member"));
+    assert.ok(results[1].textContent.includes("two.member"));
+    results[1].click();
+    assert.equal(context.container.querySelectorAll('[data-member-workspace]').length, 1);
+    assert.ok(context.container.querySelector(`[data-member-workspace="${otherId}"]`));
+    assert.equal(context.container.querySelector(`[data-member-target="${otherId}"]`).getAttribute("aria-pressed"), "true");
+    assert.equal(context.container.querySelector(`[data-staff-id="${peerId}"]`), null);
+    const form = context.container.querySelector('[data-staff-action="review"]').form;
+    form.elements.namedItem("identity_confirmed").checked = true;
+    form.elements.namedItem("reason").value = "同姓同名の別アカウントを確認";
+    send(context.window, form);
+    await eventually(() => context.calls.some(call => call.name === "office_review_staff"));
+    assert.equal(context.calls.find(call => call.name === "office_review_staff").args.p_user_id, otherId);
+  } finally { context.controller.dispose(); context.dom.window.close(); }
+});
+
+test("search and result values render untrusted names as text without matching private contact fields", async () => {
+  const dangerous = '<img src=x onerror="throw 1"> 李';
+  const context = await app("staff_applications", { office_staff_applications: [
+    { ...manualApplicant, real_name: dangerous, email: "private-match@example.invalid", phone: "secret-phone" },
+  ] });
+  try {
+    searchMembers(context, "private-match");
+    assert.equal(context.container.querySelectorAll('[data-member-target]').length, 0);
+    searchMembers(context, "<img");
+    const result = context.container.querySelector(`[data-member-target="${peerId}"]`);
+    assert.ok(result.textContent.includes(dangerous));
+    assert.equal(context.container.querySelector("img"), null);
+    result.click();
+    assert.ok(context.container.textContent.includes(dangerous));
+    assert.equal(context.container.querySelector("img"), null);
+    assert.equal(context.container.textContent.includes("private-match"), false);
+    assert.equal(context.container.textContent.includes("secret-phone"), false);
+  } finally { context.controller.dispose(); context.dom.window.close(); }
+});
+
+test("only the chosen account's name correction requests appear and the server receives that request ID", async () => {
+  const otherId = "00000000-0000-4000-8000-000000000003";
+  const context = await app("staff_applications", { office_staff_applications: [manualApplicant,
+    { ...manualApplicant, user_id: otherId, username: "another.member", real_name: "別の人" }],
+    office_staff_name_requests: [
+      { id: "request-peer", user_id: peerId, current_real_name: manualApplicant.real_name, requested_real_name: "李 正式名", reason: "PEER_PRIVATE_REASON", status: "pending" },
+      { id: "request-other", user_id: otherId, current_real_name: "別の人", requested_real_name: "別の正式名", reason: "OTHER_PRIVATE_REASON", status: "pending" },
+    ],
+  });
+  try {
+    assert.equal(context.container.textContent.includes("PRIVATE_REASON"), false);
+    const panel = selectMember(context, "peer.staff");
+    assert.ok(panel.textContent.includes("PEER_PRIVATE_REASON"));
+    assert.equal(context.container.textContent.includes("OTHER_PRIVATE_REASON"), false);
+    const review = panel.querySelector('[data-staff-action="review-name"]').form;
+    review.elements.namedItem("reason").value = "本人からの訂正申請を確認";
+    send(context.window, review);
+    await eventually(() => context.calls.some(call => call.name === "office_review_name_change"));
+    assert.deepEqual(JSON.parse(JSON.stringify(context.calls.find(call => call.name === "office_review_name_change").args)), {
+      p_request_id: "request-peer", p_approve: true, p_reason: "本人からの訂正申請を確認",
+    });
+  } finally { context.controller.dispose(); context.dom.window.close(); }
+});
+
+for (const action of ["close", "clear", "search"]) {
+  test(`${action} destroys the selected account controller, clears password inputs, and makes its old forms inert`, async () => {
+    const context = await app("staff_applications", { office_staff_applications: [manualApplicant],
+      office_owner_account: { ...manualApplicant, password_is_set: true, can_edit_real_name: true },
+    });
+    try {
+      const panel = selectMember(context, "peer.staff");
+      const oldReview = panel.querySelector('[data-staff-action="review"]').form;
+      oldReview.elements.namedItem("identity_confirmed").checked = true;
+      oldReview.elements.namedItem("reason").value = "古い管理フォーム";
+      assert.equal(context.subscriptions(), 1);
+      panel.querySelector('[data-owner-account-target]').click();
+      await eventually(() => Boolean(panel.querySelector('[data-owner-form="password"]')));
+      const password = panel.querySelector('[name="password"]');
+      password.value = "temporary-local-test-value";
+      if (action === "search") searchMembers(context, "unmatched-next-search");
+      else context.container.querySelector(`[data-member-search-action="${action}"]`).click();
+      assert.equal(password.value, "", "discarded password fields must be scrubbed even while detached");
+      assert.equal(context.subscriptions(), 0);
+      assert.equal(context.container.querySelector('[data-member-workspace],dialog'), null);
+      send(context.window, oldReview);
+      assert.equal(context.calls.some(call => call.name === "office_review_staff"), false);
+      if (action === "close")
+        assert.equal(context.window.document.activeElement, context.container.querySelector(`[data-member-target="${peerId}"]`));
+      if (action === "clear")
+        assert.equal(context.window.document.activeElement, context.container.querySelector('[name="member_query"]'));
+    } finally { context.controller.dispose(); context.dom.window.close(); }
+  });
+}
+
+test("a delayed account-detail response cannot repopulate a discarded panel or expose another selected account", async () => {
+  let finish;
+  const context = await app("staff_applications", { office_staff_applications: [manualApplicant, owner],
+    office_owner_account: () => new Promise(resolve => { finish = resolve; }),
+  });
+  try {
+    const oldPanel = selectMember(context, "peer.staff");
+    oldPanel.querySelector('[data-owner-account-target]').click();
+    await eventually(() => Boolean(finish));
+    const currentPanel = selectMember(context, owner.username, ownerId);
+    finish({ data: { ...manualApplicant, password_is_set: true, can_edit_real_name: true }, error: null });
+    await new Promise(resolve => setTimeout(resolve, 10));
+    assert.equal(context.container.querySelector('[data-member-workspace]'), currentPanel);
+    assert.equal(context.container.querySelector('[data-owner-form]'), null);
+    assert.equal(oldPanel.querySelector('[data-owner-form]'), null);
+    assert.equal(context.notices.length, 0);
+    assert.equal(context.subscriptions(), 1);
+  } finally { context.controller.dispose(); context.dom.window.close(); }
+});
+
+for (const success of [true, false]) {
+  test(`member navigation stays locked until a ${success ? "committed" : "failed"} save settles for the selected account`, async () => {
+    let finish;
+    const other = { ...owner, username: "owner.member" };
+    const context = await app("staff_applications", { office_staff_applications: [manualApplicant, other],
+      office_review_staff: () => new Promise(resolve => { finish = resolve; }),
+    });
+    try {
+      const panel = selectMember(context, ".");
+      const form = panel.querySelector('[data-staff-action="review"]').form;
+      form.elements.namedItem("identity_confirmed").checked = true;
+      form.elements.namedItem("reason").value = "確認済み";
+      send(context.window, form);
+      assert.equal(context.calls.filter(call => call.name === "office_review_staff").length, 1);
+      const navigation = [...context.container.querySelectorAll(
+        '[name="member_query"],[data-member-search-action],[data-member-target],.owner-account-trigger',
+      )];
+      assert.ok(navigation.length >= 6);
+      assert.equal(navigation.every(control => control.disabled), true,
+        "search, clear, result selection and close must all visibly wait for the save");
+      assert.match(context.container.textContent, /保存中/);
+      context.container.querySelector(`[data-member-target="${ownerId}"]`).click();
+      context.container.querySelector('[data-member-search-action="close"]').click();
+      context.container.querySelector('[data-member-search-action="clear"]').click();
+      context.container.querySelector('.owner-account-trigger').click();
+      assert.equal(context.calls.some(call => call.name === "office_owner_account"), false,
+        "account editing must wait until the selected member's business save settles");
+      // 프로그램이 submit 이벤트를 보내더라도 비활성화한 화면 상태를 우회할 수 없습니다.
+      searchMembers(context, "owner.member");
+      assert.equal(context.container.querySelector('[data-member-workspace]'), panel);
+      assert.equal(context.container.querySelector('[data-member-target][aria-pressed="true"]').dataset.memberTarget, peerId);
+      assert.equal(context.notices.length, 0);
+      const reads = context.calls.filter(call => call.name === "office_account_state").length;
+      finish(success ? { data: null, error: null } : { data: null, error: { code: "42501" } });
+      await eventually(() => context.notices.length === 1 &&
+        [...context.container.querySelectorAll('[name="member_query"],[data-member-search-action],[data-member-target],.owner-account-trigger')]
+          .every(control => !control.disabled));
+      assert.equal(context.notices[0][1], success ? undefined : true);
+      assert.equal(context.container.querySelector('[data-member-workspace]').dataset.memberWorkspace, peerId);
+      assert.equal(context.calls.filter(call => call.name === "office_account_state").length, reads + (success ? 1 : 0));
+      if (success) {
+        assert.equal(context.window.document.activeElement, context.container.querySelector('.member-workspace-title'),
+          "a successful refresh must focus the reattached selected-account heading");
+        assert.equal(context.container.querySelector('[name="member_query"]').value, ".");
+      } else {
+        assert.equal(context.container.querySelector('[data-member-workspace]'), panel);
+        assert.equal(context.window.document.activeElement, form.querySelector('[data-staff-action="review"]'));
+      }
+      const selected = selectMember(context, "owner.member", ownerId);
+      assert.equal(context.container.querySelector('[data-member-workspace]'), selected,
+        "navigation must become available again when the original save settles");
+    } finally { context.controller.dispose(); context.dom.window.close(); }
+  });
+}
+
+test("a save response after an external refresh revokes Owner access cannot restore private data or announce success", async () => {
+  let account = owner;
+  let finish;
+  const context = await app("staff_applications", {
+    office_account_state: () => ({ data: account, error: null }),
+    office_staff_applications: [manualApplicant],
+    office_review_staff: () => new Promise(resolve => { finish = resolve; }),
+  });
+  try {
+    const panel = selectMember(context, "peer.staff");
+    const form = panel.querySelector('[data-staff-action="review"]').form;
+    form.elements.namedItem("identity_confirmed").checked = true;
+    form.elements.namedItem("reason").value = "確認済み";
+    send(context.window, form);
+    account = { ...owner, role: "staff" };
+    await context.controller.refresh();
+    assert.equal(context.container.querySelector('[data-member-workspace],.member-search-form,dialog'), null);
+    const reads = context.calls.filter(call => call.name === "office_account_state").length;
+    finish({ data: null, error: null });
+    await new Promise(resolve => setTimeout(resolve, 15));
+    assert.equal(context.container.querySelector('[data-member-workspace],.member-search-form,dialog'), null);
+    assert.ok(context.container.querySelector('[role="alert"]'));
+    assert.equal(context.notices.length, 0);
+    assert.equal(context.calls.filter(call => call.name === "office_account_state").length, reads);
+    assert.equal(context.subscriptions(), 0);
+  } finally { context.controller.dispose(); context.dom.window.close(); }
+});
+
+test("identity save keeps the selected UUID and query after a rename stops matching that query", async () => {
+  let member = { ...manualApplicant, approval_status: "approved", active: true, role: "staff", password_is_set: true, can_edit_real_name: true };
+  const context = await app("staff_applications", {
+    office_staff_applications: () => ({ data: [member], error: null }),
+    office_owner_account: () => ({ data: member, error: null }),
+    office_owner_update_identity: args => {
+      member = { ...member, username: args.p_username, real_name: args.p_real_name };
+      return { data: member, error: null };
+    },
+  });
+  try {
+    const oldPanel = selectMember(context, "peer.staff");
+    oldPanel.querySelector('[data-owner-account-target]').click();
+    await eventually(() => Boolean(oldPanel.querySelector('[data-owner-form="identity"]')));
+    const form = oldPanel.querySelector('[data-owner-form="identity"]');
+    form.elements.namedItem("username").value = "renamed.account";
+    form.elements.namedItem("reason").value = "ログインIDの訂正";
+    send(context.window, form);
+    await eventually(() => context.container.querySelector('[data-member-workspace]') !== oldPanel && context.container.querySelector('[data-member-workspace]'));
+    const panel = context.container.querySelector('[data-member-workspace]');
+    assert.equal(panel.dataset.memberWorkspace, peerId);
+    assert.ok(panel.textContent.includes("renamed.account"));
+    assert.equal(context.container.querySelector('[name="member_query"]').value, "peer.staff");
+    assert.equal(context.container.querySelectorAll('[data-member-target]').length, 0);
+    assert.equal(context.calls.find(call => call.name === "office_owner_update_identity").args.p_user_id, peerId);
+    assert.equal(context.subscriptions(), 1);
+    assert.equal(context.notices.some(notice => notice[1] === true), false);
+  } finally { context.controller.dispose(); context.dom.window.close(); }
+});
+
+test("a refresh that revokes Owner access removes the selected member workspace before any new private fetch", async () => {
+  let account = owner;
+  const context = await app("staff_applications", { office_account_state: () => ({ data: account, error: null }),
+    office_staff_applications: [manualApplicant],
+  });
+  try {
+    selectMember(context, "peer.staff");
+    const count = context.calls.filter(call => call.name === "office_staff_applications").length;
+    account = { ...owner, role: "staff" };
+    await context.controller.refresh();
+    assert.equal(context.container.querySelector('[data-member-workspace],.member-search-form,dialog'), null);
+    assert.ok(context.container.querySelector('[role="alert"]'));
+    assert.equal(context.calls.filter(call => call.name === "office_staff_applications").length, count);
+    assert.equal(context.subscriptions(), 0);
+  } finally { context.controller.dispose(); context.dom.window.close(); }
+});
+
+test("removing a selected account on refresh never selects a different account with the same real name", async () => {
+  let rows = [manualApplicant, { ...manualApplicant, user_id: ownerId, username: "other.same-name" }];
+  const context = await app("staff_applications", { office_staff_applications: () => ({ data: rows, error: null }) });
+  try {
+    selectMember(context, manualApplicant.real_name);
+    rows = [rows[1]];
+    await context.controller.refresh();
+    assert.equal(context.container.querySelector('[data-member-workspace],dialog'), null);
+    assert.equal(context.container.querySelectorAll('[data-member-target]').length, 1);
+    assert.equal(context.container.querySelector('[data-member-target]').getAttribute("aria-pressed"), "false");
+    assert.equal(context.subscriptions(), 0);
+  } finally { context.controller.dispose(); context.dom.window.close(); }
+});

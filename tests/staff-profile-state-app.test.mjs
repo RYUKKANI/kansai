@@ -148,6 +148,11 @@ test("successful self Owner identity edit refreshes header from account RPC with
     await ready(context);
     const document = context.window.document;
     document.querySelector('[data-resource="staff_applications"]').click();
+    await helper.eventually(() => Boolean(document.querySelector(".member-search-form")));
+    const search = document.querySelector(".member-search-form");
+    search.elements.namedItem("member_query").value = account.username;
+    search.dispatchEvent(new context.window.Event("submit", { bubbles: true, cancelable: true }));
+    document.querySelector(`[data-member-target="${uid}"]`).click();
     await helper.eventually(() => Boolean(document.querySelector(`[data-owner-account-target="${uid}"]`)));
     document.querySelector(`[data-owner-account-target="${uid}"]`).click();
     await helper.eventually(() => Boolean(document.querySelector('[data-owner-form="identity"]')));
