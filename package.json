@@ -20,6 +20,8 @@
     "test:content": "node scripts/prepare-test-fixtures.mjs --part content --run",
     "test:players": "node scripts/prepare-test-fixtures.mjs --part players --run",
     "test:schedule": "node scripts/prepare-test-fixtures.mjs --part schedule --run",
+    "test:chat": "node scripts/prepare-test-fixtures.mjs --part chat --run",
+    "test:attendance": "node scripts/prepare-test-fixtures.mjs --part attendance --run",
     "test:media": "node scripts/prepare-test-fixtures.mjs --part media --run",
     "test:public": "node scripts/prepare-test-fixtures.mjs --part public --run",
     "test:security": "node scripts/prepare-test-fixtures.mjs --part security --run",
