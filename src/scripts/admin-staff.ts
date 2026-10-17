@@ -4,6 +4,7 @@ import { text as t, format, localizedDate, currentLocale } from "../lib/i18n";
 import { renderOwnerAccountManagement } from "./owner-account-management";
 import { memberGrades, memberGradeLabel, normalizeMemberGrade } from "../lib/member-grades";
 import { roleLabels } from "../lib/admin-ui";
+import { isInitialOwnerNameRegistration, staffNameVerificationLabel, staffNameVerifierLabel } from "../lib/staff-name-verification";
 
 // [편집 안내] 관계자 화면은 비공개 매핑 테이블을 직접 읽지 않습니다. RPC가 현재 세션의
 // 승인·활동·업무 권한을 매번 확인하고 반환한 최소 정보만 텍스트 노드로 표시합니다.
@@ -226,6 +227,7 @@ const visibleAuditFields = new Set([
   "verified_at",
   "name_verified_at",
   "name_verified_by",
+  "name_verification_source",
   "approved_at",
   "rejected_at",
 ]);
@@ -283,6 +285,7 @@ const auditFieldLabels: Record<string, string> = {
   verified_at: "本人確認日時",
   name_verified_at: "実名確認日時",
   name_verified_by: "実名の確認者",
+  name_verification_source: "実名確認の方法",
   approved_at: "承認日時",
   rejected_at: "見送り日時",
 };
@@ -296,8 +299,17 @@ function auditValue(value: unknown): string {
     return String(value);
   return t("複合データを変更");
 }
+function auditFieldValue(name: string, value: unknown): string {
+  if (name === "name_verification_source") {
+    if (value === "initial_owner_setup") return t("初代統括の登録確認");
+    if (value === "staff_review") return t("関係者による実名確認");
+    return "—";
+  }
+  return auditValue(value);
+}
 export function staffAuditActor(row: Row): string {
   const source = string(row.source);
+  if (source === "initial_owner_setup") return t("初代統括の登録設定");
   if (source === "scheduled") return t("予約処理");
   if (source === "system_support") return t("管理者支援 / 実行者確認不可");
   if (source === "database_unattributed")
@@ -332,6 +344,7 @@ function auditAction(row: Row): string {
     access_changed: t("権限・アクセスの変更"),
     player_link_changed: t("選手情報との紐付けを変更"),
     identity_verified: t("実名の確認"),
+    initial_owner_identity_initialized: t("初代統括の登録を確定"),
     name_change_requested: t("実名訂正の申請"),
     name_change_approved: t("実名訂正の承認"),
     name_change_rejected: t("実名訂正の見送り"),
@@ -379,6 +392,8 @@ export function renderStaffAuditEntry(row: Row): HTMLElement {
         t("処理区分"),
         source === "owner_password_reset"
           ? t("統括によるアカウント管理")
+          : source === "initial_owner_setup"
+          ? t("初代統括の登録設定")
           : source === "human"
           ? t("認証済みアカウントの操作")
           : source === "system_support"
@@ -431,8 +446,8 @@ export function renderStaffAuditEntry(row: Row): HTMLElement {
               "span",
               format(
                 "{0} → {1}",
-                auditValue(before[name]),
-                auditValue(after[name]),
+                auditFieldValue(name, before[name]),
+                auditFieldValue(name, after[name]),
               ),
             ),
           );
@@ -525,6 +540,7 @@ export async function renderStaffOffice(
   }
   function ownState(account: Row, only = false): HTMLElement {
     const section = element("section", "", "staff-card");
+    section.dataset.nameVerificationSource = string(account.name_verification_source);
     section.append(
       title(t("自分の申請とアカウント")),
       details([
@@ -536,24 +552,13 @@ export async function renderStaffOffice(
         [t("承認状況"), state(account.approval_status)],
         [t("活動状態"), account.active === true ? t("活動中") : t("利用停止")],
         [t("現在の権限"), roleText(account.role)],
-        [
-          t("本人確認"),
-          account.verified_at || account.name_verified_at
-            ? t("確認済み")
-            : t("未確認"),
-        ],
-        [
-          t("確認者"),
-          valueOrDash(
-            account.name_verified_by_name ??
-              account.verified_by_name ??
-              account.verified_by ??
-              account.name_verified_by,
-          ),
-        ],
+        [t("本人確認"), staffNameVerificationLabel(account)],
+        [t("確認者"), staffNameVerifierLabel(account)],
         [t("確認日時"), date(account.verified_at ?? account.name_verified_at)],
       ]),
     );
+    if (isInitialOwnerNameRegistration(account))
+      section.append(note(t("初代統括としての登録を確認した記録です。他の関係者が本人確認した記録ではありません。")));
     section.append(
       note(
         t(
@@ -684,8 +689,11 @@ export async function renderStaffOffice(
     for (const member of rows) {
       const id = string(member.user_id);
       const self = id === userId;
+      const incompleteProfile = member.profile_enrollment_pending === true ||
+        member.identity_enrolled === false || !string(member.real_name).trim();
       const card = element("article", "", "staff-card");
       card.dataset.staffId = id;
+      card.dataset.nameVerificationSource = string(member.name_verification_source);
       const header = element("div", "", "staff-card-heading");
       header.append(
         element("h3", valueOrDash(member.real_name)),
@@ -700,24 +708,13 @@ export async function renderStaffOffice(
           [t("所属等級"), roleText(member.member_grade ?? member.role)],
           [t("活動状態"), member.active === true ? t("活動中") : t("利用停止")],
           [t("アカウント識別番号"), id || "—"],
-          [
-            t("本人確認"),
-            member.verified_at || member.name_verified_at
-              ? t("確認済み")
-              : t("未確認"),
-          ],
-          [
-            t("確認者"),
-            valueOrDash(
-              member.name_verified_by_name ??
-                member.verified_by_name ??
-                member.verified_by ??
-                member.name_verified_by,
-            ),
-          ],
+          [t("本人確認"), staffNameVerificationLabel(member)],
+          [t("確認者"), staffNameVerifierLabel(member)],
           [t("確認日時"), date(member.verified_at ?? member.name_verified_at)],
         ]),
       );
+      if (isInitialOwnerNameRegistration(member))
+        card.append(note(t("初代統括としての登録を確認した記録です。他の関係者が本人確認した記録ではありません。")));
       // 가입·승인은 아이디·실명·소속으로 심사합니다. 기존 연락처와 내부 인증 주소는 표시하지 않습니다.
       if (self)
         card.append(
@@ -727,7 +724,11 @@ export async function renderStaffOffice(
         id &&
         owner
       ) {
-        if (member.approval_status === "approved" && !member.name_verified_at) {
+        // 미완료 레거시 프로필은 DB 제약상 실명 확인을 기록할 수 없습니다.
+        // 먼저 본인이 안내 확인을 마치도록 안내하고 실행 불가능한 양식은 표시하지 않습니다.
+        if (member.approval_status === "approved" && !member.name_verified_at && incompleteProfile)
+          card.append(note(t("本人による関係者情報の登録と案内の確認を完了してから、実名確認を記録してください。")));
+        if (member.approval_status === "approved" && (!member.name_verified_at || isInitialOwnerNameRegistration(member)) && !incompleteProfile) {
           const verify = element("form", "", "staff-form");
           verify.append(element("h4", t("実名と関係者であることを確認")));
           const realName = field(verify, t("確認した実名"), "real_name", {

@@ -2,6 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { text as t } from "../lib/i18n";
 import type { StaffAccountState } from "../lib/staff-auth-types";
 import { isMemberGrade, memberGradeLabel } from "../lib/member-grades";
+import { staffNameVerificationLabel } from "../lib/staff-name-verification";
 
 type AuthResult = {
   session?: { access_token: string; refresh_token: string };
@@ -315,7 +316,7 @@ export function mountStaffAuth({ client, notice, refresh }: StaffAuthOptions) {
         [t("希望する所属"), memberGradeLabel(state.requested_grade)],
         [t("担当業務"), state.department || "—"],
         [t("承認状況"), t(status[state.approval_status] ?? "承認待ち")],
-        [t("実名確認"), t(state.name_verified_at ? "確認済み" : "未確認")],
+        [t("実名確認"), staffNameVerificationLabel(state)],
       ];
       for (const [label, value] of rows) {
         const term = document.createElement("dt");

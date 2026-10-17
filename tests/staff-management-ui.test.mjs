@@ -387,6 +387,107 @@ test("Owner member cards expose account windows without fetching account details
   } finally { context.controller.dispose(); context.dom.window.close(); }
 });
 
+// 실명 문자열이 있어도 등록 안내 확인 등이 끝나지 않은 계정은 서버에서 본인 확인을 거부합니다.
+// 실패할 것이 정해진 양식은 표시하지 않고, 계정 정정과 권한 관리 경로는 그대로 둡니다.
+for (const [reason, fields] of [
+  ["profile enrollment remains pending", { real_name: "Legacy Name", identity_enrolled: true, profile_enrollment_pending: true }],
+  ["identity enrollment is incomplete", { real_name: "Legacy Name", identity_enrolled: false }],
+  ["no real name has been registered", { real_name: " ", identity_enrolled: true, profile_enrollment_pending: false }],
+]) {
+  test(`Owner is not offered an impossible verification form when ${reason}`, async () => {
+    const member = { ...owner, ...fields, user_id: peerId, name_verified_at: null,
+      name_verified_by: null, name_verification_source: null, approved_real_name: null };
+    const context = await app("staff_applications", { office_staff_applications: [member] });
+    try {
+      const card = context.container.querySelector(`[data-staff-id="${peerId}"]`);
+      assert.equal(card.querySelector('[data-staff-action="verify"]'), null);
+      assert.ok(card.querySelector('[data-owner-account]'), "the Owner must still be able to correct the account");
+      assert.ok(card.querySelector('[data-staff-action="access"]'));
+      assert.equal(context.calls.some(call => call.name === "office_verify_staff_identity"), false);
+    } finally { context.controller.dispose(); context.dom.window.close(); }
+  });
+}
+
+test("a completely enrolled unverified peer still requires an explicit verification action even without optional duty", async () => {
+  const member = { ...owner, user_id: peerId, real_name: "金 Ana-María", department: null,
+    identity_enrolled: true, profile_enrollment_pending: false, name_verified_at: null,
+    name_verified_by: null, name_verification_source: null, approved_real_name: null };
+  const context = await app("staff_applications", { office_staff_applications: [member] });
+  try {
+    const button = context.container.querySelector('[data-staff-action="verify"]');
+    assert.ok(button);
+    assert.equal(context.calls.some(call => call.name === "office_verify_staff_identity"), false);
+    button.form.elements.namedItem("reason").value = "本人の登録氏名と関係者であることを確認";
+    send(context.window, button.form);
+    await eventually(() => context.notices.length === 1);
+    assert.deepEqual(JSON.parse(JSON.stringify(context.calls.find(call => call.name === "office_verify_staff_identity").args)), {
+      p_user_id: peerId, p_real_name: member.real_name, p_reason: "本人の登録氏名と関係者であることを確認",
+    });
+    assert.equal(context.notices[0][1], undefined);
+  } finally { context.controller.dispose(); context.dom.window.close(); }
+});
+
+for (const [lang, label, disclaimer] of [
+  ["ja", "初代統括の登録確認", "他の関係者による確認ではありません"],
+  ["ko", "최초 총괄 등록 확인", "다른 관계자가 확인한 기록이 아닙니다"],
+  ["en", "Initial Lead registration confirmed", "No independent staff verification recorded"],
+]) {
+  for (const page of ["staff_account", "staff_applications"]) {
+    test(`${page} reports the initial Owner setup origin without a human reviewer in ${lang}`, async () => {
+      const initial = { ...owner, identity_enrolled: true, profile_enrollment_pending: false,
+        approved_real_name: owner.real_name, name_edit_mode: "review_required",
+        name_verified_by: null, name_verified_by_name: "must-not-invent-a-reviewer",
+        name_verification_source: "initial_owner_setup" };
+      const context = await app(page, { office_account_state: initial, office_staff_applications: [initial] }, { lang });
+      try {
+        const card = context.container.querySelector('[data-name-verification-source="initial_owner_setup"]');
+        assert.ok(card);
+        assert.ok(card.querySelector(".staff-details").textContent.includes(label));
+        assert.ok(card.querySelector(".staff-details").textContent.includes(disclaimer));
+        assert.equal(card.textContent.includes("must-not-invent-a-reviewer"), false);
+        assert.equal(card.querySelector('[data-staff-action="verify"]'), null);
+        assert.equal(context.calls.some(call => /initial_owner|verify_staff/.test(call.name)), false);
+      } finally { context.controller.dispose(); context.dom.window.close(); }
+    });
+  }
+}
+
+test("another Owner can explicitly verify the same initially registered name and display a real human review afterward", async () => {
+  let member = { ...owner, user_id: peerId, real_name: "初代の登録名", identity_enrolled: true,
+    profile_enrollment_pending: false, approved_real_name: "初代の登録名", name_verified_by: null,
+    name_verified_by_name: null, name_verification_source: "initial_owner_setup" };
+  const context = await app("staff_applications", {
+    office_staff_applications: () => ({ data: [member], error: null }),
+    office_verify_staff_identity: () => {
+      member = { ...member, name_verification_source: "staff_review", name_verified_by: ownerId,
+        name_verified_by_name: owner.real_name, name_verified_at: "2026-10-17T06:00:00Z" };
+      return { data: null, error: null };
+    },
+  });
+  try {
+    const initial = context.container.querySelector(`[data-staff-id="${peerId}"]`);
+    assert.equal(initial.dataset.nameVerificationSource, "initial_owner_setup");
+    const verify = initial.querySelector('[data-staff-action="verify"]');
+    assert.ok(verify, "a different Owner must have an explicit route to record an independent review");
+    assert.equal(verify.form.elements.namedItem("real_name").value, member.real_name);
+    assert.equal(context.calls.some(call => call.name === "office_verify_staff_identity"), false);
+    verify.form.elements.namedItem("reason").value = "初期登録後に本人と登録氏名を確認";
+    send(context.window, verify.form);
+    await eventually(() => context.notices.length === 1 && Boolean(context.container.querySelector('[data-name-verification-source="staff_review"]')));
+    const reviewed = context.container.querySelector(`[data-staff-id="${peerId}"]`);
+    assert.equal(reviewed.dataset.nameVerificationSource, "staff_review");
+    assert.ok(reviewed.querySelector(".staff-details").textContent.includes(owner.real_name));
+    assert.equal(reviewed.querySelector(".staff-details").textContent.includes("他の関係者による確認ではありません"), false);
+    assert.equal(reviewed.querySelector('[data-staff-action="verify"]'), null);
+    assert.deepEqual(JSON.parse(JSON.stringify(context.calls.find(call => call.name === "office_verify_staff_identity").args)), {
+      p_user_id: peerId, p_real_name: "初代の登録名", p_reason: "初期登録後に本人と登録氏名を確認",
+    });
+    assert.equal(member.role, "owner");
+    assert.equal(context.calls.some(call => call.name === "office_set_staff_access" || /initial_owner/.test(call.name)), false);
+    assert.equal(context.notices[0][1], undefined);
+  } finally { context.controller.dispose(); context.dom.window.close(); }
+});
+
 test("Owner management suppresses self approval and separates requested duty from granted authority", async () => {
   const context = await app("staff_applications", {
     office_staff_applications: [

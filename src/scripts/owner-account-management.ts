@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { text as t, format } from "../lib/i18n";
+import { text as t, format, currentLocale, localizedDate } from "../lib/i18n";
 import { staffAuthRequest, validNewStaffPassword } from "./staff-auth";
+import { isInitialOwnerNameRegistration, staffNameVerificationLabel, staffNameVerifierLabel } from "../lib/staff-name-verification";
 
 // [편집 안내] Owner의 계정 편집은 별도 대화상자로 분리합니다. 현재 비밀번호·해시는
 // 요청하거나 표시하지 않으며, 실제 권한·자기 실명 확인 제한은 RPC와 Edge가 다시 검사합니다.
@@ -237,10 +238,14 @@ export function renderOwnerAccountManagement(
   }
   function renderAccount(account: Row) {
     const information = node("dl", "", "staff-details owner-account-details");
+    information.dataset.nameVerificationSource = text(account.name_verification_source);
     for (const [label, value] of [
       [t("アカウント識別番号"), targetUserId],
       [t("ログインID"), text(account.username) || "—"],
       [t("実名"), text(account.real_name) || "—"],
+      [t("実名確認"), staffNameVerificationLabel(account)],
+      [t("確認者"), staffNameVerifierLabel(account)],
+      [t("確認日時"), text(account.name_verified_at) ? localizedDate(text(account.name_verified_at), currentLocale(), true) : "—"],
       [
         t("パスワードの設定状態"),
         resetBlocked
@@ -256,6 +261,7 @@ export function renderOwnerAccountManagement(
       const detail = node("dd", value);
       if (label === t("パスワードの設定状態"))
         detail.dataset.ownerPasswordState = "true";
+      if (label === t("実名確認")) detail.dataset.ownerNameState = "true";
       item.append(node("dt", label), detail);
       information.append(item);
     }
@@ -274,6 +280,10 @@ export function renderOwnerAccountManagement(
     const identity = node("form", "", "staff-form owner-account-form");
     identity.dataset.ownerForm = "identity";
     identity.append(node("h3", t("ログインIDと実名を編集")));
+    if (isInitialOwnerNameRegistration(account))
+      identity.append(node("p", t("初代統括としての登録を確認した記録です。他の関係者が本人確認した記録ではありません。"), "owner-account-help"));
+    if (account.profile_enrollment_pending === true)
+      identity.append(node("p", t("本人による関係者情報の登録と案内の確認を完了してから、実名確認を記録してください。"), "owner-account-help"));
     const username = inputField(
       identity,
       t("ログインID"),
@@ -416,7 +426,10 @@ export function renderOwnerAccountManagement(
           )
             throw new Error("identity_save_uncertain");
           if (!live()) return;
-          notice(t("アカウント情報を保存しました。"));
+          // 이름을 저장한 사실과 확인 완료를 구분합니다. 아이디만 바꿔도 미확인 상태는 그대로입니다.
+          notice(saved.name_verified_at
+            ? t("アカウント情報を保存しました。")
+            : t("アカウント情報を保存しました。実名確認は未完了です。"));
           // 저장 확인과 재조회 실패를 구분하며, 자기 계정의 상단 표시도 따로 갱신합니다.
           // 성공 응답을 바로 그리므로 후속 목록 조회가 실패해도 예전 이름이 남지 않습니다.
           if (visible(version)) renderAccount(saved as Row);

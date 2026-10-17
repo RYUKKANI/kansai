@@ -59,6 +59,7 @@ Free 플랜에서 유출 비밀번호 차단은 활성화할 수 없어 Auth Adv
 
 마이그레이션 파일 버전은 원격 기록과 일치시키고 실행한 파일은 변경하지 않습니다.
 DB 변경은 새 마이그레이션으로 추가하고 권한 검사를 통과한 뒤 적용합니다.
+기존 단독 총괄의 미완료 프로필은 [최초 총괄 등록 절차](INITIAL_OWNER_SETUP.md)를 따릅니다. 일반 회원의 자기 승인과 분리한 유지보수 전용 경로이며, 명시적 요청과 안내 확인 없이 초기 등록을 완료하지 않습니다.
 `npm test`만 입력하면 파트 목록과 사용법을 보여주며 실제 검사를 실행하지 않습니다. 수정한 업무는 `npm run test:members`처럼 `test:<파트 ID>`로 필요한 테스트용 빌드와 해당 검사를 실행합니다. 여러 파트를 함께 바꿨다면 `npm run test:prepare -- --parts members,players` 후 `npm test -- --parts members,players`로 선택합니다. 전체 회귀 검사는 명시적으로 필요한 경우에만 `npm run test:full`로 실행합니다. 검사 범위와 실제 Auth 실행 조건은 [기능별 검사 안내](PART_CHECKS.md)를 따릅니다.
 실제 DB 검사는 supabase/tests/remote-permissions.sql로 실행하고 반드시 ROLLBACK합니다.
 공개 API 검사에는 publishable key만 사용하며 Supabase Advisors에서 보안 상태를 확인합니다.
