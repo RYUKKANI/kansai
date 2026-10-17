@@ -16,6 +16,7 @@ type Message = {
 };
 type Envelope = { user_id: string; room: Room };
 const roomName = (room: Room) => t(room === "players" ? "選手チャット" : "統括・スタッフチャット");
+const roomMembers = (room: Room) => room === "players" ? `${t("選手")} · ${t("統括")}` : `${t("統括")} · ${t("スタッフ")}`;
 const isRoom = (value: unknown): value is Room => value === "players" || value === "office";
 const record = (value: unknown): Record<string, unknown> | null => value !== null && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : null;
 
@@ -27,22 +28,40 @@ export function createClubChat(options: {
 }): ListController {
   const element = node("section", "", "club-chat");
   element.dataset.clubChat = "true";
-  const toolbar = node("div", "", "club-chat-toolbar");
-  const roomLabel = node("label", t("ルームを選択"), "club-chat-room-label");
-  const roomSelect = node("select", "", "club-chat-room-select");
-  roomSelect.setAttribute("aria-label", t("ルームを選択"));
-  roomLabel.append(roomSelect);
-  const reload = button(t("更新"), "club-chat-refresh");
+  element.dataset.view = "rooms";
+  const sidebar = node("aside", "", "club-chat-sidebar");
+  const sidebarHeader = node("div", "", "club-chat-sidebar-header");
+  sidebarHeader.append(node("h2", t("チームチャット")), node("p", "KANSAI UNITED FC"));
+  const roomList = node("nav", "", "club-chat-room-list");
+  roomList.setAttribute("aria-label", t("ルームを選択"));
+  const sidebarStatus = node("div", "", "club-chat-sidebar-status");
+  sidebarStatus.hidden = true;
+  const sidebarError = node("p", "", "club-chat-error");
+  const sidebarRetry = button(t("更新"), "club-chat-room-retry");
+  sidebarStatus.append(sidebarError, sidebarRetry);
+  sidebar.append(sidebarHeader, roomList, sidebarStatus);
+  const conversation = node("section", "", "club-chat-conversation");
+  const header = node("header", "", "club-chat-header");
+  const back = iconButton(t("戻る"), "club-chat-back", "back");
+  back.title = t("ルームを選択");
+  const headerAvatar = node("span", "", "club-chat-header-avatar");
+  headerAvatar.setAttribute("aria-hidden", "true");
+  const heading = node("div", "", "club-chat-heading");
+  const roomTitle = node("h2", "", "club-chat-title");
+  roomTitle.tabIndex = -1;
+  const subtitle = node("p", "", "club-chat-subtitle");
+  const reload = iconButton(t("更新"), "club-chat-refresh", "refresh");
   const connection = node("p", t("接続中…"), "club-chat-connection");
   connection.setAttribute("role", "status");
-  toolbar.append(roomLabel, reload, connection);
-  const roomTitle = node("h2", "", "club-chat-title");
+  heading.append(roomTitle, subtitle, connection);
+  header.append(back, headerAvatar, heading, reload);
   const help = node("p", t("個人の連絡先や健康情報、認証情報は投稿しないでください。"), "club-chat-help");
   const error = node("p", "", "club-chat-error");
   error.setAttribute("role", "alert");
   error.hidden = true;
   const older = button(t("過去のメッセージを表示"), "club-chat-older");
   older.hidden = true;
+  const history = node("div", "", "club-chat-history");
   const messages = node("ol", "", "club-chat-messages");
   messages.setAttribute("aria-label", t("メッセージ一覧"));
   messages.tabIndex = 0;
@@ -54,22 +73,30 @@ export function createClubChat(options: {
   input.setAttribute("aria-label", t("メッセージ"));
   input.required = true;
   input.maxLength = 2000;
-  input.rows = 3;
+  input.rows = 1;
   input.autocomplete = "off";
+  input.placeholder = t("メッセージ");
   inputLabel.append(input);
-  const send = button(t("送信"), "club-chat-send");
+  const send = button("", "club-chat-send");
+  const sendLabel = node("span", t("送信"), "club-chat-send-label");
+  send.append(icon("send"), sendLabel);
   send.type = "submit";
   const limit = node("span", "0 / 2,000", "club-chat-counter");
   const footer = node("div", "", "club-chat-composer-footer");
   footer.append(limit, send);
   form.append(inputLabel, footer);
-  element.append(toolbar, roomTitle, help, error, older, messages, announcement, form, node("p", t("時刻は日本時間です。"), "club-chat-help"));
+  history.append(older, messages, announcement);
+  conversation.append(header, help, error, history, form, node("p", t("時刻は日本時間です。"), "club-chat-help"));
+  element.append(sidebar, conversation);
 
   let disposed = false;
   let blocked = false;
   let room: Room | null = null;
   let role = "";
   let rooms: Room[] = [];
+  const roomButtons = new Map<Room, { button: HTMLButtonElement; preview: HTMLSpanElement; time: HTMLTimeElement }>();
+  let conversationOpened = false;
+  let parkedScroll: { top: number; atEnd: boolean } | null = null;
   let epoch = 0;
   let refreshSequence = 0;
   let readSequence = 0;
@@ -92,18 +119,93 @@ export function createClubChat(options: {
     result.type = "button";
     return result;
   }
+  function icon(kind: "back" | "refresh" | "send") {
+    const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    svg.setAttribute("viewBox", "0 0 24 24");
+    svg.setAttribute("aria-hidden", "true");
+    svg.setAttribute("focusable", "false");
+    const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    path.setAttribute("d", kind === "back" ? "M15 5 8 12l7 7" : kind === "refresh" ? "M20 7v5h-5M4 17v-5h5M6 7a7 7 0 0 1 12-1l2 3M4 15l2 3a7 7 0 0 0 12-1" : "m4 4 17 8-17 8 3-8-3-8Zm3 8h14");
+    path.setAttribute("fill", "none");
+    path.setAttribute("stroke", "currentColor");
+    path.setAttribute("stroke-width", "1.8");
+    path.setAttribute("stroke-linecap", "round");
+    path.setAttribute("stroke-linejoin", "round");
+    svg.append(path);
+    return svg;
+  }
+  function iconButton(label: string, className: string, kind: "back" | "refresh") {
+    const result = button("", className);
+    result.setAttribute("aria-label", label);
+    result.title = label;
+    result.append(icon(kind));
+    return result;
+  }
+  function revealConversation() {
+    element.dataset.view = "conversation";
+    resizeComposer();
+    if (parkedScroll) {
+      history.scrollTop = parkedScroll.atEnd ? history.scrollHeight : parkedScroll.top;
+      parkedScroll = null;
+    } else if (!conversationOpened) {
+      history.scrollTop = history.scrollHeight;
+      conversationOpened = true;
+    }
+    roomTitle.focus({ preventScroll: true });
+  }
+  function renderRooms() {
+    for (const value of roomButtons.keys()) if (!rooms.includes(value)) roomButtons.delete(value);
+    const buttons = rooms.map((value) => {
+      let item = roomButtons.get(value);
+      if (!item) {
+        const roomButton = button("", "club-chat-room-button");
+        roomButton.dataset.room = value;
+        const avatar = node("span", Array.from(roomName(value))[0] ?? "", "club-chat-room-avatar");
+        avatar.setAttribute("aria-hidden", "true");
+        const copy = node("span", "", "club-chat-room-copy");
+        const name = node("strong", roomName(value), "club-chat-room-name");
+        const preview = node("span", "", "club-chat-room-preview");
+        const time = node("time", "", "club-chat-room-time");
+        copy.append(name, preview);
+        roomButton.append(avatar, copy, time);
+        roomButton.addEventListener("click", () => { void selectRoom(value); });
+        item = { button: roomButton, preview, time };
+        roomButtons.set(value, item);
+      }
+      // 읽은 현재 방의 최신 글만 미리봅니다. 다른 방은 권한 밖 조회 없이 설명을 표시합니다.
+      const latest = value === room ? entries.at(-1) : null;
+      item.preview.textContent = latest ? latest.is_removed ? t("このメッセージは統括により削除されました。") : latest.body : roomMembers(value);
+      item.time.textContent = latest ? timeLabel(latest.created_at) : "";
+      item.time.hidden = !latest;
+      if (latest) item.time.dateTime = latest.created_at;
+      else item.time.removeAttribute("datetime");
+      item.button.setAttribute("aria-current", String(value === room));
+      item.button.disabled = blocked || (sending && value !== room);
+      return item.button;
+    });
+    // 같은 버튼을 다시 분리하지 않아 목록을 키보드로 탐색 중인 포커스를 보존합니다.
+    if (buttons.some((item, index) => roomList.children[index] !== item) || roomList.children.length !== buttons.length) roomList.replaceChildren(...buttons);
+  }
   function showError(text: string) {
     error.textContent = text;
     error.hidden = !text;
+    sidebarError.textContent = text;
+    sidebarStatus.hidden = !text;
+  }
+  function resizeComposer() {
+    input.style.height = "auto";
+    input.style.height = `${Math.min(92, Math.max(44, input.scrollHeight + 2))}px`;
   }
   function controls() {
     input.disabled = !confirmed || blocked;
     send.disabled = !confirmed || sending || blocked;
-    send.textContent = t(sending ? "送信中…" : "送信");
-    roomSelect.disabled = !rooms.length || sending || blocked;
+    sendLabel.textContent = t(sending ? "送信中…" : "送信");
+    for (const [value, item] of roomButtons) item.button.disabled = blocked || (sending && value !== room);
     older.disabled = loading || sending || blocked;
     older.hidden = !hasMore;
     reload.disabled = blocked;
+    back.disabled = blocked;
+    sidebarRetry.disabled = blocked;
   }
   function leaveChannel() {
     const previous = channel;
@@ -122,14 +224,18 @@ export function createClubChat(options: {
     loading = false;
     readAgain = false;
     sending = false;
+    conversationOpened = false;
+    parkedScroll = null;
     if (!keepDraft) {
       pending = null;
       input.value = "";
     }
     limit.textContent = `${input.value.length.toLocaleString("en-US")} / 2,000`;
+    resizeComposer();
     messages.replaceChildren();
     messages.removeAttribute("aria-busy");
     announcement.textContent = "";
+    renderRooms();
     leaveChannel();
     controls();
   }
@@ -139,8 +245,12 @@ export function createClubChat(options: {
     room = null;
     rooms = [];
     role = "";
-    roomSelect.replaceChildren();
+    roomList.replaceChildren();
+    roomButtons.clear();
+    element.dataset.view = "conversation";
     roomTitle.textContent = "";
+    subtitle.textContent = "";
+    headerAvatar.textContent = "";
     connection.textContent = "";
     showError(t("このチャットを利用する権限がありません。ページを再読み込みしてください。"));
     controls();
@@ -164,16 +274,25 @@ export function createClubChat(options: {
   }
   function timeLabel(value: string) {
     return new Intl.DateTimeFormat(intlLocales[currentLocale()], {
-      timeZone: "Asia/Tokyo", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", hourCycle: "h23",
+      timeZone: "Asia/Tokyo", hour: "2-digit", minute: "2-digit", hourCycle: "h23",
+    }).format(new Date(value));
+  }
+  function dayKey(value: string) {
+    const parts = new Intl.DateTimeFormat("en", { timeZone: "Asia/Tokyo", year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(new Date(value));
+    return ["year", "month", "day"].map((part) => parts.find((value) => value.type === part)?.value).join("-");
+  }
+  function dayLabel(value: string) {
+    return new Intl.DateTimeFormat(intlLocales[currentLocale()], {
+      timeZone: "Asia/Tokyo", year: "numeric", month: "long", day: "numeric", weekday: "short",
     }).format(new Date(value));
   }
   function renderMessages(scrollToEnd = false) {
-    const scrollTop = messages.scrollTop;
-    const scrollHeight = messages.scrollHeight;
-    const atEnd = scrollHeight - scrollTop - messages.clientHeight < 80;
+    const scrollTop = history.scrollTop;
+    const scrollHeight = history.scrollHeight;
+    const atEnd = scrollHeight - scrollTop - history.clientHeight < 80;
     const focused = messages.contains(document.activeElement) ? document.activeElement as HTMLElement | null : null;
     const next = new Map<string, { entry: Message; element: HTMLLIElement }>();
-    const nodes = entries.map((entry) => {
+    const messageNodes = entries.map((entry) => {
       const previous = rendered.get(entry.id);
       // 일반 갱신은 같은 메시지의 폼·포커스를 유지합니다. 삭제 tombstone이나 내용 변경은
       // 새 노드로 교체하므로 확정 삭제된 본문과 작성 중인 삭제 사유가 화면에 남지 않습니다.
@@ -184,28 +303,56 @@ export function createClubChat(options: {
       const item = node("li", "", "club-chat-message");
       item.dataset.messageId = entry.id;
       item.dataset.own = String(entry.sender_id === options.userId);
-      const meta = node("div", "", "club-chat-message-meta");
-      meta.append(node("strong", entry.sender_name?.trim() || t("実名未確認の関係者")), node("span", roleLabels[entry.sender_role] ?? t("関係者")));
-      const time = node("time", timeLabel(entry.created_at));
+      const name = entry.sender_name?.trim() || t("実名未確認の関係者");
+      const avatar = node("span", entry.sender_name?.trim() ? Array.from(entry.sender_name.trim())[0] : "?", "club-chat-message-avatar");
+      avatar.setAttribute("aria-hidden", "true");
+      const content = node("div", "", "club-chat-message-content");
+      const author = node("div", "", "club-chat-message-name");
+      author.append(node("strong", name), node("span", roleLabels[entry.sender_role] ?? t("関係者"), "club-chat-message-role"));
+      const bubble = node("div", "", "club-chat-bubble-row");
+      const time = node("time", timeLabel(entry.created_at), "club-chat-message-time");
       time.dateTime = entry.created_at;
-      meta.append(time);
+      time.title = `${dayLabel(entry.created_at)} ${timeLabel(entry.created_at)}`;
       const body = node("p", entry.is_removed ? t("このメッセージは統括により削除されました。") : entry.body, "club-chat-message-body");
       if (entry.is_removed) item.dataset.removed = "true";
-      item.append(meta, body);
+      bubble.append(body, time);
+      content.append(author, bubble);
+      item.append(avatar, content);
       if (role === "owner" && !entry.is_removed) {
-        const remove = button(t("メッセージを削除"), "club-chat-remove");
+        const remove = button("⋯", "club-chat-remove");
+        remove.setAttribute("aria-label", t("メッセージを削除"));
+        remove.title = t("メッセージを削除");
         remove.addEventListener("click", () => openRemoval(item, entry, remove));
-        item.append(remove);
+        bubble.append(remove);
       }
       next.set(entry.id, { entry, element: item });
       return item;
+    });
+    const nodes: HTMLLIElement[] = [];
+    let previousDay = "";
+    entries.forEach((entry, index) => {
+      const day = dayKey(entry.created_at);
+      if (day !== previousDay) {
+        const separator = node("li", "", "club-chat-day");
+        const date = node("time", dayLabel(entry.created_at));
+        date.dateTime = day;
+        separator.append(date);
+        nodes.push(separator);
+        previousDay = day;
+      }
+      nodes.push(messageNodes[index]!);
     });
     rendered = next;
     messages.replaceChildren(...nodes);
     if (!entries.length) messages.append(node("li", t("まだメッセージはありません。"), "club-chat-empty"));
     if (focused?.isConnected) focused.focus({ preventScroll: true });
-    if (scrollToEnd || atEnd) messages.scrollTop = messages.scrollHeight;
-    else messages.scrollTop = scrollTop;
+    // 목록에서 가려진 대화는 스크롤 크기가 0으로 측정될 수 있습니다. 복귀 위치는
+    // 뒤로 가기 직전의 값으로 유지하고 실제 대화가 열린 뒤에만 다시 적용합니다.
+    if (!parkedScroll || element.dataset.view === "conversation") {
+      if (scrollToEnd || atEnd) history.scrollTop = history.scrollHeight;
+      else history.scrollTop = scrollTop;
+    }
+    renderRooms();
   }
   function openRemoval(item: HTMLLIElement, entry: Message, trigger: HTMLButtonElement) {
     if (!current() || role !== "owner" || !room || item.querySelector("form")) return;
@@ -251,7 +398,7 @@ export function createClubChat(options: {
       }
     });
     trigger.hidden = true;
-    item.append(removeForm);
+    item.querySelector(".club-chat-message-content")!.append(removeForm);
     reason.focus();
   }
   async function readMessages(appendOlder = false) {
@@ -286,13 +433,13 @@ export function createClubChat(options: {
         cursor = batch[0]!.id;
       }
       const previousLast = entries.at(-1)?.id;
-      const previousHeight = messages.scrollHeight;
-      const previousTop = messages.scrollTop;
+      const previousHeight = history.scrollHeight;
+      const previousTop = history.scrollTop;
       entries = appendOlder ? [...page, ...entries].filter((entry, index, all) => all.findIndex((candidate) => candidate.id === entry.id) === index).slice(-250) : page;
       hasMore = more && entries.length < 250;
       confirmed = true;
       renderMessages(!appendOlder && !previousLast);
-      if (appendOlder) messages.scrollTop = previousTop + messages.scrollHeight - previousHeight;
+      if (appendOlder && (!parkedScroll || element.dataset.view === "conversation")) history.scrollTop = previousTop + history.scrollHeight - previousHeight;
       else if (previousLast && previousLast !== entries.at(-1)?.id) announcement.textContent = t("新しいメッセージがあります");
       showError("");
     } catch (issue) {
@@ -302,6 +449,7 @@ export function createClubChat(options: {
       entries = [];
       rendered.clear();
       messages.replaceChildren();
+      renderRooms();
       hasMore = false;
       showError(t("メッセージを取得できませんでした。再試行してください。"));
     } finally {
@@ -331,12 +479,26 @@ export function createClubChat(options: {
       connection.textContent = t("再接続を待っています。定期的に更新します。");
     }
   }
-  async function selectRoom(target: Room) {
-    if (!current() || !rooms.includes(target)) return;
+  async function selectRoom(target: Room, reveal = true) {
+    if (!current() || !rooms.includes(target) || (sending && target !== room)) return;
+    // 목록으로 돌아오는 동작은 방·구독·입력을 그대로 둡니다. 같은 방 재진입도 다시
+    // 초기화하지 않아 모바일에서 작성 중이던 글과 읽던 위치를 이어갈 수 있습니다.
+    if (target === room) {
+      if (reveal) revealConversation();
+      if (!confirmed && !loading) {
+        const version = epoch;
+        await readMessages();
+        if (same(version, target) && confirmed && !channel) subscribe(target, version);
+      }
+      return;
+    }
     clearPrivate();
     room = target;
-    roomSelect.value = target;
     roomTitle.textContent = roomName(target);
+    subtitle.textContent = roomMembers(target);
+    headerAvatar.textContent = Array.from(roomName(target))[0] ?? "";
+    renderRooms();
+    if (reveal) revealConversation();
     showError("");
     const version = epoch;
     await readMessages();
@@ -356,19 +518,18 @@ export function createClubChat(options: {
       const allowed = data.rooms.map((value) => record(value)?.id);
       if (allowed.some((value) => !isRoom(value)) || allowed.length > 2 || new Set(allowed).size !== allowed.length) throw new Error("invalid_response");
       if (allowed.some((value) => data.role !== "owner" && value !== (data.role === "player" ? "players" : "office"))) throw new Error("invalid_response");
-      if (role && role !== data.role) clearPrivate();
+      if (role && role !== data.role) {
+        clearPrivate();
+        room = null;
+        element.dataset.view = "rooms";
+      }
       role = String(data.role);
       rooms = allowed as Room[];
-      roomSelect.replaceChildren(...rooms.map((value) => {
-        const option = node("option", roomName(value));
-        option.value = value;
-        return option;
-      }));
+      renderRooms();
       if (!rooms.length) { deny(); return; }
-      if (!room || !rooms.includes(room)) await selectRoom(rooms[0]!);
+      if (!room || !rooms.includes(room)) await selectRoom(rooms[0]!, false);
       else {
         const target = room;
-        roomSelect.value = target;
         await readMessages();
         if (current() && room === target && confirmed && !channel) subscribe(target, epoch);
       }
@@ -380,10 +541,18 @@ export function createClubChat(options: {
       controls();
     }
   }
-  roomSelect.addEventListener("change", () => { if (isRoom(roomSelect.value) && !sending) void selectRoom(roomSelect.value); });
+  back.addEventListener("click", () => {
+    parkedScroll = { top: history.scrollTop, atEnd: history.scrollHeight - history.scrollTop - history.clientHeight < 80 };
+    element.dataset.view = "rooms";
+    if (room) roomButtons.get(room)?.button.focus({ preventScroll: true });
+  });
   reload.addEventListener("click", () => { void refresh(); });
+  sidebarRetry.addEventListener("click", () => { void refresh(); });
   older.addEventListener("click", () => { void readMessages(true); });
-  input.addEventListener("input", () => { limit.textContent = `${input.value.length.toLocaleString("en-US")} / 2,000`; });
+  input.addEventListener("input", () => {
+    limit.textContent = `${input.value.length.toLocaleString("en-US")} / 2,000`;
+    resizeComposer();
+  });
   form.addEventListener("submit", async (event) => {
     event.preventDefault();
     if (!current() || !room || sending || !confirmed || !form.reportValidity()) return;
@@ -405,12 +574,12 @@ export function createClubChat(options: {
       const sent = parseMessage(result.message);
       if (sent.sender_id !== options.userId) throw new Error("invalid_response");
       pending = null;
-      if (input.value.trim() === body) { input.value = ""; limit.textContent = "0 / 2,000"; }
+      if (input.value.trim() === body) { input.value = ""; limit.textContent = "0 / 2,000"; resizeComposer(); }
       entries = [...entries.filter((entry) => entry.id !== sent.id), sent]
         .sort((left, right) => BigInt(left.id) < BigInt(right.id) ? -1 : BigInt(left.id) > BigInt(right.id) ? 1 : 0)
         .slice(-250);
       renderMessages(true);
-      input.focus();
+      if (element.dataset.view === "conversation" || window.matchMedia?.("(max-width: 700px)").matches === false) input.focus();
     } catch (issue) {
       if (!same(version, target)) return;
       if (forbidden(issue)) { deny(); return; }
@@ -432,6 +601,19 @@ export function createClubChat(options: {
       authTimer = setTimeout(() => { authTimer = null; if (current()) void refresh(); }, 0);
     }
   });
+  // 모바일 키보드로 줄어든 실제 뷰포트에 작성란을 맞춥니다. 시각 뷰포트 API가
+  // 없는 환경에서는 CSS의 dvh 기본값을 쓰며 구독 정리 때 이 리스너도 제거합니다.
+  const viewport = window.visualViewport;
+  const fitViewport = () => {
+    if (viewport) element.style.setProperty("--club-chat-viewport-height", `${viewport.height}px`);
+    element.dataset.compact = String((viewport?.height ?? window.innerHeight) < 500);
+    const globalHeader = document.querySelector<HTMLElement>(".admin-header");
+    if (globalHeader) element.style.setProperty("--club-chat-mobile-header", `${Math.max(0, globalHeader.getBoundingClientRect().bottom)}px`);
+    resizeComposer();
+  };
+  fitViewport();
+  viewport?.addEventListener("resize", fitViewport);
+  window.addEventListener("resize", fitViewport);
   controls();
   return {
     element, refresh,
@@ -441,11 +623,14 @@ export function createClubChat(options: {
       clearInterval(timer);
       if (authTimer !== null) clearTimeout(authTimer);
       document.removeEventListener("visibilitychange", visible);
+      viewport?.removeEventListener("resize", fitViewport);
+      window.removeEventListener("resize", fitViewport);
       auth?.data.subscription.unsubscribe();
       clearPrivate();
       rooms = [];
       room = null;
       role = "";
+      roomButtons.clear();
       element.replaceChildren();
     },
   };
