@@ -15,6 +15,9 @@ type Message = {
   created_at: string;
 };
 type Envelope = { user_id: string; room: Room };
+export interface ClubChatController extends ListController {
+  setVisible: (visible: boolean) => void;
+}
 const roomName = (room: Room) => t(room === "players" ? "選手チャット" : "統括・スタッフチャット");
 const roomMembers = (room: Room) => room === "players" ? `${t("選手")} · ${t("統括")}` : `${t("統括")} · ${t("スタッフ")}`;
 const isRoom = (value: unknown): value is Room => value === "players" || value === "office";
@@ -25,9 +28,11 @@ export function createClubChat(options: {
   client: SupabaseClient;
   userId: string;
   isCurrent: () => boolean;
-}): ListController {
+  widget?: boolean;
+}): ClubChatController {
   const element = node("section", "", "club-chat");
   element.dataset.clubChat = "true";
+  if (options.widget) element.dataset.widget = "true";
   element.dataset.view = "rooms";
   const sidebar = node("aside", "", "club-chat-sidebar");
   const sidebarHeader = node("div", "", "club-chat-sidebar-header");
@@ -97,6 +102,8 @@ export function createClubChat(options: {
   const roomButtons = new Map<Room, { button: HTMLButtonElement; preview: HTMLSpanElement; time: HTMLTimeElement }>();
   let conversationOpened = false;
   let parkedScroll: { top: number; atEnd: boolean } | null = null;
+  let visible = true;
+  let hiddenScroll: { top: number; atEnd: boolean } | null = null;
   let epoch = 0;
   let refreshSequence = 0;
   let readSequence = 0;
@@ -226,6 +233,7 @@ export function createClubChat(options: {
     sending = false;
     conversationOpened = false;
     parkedScroll = null;
+    hiddenScroll = null;
     if (!keepDraft) {
       pending = null;
       input.value = "";
@@ -345,10 +353,10 @@ export function createClubChat(options: {
     rendered = next;
     messages.replaceChildren(...nodes);
     if (!entries.length) messages.append(node("li", t("まだメッセージはありません。"), "club-chat-empty"));
-    if (focused?.isConnected) focused.focus({ preventScroll: true });
+    if (visible && focused?.isConnected) focused.focus({ preventScroll: true });
     // 목록에서 가려진 대화는 스크롤 크기가 0으로 측정될 수 있습니다. 복귀 위치는
     // 뒤로 가기 직전의 값으로 유지하고 실제 대화가 열린 뒤에만 다시 적용합니다.
-    if (!parkedScroll || element.dataset.view === "conversation") {
+    if (visible && (!parkedScroll || element.dataset.view === "conversation")) {
       if (scrollToEnd || atEnd) history.scrollTop = history.scrollHeight;
       else history.scrollTop = scrollTop;
     }
@@ -399,7 +407,7 @@ export function createClubChat(options: {
     });
     trigger.hidden = true;
     item.querySelector(".club-chat-message-content")!.append(removeForm);
-    reason.focus();
+    if (visible) reason.focus();
   }
   async function readMessages(appendOlder = false) {
     if (!current() || !room || (appendOlder && !hasMore)) return;
@@ -439,7 +447,7 @@ export function createClubChat(options: {
       hasMore = more && entries.length < 250;
       confirmed = true;
       renderMessages(!appendOlder && !previousLast);
-      if (appendOlder && (!parkedScroll || element.dataset.view === "conversation")) history.scrollTop = previousTop + history.scrollHeight - previousHeight;
+      if (appendOlder && visible && (!parkedScroll || element.dataset.view === "conversation")) history.scrollTop = previousTop + history.scrollHeight - previousHeight;
       else if (previousLast && previousLast !== entries.at(-1)?.id) announcement.textContent = t("新しいメッセージがあります");
       showError("");
     } catch (issue) {
@@ -579,7 +587,10 @@ export function createClubChat(options: {
         .sort((left, right) => BigInt(left.id) < BigInt(right.id) ? -1 : BigInt(left.id) > BigInt(right.id) ? 1 : 0)
         .slice(-250);
       renderMessages(true);
-      if (element.dataset.view === "conversation" || window.matchMedia?.("(max-width: 700px)").matches === false) input.focus();
+      // 플로팅 창은 다른 업무와 함께 열려 있습니다. 전송을 기다리는 동안 사용자가
+      // 업무 양식으로 이동했다면 늦은 성공 응답이 채팅 입력으로 포커스를 빼앗지 않습니다.
+      if (visible && (!options.widget || form.contains(document.activeElement))
+        && (element.dataset.view === "conversation" || (!options.widget && window.matchMedia?.("(max-width: 700px)").matches === false))) input.focus();
     } catch (issue) {
       if (!same(version, target)) return;
       if (forbidden(issue)) { deny(); return; }
@@ -591,8 +602,8 @@ export function createClubChat(options: {
   });
   // 연결이 끊겨도 상태를 재검사합니다. 브라우저 복귀 시 기존 역할을 신뢰하지 않습니다.
   const timer = setInterval(() => { if (current() && document.visibilityState !== "hidden" && !sending && !loading) void refresh(); }, 20_000);
-  const visible = () => { if (document.visibilityState !== "hidden" && current()) void refresh(); };
-  document.addEventListener("visibilitychange", visible);
+  const onVisibilityChange = () => { if (document.visibilityState !== "hidden" && current()) void refresh(); };
+  document.addEventListener("visibilitychange", onVisibilityChange);
   const auth = options.client.auth?.onAuthStateChange((event, session) => {
     if (disposed) return;
     if (event === "SIGNED_OUT" || (session && session.user.id !== options.userId)) { deny(); return; }
@@ -617,12 +628,24 @@ export function createClubChat(options: {
   controls();
   return {
     element, refresh,
+    setVisible(value) {
+      if (disposed || value === visible) return;
+      // 최소화는 로그아웃이 아닙니다. 숨겨진 창의 0px 치수로 위치를 덮어쓰지 않고,
+      // 권한·실시간 갱신은 계속 검사하면서 다시 열 때 원래 읽던 위치만 복구합니다.
+      if (!value) hiddenScroll = parkedScroll ?? { top: history.scrollTop, atEnd: history.scrollHeight - history.scrollTop - history.clientHeight < 80 };
+      visible = value;
+      if (value) {
+        resizeComposer();
+        if (hiddenScroll && !parkedScroll) history.scrollTop = hiddenScroll.atEnd ? history.scrollHeight : hiddenScroll.top;
+        hiddenScroll = null;
+      }
+    },
     dispose() {
       disposed = true;
       refreshSequence++;
       clearInterval(timer);
       if (authTimer !== null) clearTimeout(authTimer);
-      document.removeEventListener("visibilitychange", visible);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
       viewport?.removeEventListener("resize", fitViewport);
       window.removeEventListener("resize", fitViewport);
       auth?.data.subscription.unsubscribe();

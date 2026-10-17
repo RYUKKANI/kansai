@@ -1,0 +1,157 @@
+/* 팀 채팅은 다른 업무를 떠나지 않고 열 수 있는 작은 창입니다. 전역 화면을 가리는 배경은 두지 않습니다. */
+.club-chat-widget {
+  --chat-widget-gap: 16px;
+  --chat-widget-launcher: 64px;
+  --chat-widget-keyboard: max(0px, calc(100dvh - var(--club-chat-widget-viewport-height, 100dvh) - var(--club-chat-widget-viewport-top, 0px)));
+  position: fixed;
+  z-index: 40;
+  inset-inline-end: max(var(--chat-widget-gap), env(safe-area-inset-right));
+  bottom: calc(var(--chat-widget-keyboard) + max(var(--chat-widget-gap), env(safe-area-inset-bottom)));
+  width: var(--chat-widget-launcher);
+  height: var(--chat-widget-launcher);
+  color: #243c50;
+  font-family: inherit;
+}
+.club-chat-widget,
+.club-chat-widget * { box-sizing: border-box; }
+.club-chat-widget[hidden],
+.club-chat-widget [hidden] { display: none !important; }
+.club-chat-widget button { font: inherit; cursor: pointer; touch-action: manipulation; }
+.club-chat-widget button:focus-visible { outline: 3px solid #315a85; outline-offset: 3px; }
+.club-chat-widget .club-chat-launcher {
+  display: grid;
+  place-items: center;
+  width: var(--chat-widget-launcher);
+  height: var(--chat-widget-launcher);
+  min-width: 44px;
+  min-height: 44px;
+  border: 1px solid #a3c8e8;
+  border-radius: 50%;
+  padding: 0;
+  background: #93bde2;
+  color: #fff;
+  box-shadow: 0 6px 20px #25435f2e, 0 1px 4px #25435f21;
+}
+.club-chat-launcher:hover { background: #80b0d8; }
+.club-chat-launcher svg { display: block; width: 31px; height: 31px; }
+.club-chat-widget-panel {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  inset-inline-end: 0;
+  bottom: calc(var(--chat-widget-launcher) + 12px);
+  width: min(400px, calc(var(--club-chat-widget-viewport-width, 100vw) - var(--chat-widget-gap) * 2));
+  height: min(570px, calc(var(--club-chat-widget-viewport-height, 100dvh) - var(--club-chat-widget-top-safe, 76px) - var(--chat-widget-launcher) - var(--chat-widget-gap) - 24px));
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  border: 1px solid #d7e1e9;
+  border-radius: 18px;
+  background: #fbfbfa;
+  box-shadow: 0 14px 50px #1a36532e, 0 3px 12px #1a365317;
+}
+.club-chat-widget-toolbar {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 0;
+  min-height: 54px;
+  border-bottom: 1px solid #e9edf0;
+  padding: 5px 8px 5px 18px;
+  background: #fff;
+}
+.club-chat-widget-toolbar h2 { min-width: 0; margin: 0; color: #2d4355; font-size: 14px; font-weight: 700; line-height: 1.5; overflow-wrap: anywhere; }
+.club-chat-widget .club-chat-widget-close { display: grid; flex: none; place-items: center; width: 44px; height: 44px; min-height: 44px; border: 0; border-radius: 8px; padding: 10px; background: transparent; color: #71808c; }
+.club-chat-widget-close:hover { background: #f1f5f8; color: #344e63; }
+.club-chat-widget-close svg { display: block; width: 20px; height: 20px; }
+.club-chat-widget-body { display: flex; flex: 1 1 auto; min-width: 0; min-height: 0; overflow: hidden; }
+/* 기존 전체 화면 스타일보다 우선합니다. 작은 창은 PC에서도 방 목록과 대화를 한 화면씩 표시합니다. */
+.club-chat-widget .club-chat[data-widget="true"],
+.club-chat-widget .club-chat[data-widget="true"][data-view="conversation"] {
+  position: static;
+  z-index: auto;
+  inset: auto;
+  display: grid;
+  flex: 1 1 auto;
+  grid-template-columns: minmax(0, 1fr);
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  max-height: none;
+  border: 0;
+  border-radius: 0;
+  background: #fbfbfa;
+  box-shadow: none;
+}
+.club-chat-widget .club-chat[data-view="rooms"] .club-chat-conversation,
+.club-chat-widget .club-chat[data-view="conversation"] .club-chat-sidebar { display: none; }
+.club-chat-widget .club-chat[data-view="conversation"] .club-chat-conversation { display: flex; }
+.club-chat-widget .club-chat-sidebar { border: 0; }
+.club-chat-widget .club-chat-sidebar-header { padding: 17px 18px 14px; }
+.club-chat-widget .club-chat-sidebar-header h2 { font-size: 19px; }
+.club-chat-widget .club-chat-sidebar-header p { margin-top: 5px; font-size: 10px; letter-spacing: 0.04em; }
+.club-chat-widget .club-chat-room-list { flex: 1 1 auto; }
+.club-chat-widget .club-chat .club-chat-room-button { grid-template-columns: 44px minmax(0, 1fr) auto; gap: 11px; min-height: 86px; padding: 16px 16px 16px 18px; }
+.club-chat-widget .club-chat-room-avatar { width: 44px; height: 44px; border-radius: 15px; }
+.club-chat-widget .club-chat-room-name { font-size: 13px; }
+.club-chat-widget .club-chat-room-preview { font-size: 11px; }
+.club-chat-widget .club-chat-room-time { display: block; font-size: 9px; }
+.club-chat-widget .club-chat-header { gap: 7px; min-height: 72px; padding: 8px 8px 8px 4px; }
+.club-chat-widget .club-chat .club-chat-back { display: grid; flex: none; place-items: center; width: 44px; height: 44px; padding: 10px; color: #324e63; }
+.club-chat-widget .club-chat-header-avatar { width: 32px; height: 32px; border-radius: 11px; font-size: 13px; }
+.club-chat-widget .club-chat-title { font-size: 13px; }
+.club-chat-widget .club-chat-subtitle,
+.club-chat-widget .club-chat-connection { font-size: 9px; line-height: 1.4; }
+.club-chat-widget .club-chat-conversation > .club-chat-help { padding: 7px 14px 0; font-size: 9px; }
+.club-chat-widget .club-chat-conversation > .club-chat-help:last-child { padding: 0 12px 7px; }
+.club-chat-widget .club-chat-history { padding: 14px 10px 18px; scrollbar-gutter: auto; }
+.club-chat-widget .club-chat-messages { gap: 14px; }
+.club-chat-widget .club-chat-day { margin-top: 3px; font-size: 9px; }
+.club-chat-widget .club-chat-message { gap: 6px; }
+.club-chat-widget .club-chat-message-avatar { width: 28px; height: 28px; border-radius: 10px; font-size: 11px; }
+.club-chat-widget .club-chat-message-name { margin-bottom: 4px; font-size: 10px; }
+.club-chat-widget .club-chat-message-body { max-width: 280px; padding: 9px 10px; font-size: 12px; }
+.club-chat-widget .club-chat-message-time { font-size: 8px; }
+.club-chat-widget .club-chat-bubble-row { gap: 4px; }
+.club-chat-widget .club-chat-composer { gap: 6px; padding: 9px 10px 5px; }
+.club-chat-widget .club-chat .club-chat-input { padding: 10px 5px; font-size: 16px; line-height: 1.5; }
+.club-chat-widget .club-chat-composer-footer { gap: 0; }
+.club-chat-widget .club-chat-counter { display: none; }
+.club-chat-widget .club-chat .club-chat-send { min-width: 54px; padding: 10px 11px; font-size: 11px; }
+.club-chat-widget .club-chat-send svg { display: none; }
+.club-chat-widget .club-chat-error { margin: 8px 12px 0; padding: 8px 10px; font-size: 11px; }
+.club-chat-widget .club-chat-empty { min-height: 100px; padding: 24px 12px; font-size: 11px; }
+.club-chat-widget .club-chat-removal input { font-size: 16px; }
+/* 축소된 시각 뷰포트에서도 닫기·뒤로·작성 버튼을 유지하고 안내문만 접습니다. */
+.club-chat-widget[data-open="true"][data-compact="true"] .club-chat-launcher { visibility: hidden; pointer-events: none; }
+.club-chat-widget[data-open="true"][data-compact="true"] .club-chat-widget-panel {
+  bottom: 0;
+  height: min(570px, calc(var(--club-chat-widget-viewport-height, 100dvh) - var(--club-chat-widget-top-safe, 76px) - var(--chat-widget-gap) - 12px));
+}
+.club-chat-widget[data-compact="true"] .club-chat-widget-toolbar { min-height: 48px; padding-block: 2px; }
+.club-chat-widget[data-compact="true"] .club-chat-sidebar-header { padding-block: 10px; }
+.club-chat-widget[data-compact="true"] .club-chat-header { min-height: 48px; padding-block: 2px; }
+.club-chat-widget[data-compact="true"] .club-chat-header-avatar,
+.club-chat-widget[data-compact="true"] .club-chat-subtitle,
+.club-chat-widget[data-compact="true"] .club-chat-conversation > .club-chat-help { display: none; }
+.club-chat-widget[data-compact="true"] .club-chat-history { padding-block: 8px; }
+.club-chat-widget[data-compact="true"] .club-chat-composer { padding-top: 5px; padding-bottom: 5px; }
+.club-chat-widget[data-compact="true"] .club-chat .club-chat-input { max-height: 56px; }
+@media (max-width: 480px) {
+  .club-chat-widget { --chat-widget-gap: 12px; --chat-widget-launcher: 60px; }
+  .club-chat-widget-panel { width: min(400px, calc(var(--club-chat-widget-viewport-width, 100vw) - 24px)); border-radius: 16px; }
+}
+@media (max-width: 360px) {
+  .club-chat-widget .club-chat-room-time { display: none; }
+  .club-chat-widget .club-chat .club-chat-room-button { grid-template-columns: 40px minmax(0, 1fr); padding-inline: 14px; gap: 10px; }
+  .club-chat-widget .club-chat-room-avatar { width: 40px; height: 40px; }
+  .club-chat-widget .club-chat-header-avatar { display: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .club-chat-widget *,
+  .club-chat-widget *::before,
+  .club-chat-widget *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+}

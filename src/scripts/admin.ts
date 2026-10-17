@@ -42,7 +42,7 @@ import { renderStaffOffice } from "./admin-staff";
 import { buildDashboard } from "./admin-dashboard";
 import { renderPublicationStatus } from "./admin-publication-status";
 import { createPlayerPortal } from "./player-portal";
-import { createClubChat } from "./club-chat";
+import { createClubChatWidget } from "./club-chat-widget";
 import { createTrainingAttendance } from "./training-attendance";
 import { normalizeMemberGrade } from "../lib/member-grades";
 import { attachPlayerEditor, type PlayerEditor } from "./admin-player";
@@ -106,6 +106,7 @@ let role: StaffRole | null = null;
 let userId: string | null = null;
 let current: OfficePage = "dashboard";
 let currentList: ListController | null = null;
+let chatWidget: ReturnType<typeof createClubChatWidget> | null = null;
 let currentStaff: Awaited<ReturnType<typeof renderStaffOffice>> | null = null;
 let staffAuth: ReturnType<typeof mountStaffAuth> | null = null;
 let ownIdentity: StaffAccountState | null = null;
@@ -262,6 +263,8 @@ function resetLogin(invalidateRequests = true) {
   // 로그아웃 직전에 시작한 비동기 권한 조회가 비공개 화면을 다시 열지 못하게 합니다.
   if (invalidateRequests) authenticationVersion++;
   resetEditorSaving();
+  chatWidget?.dispose();
+  chatWidget = null;
   currentStaff?.dispose();
   currentStaff = null;
   ownIdentity = null;
@@ -329,7 +332,7 @@ async function authenticate(preserveForms = false) {
   if (error || !data.user) {
     // 창 복귀는 로그아웃이 아닙니다. 비공개 화면이 없는 무세션 입력 양식은 그대로 둡니다.
     const currentView = staffAuth?.currentView();
-    const hasPrivateView = Boolean(role || userId || ownIdentity || currentStaff || currentList || editor.open ||
+    const hasPrivateView = Boolean(role || userId || ownIdentity || currentStaff || currentList || chatWidget || editor.open ||
       !$("#workspace").hidden || !$("#header-account").hidden ||
       $("#admin-content").childElementCount || $("#admin-navigation").childElementCount);
     if (preserveForms && !hasPrivateView &&
@@ -426,6 +429,7 @@ async function authenticate(preserveForms = false) {
   syncSidebar();
   // 토큰 갱신 때 진행 중인 검색·달력·편집 화면을 덮어쓰지 않습니다.
   if (unchanged) {
+    syncClubChatWidget();
     syncIdentityEnrollmentAction();
     return;
   }
@@ -439,8 +443,26 @@ async function authenticate(preserveForms = false) {
       : {},
   );
   staffIdentityAvailable = staffIdentityUiEnabled && staffIdentityDatabaseEnabled;
+  syncClubChatWidget();
   navigation();
   await show(role === "player" ? "player_portal" : "dashboard");
+}
+// 승인된 현재 계정에만 런처를 붙입니다. 업무 목록의 requestId와 분리하여 페이지 이동이
+// 대화를 폐기하지 않게 하되, resetLogin의 계정·역할 경계에서는 반드시 함께 정리합니다.
+function syncClubChatWidget() {
+  if (!client || !role || !userId || !clubChatEnabled || $("#workspace").hidden) {
+    chatWidget?.dispose();
+    chatWidget = null;
+    return;
+  }
+  if (chatWidget) return;
+  const accountId = userId;
+  const grade = role;
+  chatWidget = createClubChatWidget({
+    client, userId: accountId,
+    isCurrent: () => userId === accountId && role === grade && clubChatEnabled && document.body.dataset.authenticated === "true",
+  });
+  document.body.append(chatWidget.element);
 }
 function navigation() {
   const navigation = $("#admin-navigation");
@@ -682,10 +704,15 @@ async function show(
   await publicationStatus(version);
   $("#resource-title").focus();
 }
-// 채팅·출석도 다른 비공개 목록과 같은 수명주기로 정리해 계정 전환 후 응답을 버립니다.
+// 채팅 메뉴는 현재 업무를 바꾸지 않고 플로팅 창을 엽니다. 출석만 업무 영역을 사용합니다.
 async function showClubTool(page: ClubToolsPage) {
   if (!client || !role || !userId ||
       (page === "club_chat" ? !clubChatEnabled : !trainingAttendanceEnabled)) return;
+  if (page === "club_chat") {
+    syncClubChatWidget();
+    chatWidget?.open();
+    return;
+  }
   currentStaff?.dispose();
   currentStaff = null;
   currentList?.dispose();
@@ -711,7 +738,7 @@ async function showClubTool(page: ClubToolsPage) {
     client, userId: accountId,
     isCurrent: () => version === requestId && userId === accountId && role === grade && current === page,
   };
-  const controller = page === "club_chat" ? createClubChat(options) : createTrainingAttendance(options);
+  const controller = createTrainingAttendance(options);
   currentList = controller;
   $("#admin-content").replaceChildren(controller.element);
   await controller.refresh();
@@ -808,6 +835,7 @@ function syncIdentityEnrollmentAction() {
       currentStaff?.dispose();
       currentStaff = null;
       $("#workspace").hidden = true;
+      syncClubChatWidget();
       $("#login-panel").hidden = false;
       staffAuth?.showMigration(identity);
     });

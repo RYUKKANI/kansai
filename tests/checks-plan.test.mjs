@@ -18,7 +18,7 @@ const plan = (...files) => planChecks({ files });
 const sameParts = (actual, expected) => assert.deepEqual(actual.selected_parts, partIds.filter((id) => expected.includes(id)));
 
 test("chat and attendance modules select their own feature checks", () => {
-  for (const [id, module] of [["chat", "club-chat"], ["attendance", "training-attendance"]]) {
+  for (const [id, module] of [["chat", "club-chat"], ["chat", "club-chat-widget"], ["attendance", "training-attendance"]]) {
     for (const file of [`src/scripts/${module}.ts`, `src/styles/${module}.css`]) {
       const result = plan(file);
       sameParts(result, [id]);
