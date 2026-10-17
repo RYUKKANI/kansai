@@ -211,6 +211,269 @@
   color: #334b69;
   font-weight: 600;
 }
+/* 멤버 관리는 검색 결과와 선택한 계정만 펼칩니다. 명부·내 계정·감사 기록의 기존 카드는 유지합니다. */
+.member-search {
+  gap: 1.5rem;
+}
+.member-search-header {
+  display: grid;
+  gap: 0.35rem;
+  min-width: 0;
+}
+.member-search-header .staff-section-title {
+  font-size: clamp(1.15rem, 2vw, 1.4rem);
+  line-height: 1.5;
+}
+.member-search-header .staff-help {
+  margin: 0;
+}
+.member-search-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 1rem;
+  padding: clamp(1rem, 2.6vw, 1.5rem);
+  border: 1px solid #d5e1ef;
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: 0 4px 18px rgb(19 43 81 / 3%);
+}
+.member-search-field {
+  min-width: 0;
+  gap: 0.6rem;
+  color: #172f53;
+  font-size: 0.88rem;
+}
+.member-search-field input[type="search"] {
+  min-height: 48px;
+  border-color: #b8c9de;
+  border-radius: 9px;
+  padding: 0.8rem 1rem;
+  background: #fbfcff;
+  font-size: 1rem;
+  line-height: 1.4;
+}
+.member-search-field input[type="search"]::placeholder {
+  color: #687b95;
+  opacity: 1;
+}
+.member-search-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem;
+  min-width: 0;
+}
+.member-search-submit,
+.member-search-clear,
+.member-workspace-close {
+  min-height: 48px;
+  border-radius: 9px;
+  padding: 0.75rem 1.15rem;
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 700;
+  line-height: 1.4;
+  cursor: pointer;
+}
+.member-search-submit {
+  background: #154f99;
+}
+.member-search-clear,
+.member-workspace-close {
+  border: 1px solid #c2d0e1;
+  background: #fff;
+  color: #25476f;
+}
+.member-search-clear:hover,
+.member-workspace-close:hover {
+  border-color: #7e9cc1;
+  background: #f4f8fd;
+}
+.member-search-guidance {
+  margin: 0;
+  padding: clamp(1.2rem, 3vw, 2rem);
+  border: 1px dashed #bdcde0;
+  border-radius: 14px;
+  background: #f8fafd;
+  color: #526985;
+  font-size: 0.92rem;
+  line-height: 1.8;
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+.member-search-results {
+  display: grid;
+  gap: 1rem;
+  min-width: 0;
+}
+.member-search-results-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.4rem 1rem;
+}
+.member-search-results-heading h3 {
+  margin: 0;
+  color: #173354;
+  font-size: 1rem;
+  line-height: 1.6;
+}
+.member-search-status {
+  margin: 0;
+  color: #5d718b;
+  font-size: 0.85rem;
+  line-height: 1.65;
+  overflow-wrap: anywhere;
+}
+.member-search-results-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.8rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.member-result-item {
+  min-width: 0;
+}
+.member-result {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-content: start;
+  gap: 0.35rem 0.75rem;
+  width: 100%;
+  height: 100%;
+  min-height: 118px;
+  padding: 1rem 1.1rem;
+  border: 1px solid #d3deeb;
+  border-radius: 12px;
+  background: #fff;
+  color: #172f53;
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+  overflow-wrap: anywhere;
+}
+.member-result:hover {
+  border-color: #86a6cd;
+  background: #f8fbff;
+}
+.member-result[aria-pressed="true"] {
+  border-color: #1c5aab;
+  background: #edf4ff;
+  box-shadow: inset 0 0 0 1px #1c5aab;
+}
+.member-result-name,
+.member-result-id,
+.member-result-meta {
+  grid-column: 1;
+  min-width: 0;
+}
+.member-result-name {
+  color: #142f53;
+  font-size: 1rem;
+  font-weight: 700;
+  line-height: 1.55;
+}
+.member-result-id {
+  color: #405f84;
+  font-size: 0.86rem;
+  line-height: 1.5;
+}
+.member-result-meta {
+  color: #64758b;
+  font-size: 0.78rem;
+  line-height: 1.6;
+}
+.member-result > .staff-status {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  align-self: start;
+  max-width: 100%;
+  line-height: 1.5;
+}
+/* 선택 창은 결과 목록 아래의 독립 작업 영역입니다. 비밀번호 편집창은 기존 native dialog를 사용합니다. */
+.member-workspace {
+  display: grid;
+  min-width: 0;
+  scroll-margin-top: 1.5rem;
+  border: 1px solid #b9cde4;
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: 0 6px 24px rgb(19 43 81 / 5%);
+}
+.member-workspace-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.85rem 1rem;
+  padding: 1rem clamp(1rem, 2.6vw, 1.5rem);
+  border-bottom: 1px solid #d5e1ef;
+  border-radius: 15px 15px 0 0;
+  background: #edf4fc;
+}
+.member-workspace-title {
+  min-width: 0;
+  margin: 0;
+  color: #132e53;
+  font-size: 1.08rem;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+.member-workspace-close {
+  flex-shrink: 0;
+  min-height: 44px;
+  padding: 0.6rem 0.9rem;
+  font-size: 0.82rem;
+}
+.member-workspace-summary {
+  border: 0;
+  border-radius: 0 0 15px 15px;
+}
+.member-workspace > .staff-help {
+  margin: 1rem clamp(1rem, 2.6vw, 1.5rem) 0;
+}
+.member-workspace-summary .staff-card-heading h4 {
+  margin: 0;
+  color: #132b51;
+  font-size: 1.08rem;
+}
+.member-workspace-summary > .staff-details {
+  gap: 1rem 1.5rem;
+  padding-bottom: 0.5rem;
+}
+.member-workspace-summary > .staff-form {
+  margin-top: 1rem;
+  padding: 1rem;
+  border: 1px solid #e0e8f2;
+  border-radius: 10px;
+  background: #f8fafd;
+}
+.member-workspace-summary > .owner-account-management {
+  margin-top: 1.2rem;
+  padding-top: 1.2rem;
+  border-top: 1px solid #e0e8f2;
+}
+.member-workspace-corrections {
+  margin: 0 clamp(1rem, 2.6vw, 1.5rem) clamp(1rem, 2.6vw, 1.5rem);
+  padding-top: 1.25rem;
+  border-top: 1px solid #dce4ef;
+}
+.member-search-clear:focus-visible,
+.member-result:focus-visible,
+.member-workspace-close:focus-visible,
+.member-workspace-title:focus {
+  outline: 3px solid #57a6ff;
+  outline-offset: 4px;
+}
+.member-search-results[hidden],
+.member-workspace[hidden],
+.member-search-guidance[hidden] {
+  display: none;
+}
 /* Owner 계정 창은 native dialog의 포커스 제한을 사용합니다. 좁은 화면에서는 창 안에서 스크롤합니다. */
 .owner-account-dialog {
   box-sizing: border-box;
@@ -287,5 +550,27 @@
   }
   .staff-button {
     width: 100%;
+  }
+  .member-search-form,
+  .member-search-results-list {
+    grid-template-columns: 1fr;
+  }
+  .member-search-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .member-search-submit,
+  .member-search-clear {
+    width: 100%;
+    padding-inline: 0.6rem;
+  }
+  .member-result {
+    padding: 1rem;
+  }
+  .member-workspace-heading {
+    align-items: start;
+  }
+  .member-workspace-title {
+    flex: 1 1 12rem;
   }
 }
