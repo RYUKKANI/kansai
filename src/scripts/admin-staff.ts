@@ -692,7 +692,7 @@ export async function renderStaffOffice(
     const isManagementCurrent = () => current() && sequence === viewToken && section.isConnected;
     const members = rows.filter((member) => string(member.user_id));
     const header = element("header", "", "member-search-header");
-    header.append(title(t("メンバー管理")), note(t("ログインIDまたは実名で検索し、管理するアカウントを選択してください。")));
+    header.append(title(t("メンバー管理")), note(t("一覧から管理するアカウントを選択してください。ログインIDまたは実名で絞り込めます。")));
     const search = element("form", "", "member-search-form");
     search.setAttribute("role", "search");
     search.setAttribute("aria-label", t("メンバーを検索"));
@@ -717,10 +717,9 @@ export async function renderStaffOffice(
     clearButton.dataset.memberSearchAction = "clear";
     actions.append(searchButton, clearButton);
     search.append(searchLabel, actions);
-    const guidance = element("p", t("検索すると候補が表示されます。アカウントを選択するまで管理フォームは開きません。"), "member-search-guidance");
     const results = element("section", "", "member-search-results");
     const resultsHeading = element("div", "", "member-search-results-heading");
-    const resultsTitle = element("h3", t("検索結果"));
+    const resultsTitle = element("h3", t("メンバー一覧"));
     resultsTitle.id = `member-search-results-title-${instance}`;
     results.setAttribute("aria-labelledby", resultsTitle.id);
     const resultStatus = element("p", "", "member-search-status");
@@ -728,12 +727,16 @@ export async function renderStaffOffice(
     resultStatus.setAttribute("aria-live", "polite");
     resultStatus.setAttribute("aria-atomic", "true");
     resultsHeading.append(resultsTitle, resultStatus);
+    const columns = element("div", "", "member-list-columns");
+    columns.setAttribute("aria-hidden", "true");
+    for (const label of [t("実名"), t("ログインID"), t("所属等級"), t("承認状況")])
+      columns.append(element("span", label));
     let matchingCount = 0;
     const resultList = element("ul", "", "member-search-results-list");
     const empty = element("p", t("一致するアカウントがありません。ログインIDまたは実名を確認してください。"), "member-search-guidance");
-    results.append(resultsHeading, resultList, empty);
+    results.append(resultsHeading, columns, resultList, empty);
     const workspaceHost = element("div", "", "member-workspace-host");
-    section.append(header, search, guidance, results, workspaceHost);
+    section.append(header, search, results, workspaceHost);
 
     // 검색은 정규화한 사본으로만 수행합니다. 실제 표시 이름·아이디는 RPC 원문을 유지하고,
     // 이름이 같아도 선택과 모든 변경 요청은 변하지 않는 계정 UUID로만 연결합니다.
@@ -776,19 +779,24 @@ export async function renderStaffOffice(
         ...workspaceHost.querySelectorAll<HTMLButtonElement>("[data-member-search-action=close], .owner-account-trigger")];
       for (const control of controls) control.disabled = busy;
       resultStatus.textContent = busy ? t("保存中です。完了までお待ちください。") :
-        hasMemberSearch ? format("検索結果: {0}件", String(matchingCount)) : "";
+        format(hasMemberSearch ? "検索結果: {0}件" : "全{0}件", String(matchingCount));
     }
     syncMemberNavigation = syncNavigation;
     function renderResults() {
       const query = normalized(memberSearchQuery);
-      const matches = hasMemberSearch && query ? members.filter((member) =>
+      // 처음부터 전체 목록을 표시하고 검색은 그 목록을 좁히는 용도로만 사용합니다.
+      // 빈 검색·초기화는 전체 목록으로 돌아가며 관리 폼은 계정을 선택할 때만 만듭니다.
+      const matches = query ? members.filter((member) =>
         normalized(string(member.login_id ?? member.username)).includes(query) ||
-        normalized(string(member.real_name)).includes(query)) : [];
-      results.hidden = !hasMemberSearch;
-      guidance.hidden = hasMemberSearch;
+        normalized(string(member.real_name)).includes(query)) : members;
+      resultsTitle.textContent = t(hasMemberSearch ? "検索結果" : "メンバー一覧");
       matchingCount = matches.length;
       resultList.replaceChildren();
-      empty.hidden = !hasMemberSearch || matches.length > 0;
+      empty.hidden = matches.length > 0;
+      empty.textContent = t(hasMemberSearch
+        ? "一致するアカウントがありません。ログインIDまたは実名を確認してください。"
+        : "表示できるメンバーはいません。");
+      columns.hidden = matches.length === 0;
       for (const member of matches) {
         const id = string(member.user_id);
         const item = element("li", "", "member-result-item");
@@ -802,6 +810,9 @@ export async function renderStaffOffice(
           element("span", roleText(member.member_grade ?? member.role), "member-result-meta"),
           status(state(member.approval_status), string(member.approval_status)),
         );
+        const openMark = element("span", "›", "member-result-open");
+        openMark.setAttribute("aria-hidden", "true");
+        button.append(openMark);
         button.addEventListener("click", () => {
           if (busy || !isManagementCurrent()) return;
           selectedMemberId = id;
@@ -850,7 +861,7 @@ export async function renderStaffOffice(
     heading.tabIndex = -1;
     section.setAttribute("aria-labelledby", heading.id);
     const header = element("header", "", "member-workspace-heading");
-    const closeButton = element("button", t("検索結果に戻る"), "staff-button member-workspace-close");
+    const closeButton = element("button", t("一覧に戻る"), "staff-button member-workspace-close");
     closeButton.type = "button";
     closeButton.dataset.memberSearchAction = "close";
     closeButton.addEventListener("click", () => {
