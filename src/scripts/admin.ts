@@ -32,6 +32,9 @@ import {
   staffOfficePages,
   staffOfficeTitle,
   type StaffOfficePage,
+  isClubToolsPage,
+  clubToolsTitle,
+  type ClubToolsPage,
 } from "../lib/admin-ui";
 import { mountStaffAuth } from "./staff-auth";
 import type { StaffAccountState } from "../lib/staff-auth-types";
@@ -39,6 +42,8 @@ import { renderStaffOffice } from "./admin-staff";
 import { buildDashboard } from "./admin-dashboard";
 import { renderPublicationStatus } from "./admin-publication-status";
 import { createPlayerPortal } from "./player-portal";
+import { createClubChat } from "./club-chat";
+import { createTrainingAttendance } from "./training-attendance";
 import { normalizeMemberGrade } from "../lib/member-grades";
 import { attachPlayerEditor, type PlayerEditor } from "./admin-player";
 import { uploadOfficePhoto } from "./admin-photo";
@@ -65,6 +70,8 @@ import {
   resourceAvailable,
   scheduleEnabled,
   staffIdentityDatabaseEnabled,
+  clubChatEnabled,
+  trainingAttendanceEnabled,
 } from "../lib/office-features";
 
 // [편집 안내] 로그인 → 역할 확인 → 목록/대시보드 → 양식 저장 순서입니다.
@@ -444,6 +451,8 @@ function navigation() {
     for (const name of [
       ...(role === "player" ? ["player_portal"] : ["dashboard"]),
       ...(scheduleEnabled && role !== "player" ? ["schedule"] : []),
+      ...(clubChatEnabled ? ["club_chat"] : []),
+      ...(trainingAttendanceEnabled ? ["training_attendance"] : []),
       ...(staffIdentityAvailable ? staffOfficePages : []),
       ...Object.keys(resources),
     ] as OfficePage[]) {
@@ -451,6 +460,8 @@ function navigation() {
       const staffPage = isStaffOfficePage(name);
       const permitted = staffPage
         ? Boolean(role) && (role !== "player" || name === "staff_account") && (name !== "staff_applications" || role === "owner")
+        : isClubToolsPage(name)
+          ? Boolean(role)
         : name === "dashboard"
           ? Boolean(role) && role !== "player"
           : name === "player_portal"
@@ -468,6 +479,8 @@ function navigation() {
       const label =
         staffPage
           ? staffOfficeTitle(name)
+          : isClubToolsPage(name)
+          ? clubToolsTitle(name)
           : name === "player_portal"
           ? t("選手ホーム")
           : name === "dashboard"
@@ -510,6 +523,10 @@ async function show(
 ) {
   if (resource === "player_portal") {
     await showPlayerPortal();
+    return;
+  }
+  if (isClubToolsPage(resource)) {
+    await showClubTool(resource);
     return;
   }
   if (role === "player" && resource !== "staff_account") return;
@@ -664,6 +681,41 @@ async function show(
   if (version !== requestId || !role) return;
   await publicationStatus(version);
   $("#resource-title").focus();
+}
+// 채팅·출석도 다른 비공개 목록과 같은 수명주기로 정리해 계정 전환 후 응답을 버립니다.
+async function showClubTool(page: ClubToolsPage) {
+  if (!client || !role || !userId ||
+      (page === "club_chat" ? !clubChatEnabled : !trainingAttendanceEnabled)) return;
+  currentStaff?.dispose();
+  currentStaff = null;
+  currentList?.dispose();
+  currentList = null;
+  const version = ++requestId;
+  const accountId = userId;
+  const grade = role;
+  current = page;
+  const title = clubToolsTitle(page);
+  const info = officePages[page];
+  $("#resource-title").textContent = title;
+  $("#header-page-title").textContent = title;
+  $("#page-eyebrow").textContent = info.group + " / " + info.english;
+  $("#page-description").textContent = info.description;
+  $("#new-button").hidden = true;
+  $("#publication-status").replaceChildren();
+  $("#publication-status").hidden = true;
+  $("#admin-navigation").querySelectorAll<HTMLElement>("[data-resource]").forEach(button => {
+    if (button.dataset.resource === page) button.setAttribute("aria-current", "page");
+    else button.removeAttribute("aria-current");
+  });
+  const options = {
+    client, userId: accountId,
+    isCurrent: () => version === requestId && userId === accountId && role === grade && current === page,
+  };
+  const controller = page === "club_chat" ? createClubChat(options) : createTrainingAttendance(options);
+  currentList = controller;
+  $("#admin-content").replaceChildren(controller.element);
+  await controller.refresh();
+  if (options.isCurrent()) $("#resource-title").focus();
 }
 async function showPlayerPortal() {
   if (!client || role !== "player" || !userId) return;
@@ -887,7 +939,7 @@ async function openEditor(
   row: Row | null,
   context: EditorContext | null = null,
 ) {
-  if (!client || !role || !userId || current === "dashboard" || current === "schedule" || current === "player_portal" || isStaffOfficePage(current))
+  if (!client || !role || !userId || current === "dashboard" || current === "schedule" || current === "player_portal" || isStaffOfficePage(current) || isClubToolsPage(current))
     return;
   const resource = context?.resource ?? current;
   if (!resources[resource].roles.includes(role)) return;
@@ -1938,7 +1990,7 @@ if (!client) {
   window.addEventListener("focus", refresh);
 }
 $("#new-button").addEventListener("click", () => {
-  if (isStaffOfficePage(current)) return;
+  if (isStaffOfficePage(current) || isClubToolsPage(current)) return;
   if (current === "admin_roles" || current === "player_portal") return;
   void run(() => openEditor(null));
 });

@@ -4,6 +4,8 @@ export let scheduleEnabled = false;
 export let contentEnabled = false;
 export let publisherEnabled = false;
 export let staffIdentityDatabaseEnabled = false;
+export let clubChatEnabled = false;
+export let trainingAttendanceEnabled = false;
 const publicFields: Field[] = [
   {
     name: "is_public",
@@ -18,6 +20,8 @@ export function configureOffice(capabilities: Record<string, unknown>) {
   contentEnabled = capabilities.content === true;
   publisherEnabled = capabilities.publisher === true;
   staffIdentityDatabaseEnabled = capabilities.staff_identity === true;
+  clubChatEnabled = capabilities.club_chat === true;
+  trainingAttendanceEnabled = capabilities.training_attendance === true;
   resources.training_sessions.fields =
     resources.training_sessions.fields.filter(
       (field) => !publicFields.some((item) => item.name === field.name),

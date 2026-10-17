@@ -11,7 +11,7 @@ on:
         required: true
         default: dashboard
         type: choice
-        options: [dashboard, auth, members, content, players, schedule, media, public, security, tooling, all]
+        options: [dashboard, auth, members, content, players, schedule, chat, attendance, media, public, security, tooling, all]
   schedule:
     - cron: '7,22,37,52 * * * *'
 permissions:

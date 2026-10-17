@@ -73,6 +73,10 @@ function sourceScope(file) {
     return { ids: ["auth", "members", "security"], native: true, reason: "authentication_boundary" };
   if (file === "src/scripts/admin-staff.ts") return { ids: ["members", "auth", "security"], native: true, reason: "member_access" };
   if (file === "src/scripts/player-portal.ts") return { ids: ["players", "members", "security"], native: true, reason: "player_access" };
+  if (file === "src/scripts/club-chat.ts" || file === "src/styles/club-chat.css")
+    return { ids: ["chat"], native: false, reason: "club_chat" };
+  if (file === "src/scripts/training-attendance.ts" || file === "src/styles/training-attendance.css")
+    return { ids: ["attendance"], native: false, reason: "training_attendance" };
   if (/^src\/scripts\/admin-(?:content|translations)\.ts$/.test(file))
     return { ids: ["content", "media"], native: false, reason: "content_editor" };
   if (/^src\/scripts\/admin-(?:player|photo)\.ts$/.test(file))

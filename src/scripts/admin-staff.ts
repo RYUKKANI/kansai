@@ -176,6 +176,7 @@ function safeError(error: unknown): string {
 // 개인정보를 DB에서 이미 마스킹해도 화면에서 한 번 더 제한합니다. 새 업무 필드를 노출하려면
 // 서버 allowlist와 이 목록을 함께 검토해야 합니다. 비밀·연락처·건강 값은 절대 펼치지 않습니다.
 const visibleAuditFields = new Set([
+  "self_checked_at",
   "title",
   "slug",
   "summary",
@@ -234,6 +235,7 @@ const visibleAuditFields = new Set([
 ]);
 // 기록의 필드 이름은 업무 화면과 같은 문구로만 바꿔 표시합니다. 공개 허용 목록과 민감 정보 마스킹은 위 규칙을 그대로 따릅니다.
 const auditFieldLabels: Record<string, string> = {
+  self_checked_at: "本人の出席確認日時",
   title: "タイトル",
   slug: "記事・プロフィールのURL",
   summary: "概要",
@@ -329,6 +331,9 @@ function auditAction(row: Row): string {
     insert: t("作成"),
     update: t("変更"),
     delete: t("削除"),
+    training_self_checked_in: t("本人による出席チェック"),
+    training_attendance_changed: t("練習出席の変更"),
+    chat_message_removed: t("チャットメッセージの削除"),
     publish: t("公開"),
     unpublish: t("公開取消"),
     support_password_reset_requested: t("パスワード支援の受付"),
@@ -361,6 +366,8 @@ function auditEntity(value: unknown): string {
     public_player_profiles: t("公開プロフィール"),
     fixtures: t("試合"),
     training_sessions: t("練習"),
+    attendance: t("練習出席"),
+    office_chat_messages: t("チームチャット"),
     training_series: t("定期練習"),
     match_events: t("試合記録"),
     club_events: t("クラブ行事"),
@@ -440,15 +447,19 @@ export function renderStaffAuditEntry(row: Row): HTMLElement {
       if (!visibleAuditFields.has(name) || forbiddenField.test(name)) {
         item.textContent = t("非公開項目を変更（値は表示しません）");
       } else {
-        item.append(element("strong", t(auditFieldLabels[name] ?? name)));
+        const attendanceStatus = name === "status" && row.entity === "attendance";
+        item.append(element("strong", t(attendanceStatus ? "出席状況" : auditFieldLabels[name] ?? name)));
+        const fieldValue = (value: unknown) => attendanceStatus
+          ? t(({ present: "出席", late: "遅刻", absent: "欠席", excused: "公欠" } as Record<string, string>)[string(value)] ?? "未記録")
+          : auditFieldValue(name, value);
         if (Object.hasOwn(before, name) || Object.hasOwn(after, name)) {
           item.append(
             element(
               "span",
               format(
                 "{0} → {1}",
-                auditFieldValue(name, before[name]),
-                auditFieldValue(name, after[name]),
+                fieldValue(before[name]),
+                fieldValue(after[name]),
               ),
             ),
           );

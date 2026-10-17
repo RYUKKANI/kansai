@@ -17,6 +17,16 @@ const planner = path.join(repository, "scripts/plan-checks.mjs");
 const plan = (...files) => planChecks({ files });
 const sameParts = (actual, expected) => assert.deepEqual(actual.selected_parts, partIds.filter((id) => expected.includes(id)));
 
+test("chat and attendance modules select their own feature checks", () => {
+  for (const [id, module] of [["chat", "club-chat"], ["attendance", "training-attendance"]]) {
+    for (const file of [`src/scripts/${module}.ts`, `src/styles/${module}.css`]) {
+      const result = plan(file);
+      sameParts(result, [id]);
+      assert.equal(result.native_auth, false);
+    }
+  }
+});
+
 // 파일 단위 선택이 작게 유지되면서 권한·기반 변경은 넓게 검사하는지 확인합니다.
 test("dashboard module and extracted publication status run only the dashboard fixture", () => {
   for (const file of ["src/scripts/admin-dashboard.ts", "src/scripts/admin-publication-status.ts", "src/styles/admin-dashboard.css"]) {
