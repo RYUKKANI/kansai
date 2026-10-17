@@ -75,9 +75,11 @@ export function createClubChat(options: {
   let readSequence = 0;
   let sending = false;
   let loading = false;
+  let readAgain = false;
   let hasMore = false;
   let confirmed = false;
   let entries: Message[] = [];
+  let rendered = new Map<string, { entry: Message; element: HTMLLIElement }>();
   let pending: { room: Room; body: string; nonce: string } | null = null;
   let channel: RealtimeChannel | null = null;
   let invalidation: ReturnType<typeof setTimeout> | null = null;
@@ -115,8 +117,10 @@ export function createClubChat(options: {
     readSequence++;
     confirmed = false;
     entries = [];
+    rendered.clear();
     hasMore = false;
     loading = false;
+    readAgain = false;
     sending = false;
     if (!keepDraft) {
       pending = null;
@@ -167,7 +171,16 @@ export function createClubChat(options: {
     const scrollTop = messages.scrollTop;
     const scrollHeight = messages.scrollHeight;
     const atEnd = scrollHeight - scrollTop - messages.clientHeight < 80;
+    const focused = messages.contains(document.activeElement) ? document.activeElement as HTMLElement | null : null;
+    const next = new Map<string, { entry: Message; element: HTMLLIElement }>();
     const nodes = entries.map((entry) => {
+      const previous = rendered.get(entry.id);
+      // 일반 갱신은 같은 메시지의 폼·포커스를 유지합니다. 삭제 tombstone이나 내용 변경은
+      // 새 노드로 교체하므로 확정 삭제된 본문과 작성 중인 삭제 사유가 화면에 남지 않습니다.
+      if (previous && (Object.keys(entry) as (keyof Message)[]).every((key) => previous.entry[key] === entry[key])) {
+        next.set(entry.id, previous);
+        return previous.element;
+      }
       const item = node("li", "", "club-chat-message");
       item.dataset.messageId = entry.id;
       item.dataset.own = String(entry.sender_id === options.userId);
@@ -184,10 +197,13 @@ export function createClubChat(options: {
         remove.addEventListener("click", () => openRemoval(item, entry, remove));
         item.append(remove);
       }
+      next.set(entry.id, { entry, element: item });
       return item;
     });
+    rendered = next;
     messages.replaceChildren(...nodes);
     if (!entries.length) messages.append(node("li", t("まだメッセージはありません。"), "club-chat-empty"));
+    if (focused?.isConnected) focused.focus({ preventScroll: true });
     if (scrollToEnd || atEnd) messages.scrollTop = messages.scrollHeight;
     else messages.scrollTop = scrollTop;
   }
@@ -239,27 +255,41 @@ export function createClubChat(options: {
     reason.focus();
   }
   async function readMessages(appendOlder = false) {
-    if (!current() || !room || (appendOlder && (loading || !hasMore))) return;
+    if (!current() || !room || (appendOlder && !hasMore)) return;
+    // 바쁜 방에서도 진행 중인 여러 페이지 조회를 매 이벤트마다 취소하지 않습니다.
+    // 조회 중 도착한 알림은 한 번 더 읽도록 합쳐 완성된 창을 차례로 표시합니다.
+    if (loading) { if (!appendOlder) readAgain = true; return; }
     const target = room;
     const version = epoch;
     const sequence = ++readSequence;
     const before = appendOlder ? entries[0]?.id ?? null : null;
+    const retainedPages = appendOlder ? 1 : Math.min(5, Math.max(1, Math.ceil(entries.length / 50)));
     loading = true;
     messages.setAttribute("aria-busy", "true");
     controls();
     try {
-      const response = await options.client.rpc("office_chat_messages", { p_room: target, p_before: before });
-      if (!same(version, target) || sequence !== readSequence) return;
-      if (response.error) throw response.error;
-      const data = envelope(response.data, target);
-      if (!Array.isArray(data.messages) || data.messages.length > 50 || typeof data.has_more !== "boolean") throw new Error("invalid_response");
-      const page = data.messages.map(parseMessage);
+      let cursor = before;
+      let page: Message[] = [];
+      let more = false;
+      // 펼쳐 놓은 과거 기록도 최대 5페이지까지 다시 읽습니다. 캐시를 단순 병합하지 않아
+      // 오래된 페이지의 삭제를 반영하면서 정기 갱신 때 읽던 기록이 50개로 줄지 않습니다.
+      for (let index = 0; index < retainedPages; index++) {
+        const response = await options.client.rpc("office_chat_messages", { p_room: target, p_before: cursor });
+        if (!same(version, target) || sequence !== readSequence) return;
+        if (response.error) throw response.error;
+        const data = envelope(response.data, target);
+        if (!Array.isArray(data.messages) || data.messages.length > 50 || typeof data.has_more !== "boolean") throw new Error("invalid_response");
+        const batch = data.messages.map(parseMessage);
+        page = [...batch, ...page];
+        more = data.has_more;
+        if (!more || !batch.length) break;
+        cursor = batch[0]!.id;
+      }
       const previousLast = entries.at(-1)?.id;
       const previousHeight = messages.scrollHeight;
       const previousTop = messages.scrollTop;
-      // 새 이벤트에서는 과거 캐시도 교체하여 삭제된 오래된 본문이 남지 않게 합니다.
       entries = appendOlder ? [...page, ...entries].filter((entry, index, all) => all.findIndex((candidate) => candidate.id === entry.id) === index).slice(-250) : page;
-      hasMore = data.has_more && entries.length < 250;
+      hasMore = more && entries.length < 250;
       confirmed = true;
       renderMessages(!appendOlder && !previousLast);
       if (appendOlder) messages.scrollTop = previousTop + messages.scrollHeight - previousHeight;
@@ -270,6 +300,7 @@ export function createClubChat(options: {
       if (forbidden(issue) || (issue instanceof Error && issue.message === "invalid_response")) { deny(); return; }
       confirmed = false;
       entries = [];
+      rendered.clear();
       messages.replaceChildren();
       hasMore = false;
       showError(t("メッセージを取得できませんでした。再試行してください。"));
@@ -278,6 +309,7 @@ export function createClubChat(options: {
         loading = false;
         messages.removeAttribute("aria-busy");
         controls();
+        if (readAgain) { readAgain = false; void readMessages(); }
       }
     }
   }
