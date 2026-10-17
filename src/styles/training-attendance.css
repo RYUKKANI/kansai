@@ -1,0 +1,192 @@
+/* [편집 안내] 출석 화면은 작은 휴대전화에서도 이름·사유·버튼을 한 줄에 억지로 넣지 않습니다.
+   공개 선수 화면이나 기존 일정 편집기에는 적용되지 않는 내부 업무 전용 스타일입니다. */
+.training-attendance,
+.training-attendance-content {
+  display: grid;
+  gap: 1rem;
+  min-width: 0;
+}
+.training-attendance-toolbar,
+.training-attendance-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+.training-attendance-day {
+  margin: 0;
+  color: #19385f;
+  font-weight: 700;
+}
+.training-attendance-button {
+  min-height: 44px;
+  padding: 0.7rem 1rem;
+  border: 1px solid #154f99;
+  border-radius: 8px;
+  color: #fff;
+  background: #154f99;
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+.training-attendance-button-secondary {
+  color: #154f99;
+  background: #fff;
+}
+.training-attendance-button:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+.training-attendance-button:focus-visible,
+.training-attendance-field input:focus-visible,
+.training-attendance-field select:focus-visible {
+  outline: 3px solid #78b8ff;
+  outline-offset: 3px;
+}
+.training-attendance-message {
+  margin: 0;
+  color: #166444;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+.training-attendance-message:empty {
+  display: none;
+}
+.training-attendance-message[data-kind="error"] {
+  color: #a13131;
+}
+.training-attendance-help,
+.training-attendance-note,
+.training-attendance-empty {
+  margin: 0;
+  color: #52637b;
+  font-size: 0.88rem;
+  line-height: 1.7;
+  overflow-wrap: anywhere;
+}
+.training-attendance-empty {
+  padding: 1.5rem;
+  border: 1px dashed #bac8db;
+  border-radius: 12px;
+  background: #fff;
+}
+.training-attendance-session {
+  min-width: 0;
+  padding: clamp(1rem, 2.6vw, 1.5rem);
+  border: 1px solid #dce4ef;
+  border-radius: 12px;
+  background: #fff;
+  color: #172b49;
+  overflow-wrap: anywhere;
+}
+.training-attendance-heading h3 {
+  margin: 0;
+  color: #132b51;
+  font-size: 1.1rem;
+}
+.training-attendance-details {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.85rem 1rem;
+  margin: 1rem 0;
+}
+.training-attendance-details dt {
+  margin-bottom: 0.25rem;
+  color: #62718a;
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+.training-attendance-details dd {
+  margin: 0;
+  font-size: 0.9rem;
+  line-height: 1.6;
+  white-space: pre-wrap;
+}
+.training-attendance-player {
+  display: grid;
+  gap: 0.75rem;
+  min-width: 0;
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid #e2e8f1;
+}
+.training-attendance-player h4 {
+  margin: 0;
+  font-size: 1rem;
+  color: #19385f;
+}
+.training-attendance-record,
+.training-attendance-own {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem 0.75rem;
+}
+.training-attendance-record > p {
+  flex-basis: 100%;
+}
+.training-attendance-status {
+  border-radius: 100px;
+  padding: 0.3rem 0.7rem;
+  color: #43536c;
+  background: #eef2f8;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+.training-attendance-status[data-attendance-status="present"] {
+  color: #166444;
+  background: #e7f6ef;
+}
+.training-attendance-status[data-attendance-status="late"] {
+  color: #7d5b08;
+  background: #fff5db;
+}
+.training-attendance-status[data-attendance-status="absent"] {
+  color: #a13131;
+  background: #fff0f0;
+}
+.training-attendance-form {
+  display: grid;
+  grid-template-columns: minmax(7rem, 0.45fr) minmax(10rem, 1fr) auto;
+  align-items: end;
+  gap: 0.75rem;
+  min-width: 0;
+}
+.training-attendance-field {
+  display: grid;
+  gap: 0.4rem;
+  min-width: 0;
+  color: #334b69;
+  font-weight: 600;
+  font-size: 0.82rem;
+}
+.training-attendance-field input,
+.training-attendance-field select {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  min-height: 44px;
+  padding: 0.65rem 0.75rem;
+  border: 1px solid #bac8db;
+  border-radius: 8px;
+  color: #132b51;
+  background: #fff;
+  font: inherit;
+  font-size: 1rem;
+  font-weight: 400;
+}
+@media (max-width: 700px) {
+  .training-attendance-details,
+  .training-attendance-form {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .training-attendance-form .training-attendance-button {
+    justify-self: start;
+    max-width: 100%;
+  }
+  .training-attendance-heading .office-badge {
+    flex-shrink: 0;
+  }
+}

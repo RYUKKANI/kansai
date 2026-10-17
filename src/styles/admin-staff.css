@@ -492,12 +492,22 @@
 .member-search-guidance[hidden] {
   display: none;
 }
-/* Owner 계정 창은 native dialog의 포커스 제한을 사용합니다. 좁은 화면에서는 창 안에서 스크롤합니다. */
-.owner-account-dialog {
+/* 초기화 스타일이 지운 native dialog의 자동 여백을 복구합니다.
+ * 안전 영역의 큰 쪽을 양쪽에 똑같이 확보해 가로·세로 중앙을 유지하고,
+ * 긴 계정 정보는 화면 밖으로 밀지 않고 창 안에서 스크롤합니다. */
+.admin-dialog.owner-account-dialog {
+  --owner-dialog-inline-gap: max(1rem, env(safe-area-inset-left, 0px), env(safe-area-inset-right, 0px));
+  --owner-dialog-block-gap: max(1rem, env(safe-area-inset-top, 0px), env(safe-area-inset-bottom, 0px));
+  position: fixed;
+  inset: 0;
+  margin: auto;
   box-sizing: border-box;
-  width: min(680px, calc(100vw - 2rem));
-  max-height: calc(100dvh - 2rem);
+  width: min(680px, calc(100vw - 2 * var(--owner-dialog-inline-gap)));
+  max-width: calc(100vw - 2 * var(--owner-dialog-inline-gap));
+  max-height: calc(100vh - 2 * var(--owner-dialog-block-gap));
+  max-height: calc(100dvh - 2 * var(--owner-dialog-block-gap));
   overflow-y: auto;
+  overscroll-behavior: contain;
   overflow-wrap: anywhere;
   padding: clamp(1rem, 3vw, 1.5rem);
   border: 1px solid #bac8db;

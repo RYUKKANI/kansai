@@ -1,0 +1,110 @@
+/* 채팅만 독립된 스크롤 영역을 사용합니다. 키보드가 열린 모바일에서도 작성 폼을 화면 밖으로 밀지 않습니다. */
+.club-chat {
+  display: grid;
+  gap: 0.85rem;
+  min-width: 0;
+  padding: clamp(1rem, 2.8vw, 1.5rem);
+  border: 1px solid #dce4ef;
+  border-radius: 12px;
+  background: #fff;
+}
+.club-chat-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 0.65rem;
+  min-width: 0;
+}
+.club-chat-room-label,
+.club-chat-input-label,
+.club-chat-removal label {
+  display: grid;
+  gap: 0.4rem;
+  color: #334b69;
+  font-size: 0.85rem;
+  font-weight: 600;
+  min-width: 0;
+}
+.club-chat-room-label { flex: 1 1 230px; }
+.club-chat select,
+.club-chat textarea,
+.club-chat input {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  min-height: 44px;
+  border: 1px solid #bac8db;
+  border-radius: 7px;
+  padding: 0.65rem 0.75rem;
+  font: inherit;
+  color: #132b51;
+  background: #fff;
+}
+.club-chat-title { margin: 0; color: #132b51; font-size: 1.1rem; }
+.club-chat-help,
+.club-chat-connection { margin: 0; font-size: 0.82rem; line-height: 1.65; color: #52637b; overflow-wrap: anywhere; }
+.club-chat-connection { flex: 1 1 220px; }
+.club-chat button {
+  min-height: 44px;
+  border: 1px solid #bac8db;
+  border-radius: 7px;
+  padding: 0.6rem 0.85rem;
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #154f99;
+  background: #f6f8fc;
+  cursor: pointer;
+}
+.club-chat button:disabled { opacity: 0.6; cursor: default; }
+.club-chat button:focus-visible,
+.club-chat select:focus-visible,
+.club-chat textarea:focus-visible,
+.club-chat input:focus-visible,
+.club-chat-messages:focus-visible { outline: 3px solid #5797d9; outline-offset: 3px; }
+.club-chat .club-chat-send { border-color: #154f99; color: #fff; background: #154f99; min-width: 100px; }
+.club-chat-older { justify-self: center; }
+.club-chat-messages {
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+  list-style: none;
+  min-width: 0;
+  min-height: 180px;
+  height: min(420px, 50dvh);
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+  scrollbar-gutter: stable;
+  padding: 0.75rem;
+  margin: 0;
+  border: 1px solid #e2e8f1;
+  border-radius: 9px;
+  background: #f6f8fc;
+}
+.club-chat-message { align-self: flex-start; max-width: min(92%, 760px); min-width: 0; border: 1px solid #dce4ef; border-radius: 10px; padding: 0.75rem; background: #fff; overflow-wrap: anywhere; }
+.club-chat-message[data-own="true"] { align-self: flex-end; border-color: #c5daef; background: #eaf3fc; }
+.club-chat-message-meta { display: flex; flex-wrap: wrap; gap: 0.2rem 0.65rem; align-items: baseline; color: #52637b; font-size: 0.72rem; }
+.club-chat-message-meta strong { font-size: 0.85rem; color: #183b67; }
+.club-chat-message-meta time { margin-inline-start: auto; }
+.club-chat-message-body { color: #172b49; margin: 0.4rem 0 0; font-size: 0.92rem; line-height: 1.65; white-space: pre-wrap; overflow-wrap: anywhere; }
+.club-chat-message[data-removed="true"] .club-chat-message-body { color: #64748b; font-size: 0.82rem; }
+.club-chat-empty { padding: 1.5rem 0.5rem; text-align: center; color: #52637b; font-size: 0.9rem; }
+.club-chat-composer { display: grid; gap: 0.6rem; min-width: 0; }
+.club-chat-input { resize: vertical; max-height: 240px; font-size: 1rem !important; }
+.club-chat-composer-footer { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; }
+.club-chat-counter { color: #64748b; font-size: 0.78rem; }
+.club-chat-error { padding: 0.6rem 0.75rem; border-radius: 7px; background: #fff0f0; color: #9c2626; font-size: 0.85rem; line-height: 1.65; overflow-wrap: anywhere; }
+.club-chat-error:empty { display: none; }
+.club-chat .club-chat-remove { min-height: 36px; margin-top: 0.4rem; padding: 0.35rem 0.5rem; border: 0; background: transparent; font-size: 0.75rem; color: #8c3c3c; }
+.club-chat-removal { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.7rem; padding-top: 0.7rem; border-top: 1px solid #dce4ef; }
+.club-chat-removal label,
+.club-chat-removal p { flex: 1 1 100%; }
+.club-chat-announcement { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
+@media (max-width: 600px) {
+  .club-chat { padding: 0.85rem; gap: 0.7rem; }
+  .club-chat-room-label { flex-basis: calc(100% - 80px); }
+  .club-chat-connection { flex-basis: 100%; }
+  .club-chat-messages { padding: 0.5rem; height: min(390px, 45dvh); }
+  .club-chat-message { max-width: 96%; padding: 0.6rem; }
+  .club-chat select { font-size: 1rem; }
+}
