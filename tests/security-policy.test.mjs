@@ -80,14 +80,20 @@ test("public pages and office pages receive different connection and referrer sc
       assert.deepEqual(policy.get("frame-src"), ["'none'"]);
       assert.equal(document.querySelector('meta[name="referrer"]').content, "no-referrer");
       const origins = policy.get("connect-src").filter(source => source !== "'self'");
-      assert.ok(origins.length <= 1);
+      assert.ok(origins.length <= 2);
       for (const origin of origins) {
         const parsed = new URL(origin);
         assert.equal(parsed.origin, origin);
-        assert.ok(parsed.protocol === "https:" || parsed.protocol === "http:" && ["localhost", "127.0.0.1", "[::1]"].includes(parsed.hostname));
-        assert.ok(policy.get("img-src").includes(origin));
+        assert.ok(["https:", "wss:"].includes(parsed.protocol) || ["http:", "ws:"].includes(parsed.protocol) && ["localhost", "127.0.0.1", "[::1]"].includes(parsed.hostname));
+        if (["https:", "http:"].includes(parsed.protocol)) assert.ok(policy.get("img-src").includes(origin));
+        else assert.equal(policy.get("img-src").includes(origin), false);
       }
-      if (process.env.PUBLIC_SUPABASE_URL) assert.deepEqual(origins, [new URL(process.env.PUBLIC_SUPABASE_URL).origin]);
+      if (process.env.PUBLIC_SUPABASE_URL) {
+        const configured = new URL(process.env.PUBLIC_SUPABASE_URL);
+        const socket = new URL(configured.origin);
+        socket.protocol = configured.protocol === "https:" ? "wss:" : "ws:";
+        assert.deepEqual(origins, [configured.origin, socket.origin]);
+      }
     } finally { dom.window.close(); }
   }
 });
