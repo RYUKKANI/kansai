@@ -4759,6 +4759,10 @@
     "ko": "팀 채팅",
     "en": "Team chat"
   },
+  "今日の練習出席": {
+    "ko": "오늘의 훈련 출석",
+    "en": "Today's training attendance"
+  },
   "選手と運営メンバーのルームを分け、実名で連絡します。": {
     "ko": "선수와 운영진의 채팅방을 구분하고 실명으로 소통합니다.",
     "en": "Use separate rooms for players and the operations team, with real names."
