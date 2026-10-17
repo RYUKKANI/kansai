@@ -93,6 +93,20 @@ export const parts = {
     identity: [],
     fixtures: ["legacy"],
   },
+  chat: {
+    label: "역할별 실시간 채팅",
+    sql: ["supabase/tests/club-chat.test.mjs"],
+    js: ["tests/club-chat-ui.test.mjs", "tests/club-tools-app.test.mjs"],
+    identity: ["tests/club-tools-app.test.mjs"],
+    fixtures: ["legacy", "identity"],
+  },
+  attendance: {
+    label: "당일 훈련 출석",
+    sql: ["supabase/tests/training-attendance.test.mjs"],
+    js: ["tests/training-attendance-ui.test.mjs", "tests/club-tools-app.test.mjs"],
+    identity: ["tests/club-tools-app.test.mjs"],
+    fixtures: ["legacy", "identity"],
+  },
   media: {
     label: "사진·영상",
     sql: ["supabase/tests/content.test.mjs"],
