@@ -196,15 +196,19 @@ for (const event of ["SIGNED_OUT", "different user"]) {
       user_id: userId, room: args.p_room, messages: [message("PRIVATE ACTIVE ACCOUNT")], has_more: false,
     } } });
     try {
-      await ctx.controller.refresh(); ctx.write("PRIVATE UNSENT DRAFT"); hold = true;
+      await ctx.controller.refresh(); ctx.write("PRIVATE UNSENT DRAFT");
+      ctx.controller.element.querySelector(".club-chat-remove").click();
+      ctx.controller.element.querySelector(".club-chat-removal input").value = "PRIVATE REMOVAL REASON";
+      hold = true;
       const pending = ctx.controller.refresh();
       await until(() => ctx.calls.filter(call => call.name === "office_chat_messages").length === 2);
       ctx.emit(event === "SIGNED_OUT" ? "SIGNED_OUT" : "SIGNED_IN", event === "SIGNED_OUT" ? null : { user: { id: otherId } });
       late.resolve({ data: { user_id: userId, room: "players", messages: [message("LATE PRIVATE ACCOUNT")], has_more: false }, error: null });
       await pending;
-      for (const secret of ["PRIVATE ACTIVE ACCOUNT", "PRIVATE UNSENT DRAFT", "LATE PRIVATE ACCOUNT"])
+      for (const secret of ["PRIVATE ACTIVE ACCOUNT", "PRIVATE UNSENT DRAFT", "LATE PRIVATE ACCOUNT", "PRIVATE REMOVAL REASON"])
         assert.equal(ctx.controller.element.textContent.includes(secret), false);
       assert.ok(!ctx.composer() || ctx.composer().value === "");
+      assert.equal(ctx.controller.element.querySelector(".club-chat-removal"), null);
     } finally { ctx.close(); }
   });
 }
@@ -268,6 +272,9 @@ test("Owner moderation keeps the original message until a confirmed tombstone an
     submit(); submit();
     assert.equal(ctx.calls.filter(call => call.name === "office_chat_remove").length, 1);
     assert.ok(ctx.controller.element.textContent.includes("Player private discussion"));
+    await ctx.controller.refresh();
+    assert.equal(ctx.controller.element.querySelector(".club-chat-removal"), form);
+    assert.equal(form.querySelector('[type="submit"]').disabled, true);
     first.resolve({ data: null, error: { code: "40001" } });
     await until(() => !form.querySelector('[type="submit"]').disabled);
     assert.equal(form.querySelector("input").value, "Club moderation policy");
@@ -278,6 +285,109 @@ test("Owner moderation keeps the original message until a confirmed tombstone an
     const writes = ctx.calls.filter(call => call.name === "office_chat_remove");
     assert.deepEqual(writes[0].args, { p_message_id: "1", p_reason: "Club moderation policy" });
   } finally { ctx.close(); }
+});
+
+test("ordinary refreshes and incoming messages preserve the Owner's removal draft and focus", async () => {
+  let incoming = false;
+  const ctx = app({ responses: { office_chat_messages: args => ({ user_id: userId, room: args.p_room,
+    messages: [message(), ...(incoming ? [message("New incoming message", { id: "2" })] : [])], has_more: false,
+  }) } });
+  try {
+    await ctx.controller.refresh();
+    await until(() => !ctx.controller.element.querySelector('[aria-busy="true"]'));
+    const trigger = ctx.controller.element.querySelector(".club-chat-remove");
+    trigger.click();
+    const form = ctx.controller.element.querySelector(".club-chat-removal");
+    const input = form.querySelector("input");
+    input.value = "Owner reason still being written";
+    input.setSelectionRange(5, 12);
+    await ctx.controller.refresh();
+    assert.equal(ctx.controller.element.querySelector(".club-chat-removal"), form);
+    assert.equal(input.value, "Owner reason still being written");
+    assert.equal(ctx.window.document.activeElement, input);
+    assert.equal(input.selectionStart, 5);
+    assert.equal(input.selectionEnd, 12);
+    incoming = true;
+    ctx.channels.at(-1).listeners[0].callback({ new: { room: "players" } });
+    await until(() => ctx.controller.element.querySelector('[data-message-id="2"]'));
+    assert.equal(ctx.controller.element.querySelector(".club-chat-removal"), form);
+    assert.equal(input.value, "Owner reason still being written");
+    assert.equal(ctx.window.document.activeElement, input);
+    form.querySelector(".club-chat-remove-cancel").click();
+    assert.equal(ctx.controller.element.querySelector(".club-chat-removal"), null);
+    assert.equal(trigger.hidden, false);
+    assert.equal(ctx.window.document.activeElement, trigger);
+  } finally { ctx.close(); }
+});
+
+test("room and role changes clear Owner removal drafts", async () => {
+  let role = "owner";
+  const ctx = app({ responses: { office_chat_rooms: () => ({ user_id: userId, role,
+    rooms: (role === "owner" ? ["players", "office"] : ["office"]).map(id => ({ id })), server_time: stamp,
+  }) } });
+  try {
+    await ctx.controller.refresh();
+    ctx.controller.element.querySelector(".club-chat-remove").click();
+    ctx.controller.element.querySelector(".club-chat-removal input").value = "Player room private reason";
+    ctx.choose("office"); await until(() => ctx.controller.element.textContent.includes("Office private discussion"));
+    assert.equal(ctx.controller.element.querySelector(".club-chat-removal"), null);
+    ctx.choose("players"); await until(() => ctx.controller.element.textContent.includes("Player private discussion"));
+    assert.equal(ctx.controller.element.querySelector(".club-chat-removal"), null);
+    ctx.controller.element.querySelector(".club-chat-remove").click();
+    ctx.controller.element.querySelector(".club-chat-removal input").value = "Reason before role change";
+    role = "staff"; await ctx.controller.refresh();
+    assert.equal(ctx.select().value, "office");
+    assert.equal(ctx.controller.element.querySelector(".club-chat-removal,.club-chat-remove"), null);
+  } finally { ctx.close(); }
+});
+
+test("loaded history refreshes as a bounded complete window and replaces old deleted bodies", async () => {
+  const releasePage = deferred();
+  const releaseQueued = deferred();
+  let changed = false, held = false, refreshes = 0;
+  const stored = Array.from({ length: 300 }, (_, index) => message(`History ${index + 1}`, { id: String(index + 1) }));
+  const ctx = app({ responses: { office_chat_messages: async args => {
+    if (changed && args.p_before === null && ++refreshes === 2) await releaseQueued.promise;
+    const matching = stored.filter(item => args.p_before === null || BigInt(item.id) < BigInt(args.p_before));
+    const page = matching.slice(-50).map(item => ({ ...item }));
+    if (changed && args.p_before === "252" && !held) { held = true; await releasePage.promise; }
+    return { user_id: userId, room: args.p_room, messages: page, has_more: matching.length > 50 };
+  } } });
+  try {
+    await ctx.controller.refresh();
+    await until(() => !ctx.controller.element.querySelector('[aria-busy="true"]'));
+    for (let count = 100; count <= 250; count += 50) {
+      ctx.controller.element.querySelector(".club-chat-older").click();
+      await until(() => ctx.controller.element.querySelectorAll('[data-message-id]').length === count);
+    }
+    assert.equal(ctx.controller.element.querySelector(".club-chat-older").hidden, true);
+    ctx.controller.element.querySelector('[data-message-id="60"] .club-chat-remove').click();
+    ctx.controller.element.querySelector(".club-chat-removal input").value = "Reason before another Owner removes it";
+    stored[59] = message("", { id: "60", is_removed: true });
+    stored.push(message("Newest message", { id: "301" }));
+    changed = true;
+    const before = ctx.calls.filter(call => call.name === "office_chat_messages").length;
+    const refresh = ctx.controller.refresh();
+    await until(() => held);
+    assert.ok(ctx.controller.element.querySelector('[data-message-id="60"]').textContent.includes("History 60"));
+    assert.equal(ctx.controller.element.querySelector('[data-message-id="301"]'), null);
+    // 조회 중 들어온 갱신은 진행 중인 5페이지를 취소하지 않고 다음 한 번으로 합칩니다.
+    await ctx.controller.refresh();
+    assert.equal(ctx.calls.filter(call => call.name === "office_chat_messages").length, before + 2);
+    releasePage.resolve();
+    await refresh;
+    await until(() => refreshes === 2);
+    assert.equal(ctx.controller.element.querySelectorAll('[data-message-id]').length, 250);
+    assert.ok(ctx.controller.element.querySelector('[data-message-id="60"][data-removed="true"]'));
+    assert.equal(ctx.controller.element.querySelector(".club-chat-removal"), null);
+    assert.equal(ctx.controller.element.textContent.includes("History 60"), false);
+    assert.ok(ctx.controller.element.querySelector('[data-message-id="301"]'));
+    const window = ctx.calls.filter(call => call.name === "office_chat_messages").slice(before, before + 5);
+    assert.deepEqual(window.map(call => call.args.p_before), [null, "252", "202", "152", "102"]);
+    releaseQueued.resolve();
+    await until(() => !ctx.controller.element.querySelector('[aria-busy="true"]'));
+    assert.equal(ctx.controller.element.querySelectorAll('[data-message-id]').length, 250);
+  } finally { releasePage.resolve(); releaseQueued.resolve(); ctx.close(); }
 });
 
 test("a transient room-list failure preserves the current-room draft and its uncertain-send nonce", async () => {
