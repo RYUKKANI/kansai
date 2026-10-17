@@ -11,7 +11,14 @@ export type StaffOfficePage =
   | "staff_applications"
   | "staff_account"
   | "staff_audit";
-export type OfficePage = Resource | "dashboard" | "schedule" | "player_portal" | StaffOfficePage;
+export type ClubToolsPage = "club_chat" | "training_attendance";
+export const clubToolsPages: ClubToolsPage[] = ["club_chat", "training_attendance"];
+export function isClubToolsPage(page: OfficePage): page is ClubToolsPage {
+  return clubToolsPages.includes(page as ClubToolsPage);
+}
+export const clubToolsTitle = (page: ClubToolsPage) =>
+  t(page === "club_chat" ? "チームチャット" : "今日の練習出席");
+export type OfficePage = Resource | "dashboard" | "schedule" | "player_portal" | StaffOfficePage | ClubToolsPage;
 export const staffOfficePages: StaffOfficePage[] = [
   "staff_directory", "staff_applications", "staff_account", "staff_audit",
 ];
@@ -47,6 +54,14 @@ export const officePages: Record<
   OfficePage,
   { group: OfficeGroup; english: string; icon: string; description: string }
 > = {
+  club_chat: {
+    group: "TEAM", english: "TEAM CHAT", icon: "users",
+    description: t("選手と運営メンバーのルームを分け、実名で連絡します。"),
+  },
+  training_attendance: {
+    group: "OPERATIONS", english: "TODAY'S ATTENDANCE", icon: "check",
+    description: t("日本時間の当日練習で、本人の出席と運営メンバーの確認を記録します。"),
+  },
   player_portal: {
     group: "OVERVIEW", english: "PLAYER HOME", icon: "ball",
     description: t("自分の選手情報と、参加できる公開予定を確認します。"),
