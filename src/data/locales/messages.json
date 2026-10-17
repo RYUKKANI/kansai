@@ -4754,5 +4754,265 @@
   "一覧に戻る": {
     "ko": "목록으로 돌아가기",
     "en": "Back to member list"
+  },
+  "チームチャット": {
+    "ko": "팀 채팅",
+    "en": "Team chat"
+  },
+  "選手と運営メンバーのルームを分け、実名で連絡します。": {
+    "ko": "선수와 운영진의 채팅방을 구분하고 실명으로 소통합니다.",
+    "en": "Use separate rooms for players and the operations team, with real names."
+  },
+  "日本時間の当日練習で、本人の出席と運営メンバーの確認を記録します。": {
+    "ko": "일본 시간 기준 당일 훈련의 본인 출석과 운영진의 확인을 기록합니다.",
+    "en": "Record player check-ins and staff confirmations for today’s training in Japan time."
+  },
+  "出席": {
+    "ko": "출석",
+    "en": "Present"
+  },
+  "遅刻": {
+    "ko": "지각",
+    "en": "Late"
+  },
+  "欠席": {
+    "ko": "결석",
+    "en": "Absent"
+  },
+  "公欠": {
+    "ko": "공결",
+    "en": "Excused absence"
+  },
+  "未記録": {
+    "ko": "미기록",
+    "en": "Not recorded"
+  },
+  "更新": {
+    "ko": "새로고침",
+    "en": "Refresh"
+  },
+  "更新中…": {
+    "ko": "새로고침 중…",
+    "en": "Refreshing…"
+  },
+  "この操作の権限を確認できません。再読み込みしてログイン状態をご確認ください。": {
+    "ko": "이 작업의 권한을 확인할 수 없습니다. 페이지를 새로고침하고 로그인 상태를 확인해 주세요.",
+    "en": "Your permission for this action could not be verified. Reload the page and check your login."
+  },
+  "自分で出席確認済み": {
+    "ko": "본인 출석 확인 완료",
+    "en": "Checked in by the player"
+  },
+  "運営メンバーが記録": {
+    "ko": "운영진이 기록",
+    "en": "Recorded by the operations team"
+  },
+  "最終記録（日本時間）": {
+    "ko": "최종 기록 (일본 시간)",
+    "en": "Last recorded (Japan time)"
+  },
+  "保存中…": {
+    "ko": "저장 중…",
+    "en": "Saving…"
+  },
+  "出席を記録中…": {
+    "ko": "출석 기록 중…",
+    "en": "Recording check-in…"
+  },
+  "出席の記録を保存しました。": {
+    "ko": "출석 기록을 저장했습니다.",
+    "en": "Attendance record saved."
+  },
+  "出席を記録しました。": {
+    "ko": "출석을 기록했습니다.",
+    "en": "Check-in recorded."
+  },
+  "出席は運営メンバーが管理しています。変更は統括またはスタッフにご相談ください。": {
+    "ko": "운영진이 관리하는 출석 기록입니다. 변경은 총괄 또는 스태프에게 문의해 주세요.",
+    "en": "This attendance record is managed by the operations team. Contact a Lead or Staff member for changes."
+  },
+  "当日の予定が変わりました。更新して確認してください。": {
+    "ko": "당일 일정이 변경되었습니다. 새로고침해 확인해 주세요.",
+    "en": "Today’s schedule has changed. Refresh to check the latest details."
+  },
+  "保存できませんでした。入力内容を確認してもう一度お試しください。": {
+    "ko": "저장하지 못했습니다. 입력 내용을 확인하고 다시 시도해 주세요.",
+    "en": "Could not save. Check your entries and try again."
+  },
+  "出席を保存": {
+    "ko": "출석 저장",
+    "en": "Save attendance"
+  },
+  "出席チェック": {
+    "ko": "출석 체크",
+    "en": "Check in"
+  },
+  "出席状況": {
+    "ko": "출석 상태",
+    "en": "Attendance status"
+  },
+  "日本時間の今日：{0}": {
+    "ko": "일본 시간 기준 오늘: {0}",
+    "en": "Today in Japan: {0}"
+  },
+  "未チェックでも自動で欠席にはなりません。": {
+    "ko": "미체크 상태를 자동으로 결석 처리하지 않습니다.",
+    "en": "Unchecked attendance is not automatically marked absent."
+  },
+  "今日の練習はありません。": {
+    "ko": "오늘은 훈련이 없습니다.",
+    "en": "There is no training today."
+  },
+  "出席は開催予定の当日練習で記録できます。": {
+    "ko": "오늘 예정된 훈련에 출석 체크할 수 있습니다.",
+    "en": "You can check in for training scheduled for today."
+  },
+  "中止の練習は出席を変更できません。": {
+    "ko": "취소된 훈련의 출석은 변경할 수 없습니다.",
+    "en": "Attendance cannot be changed for cancelled training."
+  },
+  "当日の練習と出席を読み込み中…": {
+    "ko": "당일 훈련과 출석을 불러오는 중…",
+    "en": "Loading today’s training and attendance…"
+  },
+  "出席記録を更新できませんでした。保存済みの表示を保っています。": {
+    "ko": "출석 기록을 새로 불러오지 못했습니다. 기존에 불러온 내용을 표시합니다.",
+    "en": "Could not refresh attendance. Previously loaded records are still shown."
+  },
+  "出席を読み込めませんでした。もう一度お試しください。": {
+    "ko": "출석을 불러오지 못했습니다. 다시 시도해 주세요.",
+    "en": "Could not load attendance. Please try again."
+  },
+  "選手チャット": {
+    "ko": "선수 채팅방",
+    "en": "Player chat"
+  },
+  "統括・スタッフチャット": {
+    "ko": "총괄·스태프 채팅방",
+    "en": "Lead and Staff chat"
+  },
+  "チャットを読み込み中…": {
+    "ko": "채팅을 불러오는 중…",
+    "en": "Loading chat…"
+  },
+  "ルームを選択": {
+    "ko": "채팅방 선택",
+    "en": "Select a room"
+  },
+  "メッセージ": {
+    "ko": "메시지",
+    "en": "Message"
+  },
+  "送信": {
+    "ko": "보내기",
+    "en": "Send"
+  },
+  "送信中…": {
+    "ko": "보내는 중…",
+    "en": "Sending…"
+  },
+  "過去のメッセージを表示": {
+    "ko": "이전 메시지 보기",
+    "en": "Load earlier messages"
+  },
+  "接続中…": {
+    "ko": "연결 중…",
+    "en": "Connecting…"
+  },
+  "リアルタイム接続中": {
+    "ko": "실시간 연결됨",
+    "en": "Connected live"
+  },
+  "再接続を待っています。定期的に更新します。": {
+    "ko": "재연결을 기다리는 중입니다. 주기적으로 새 메시지를 확인합니다.",
+    "en": "Waiting to reconnect. Messages will refresh periodically."
+  },
+  "送信できませんでした。入力内容を残しています。再試行してください。": {
+    "ko": "보내지 못했습니다. 입력 내용은 유지됩니다. 다시 시도해 주세요.",
+    "en": "Could not send. Your draft is kept. Please try again."
+  },
+  "メッセージを取得できませんでした。再試行してください。": {
+    "ko": "메시지를 불러오지 못했습니다. 다시 시도해 주세요.",
+    "en": "Could not load messages. Please try again."
+  },
+  "このチャットを利用する権限がありません。ページを再読み込みしてください。": {
+    "ko": "이 채팅방을 이용할 권한이 없습니다. 페이지를 새로고침해 주세요.",
+    "en": "You do not have permission to use this chat. Please reload the page."
+  },
+  "まだメッセージはありません。": {
+    "ko": "아직 메시지가 없습니다.",
+    "en": "There are no messages yet."
+  },
+  "実名未確認の関係者": {
+    "ko": "실명 미확인 관계자",
+    "en": "Member with an unverified name"
+  },
+  "このメッセージは統括により削除されました。": {
+    "ko": "총괄이 삭제한 메시지입니다.",
+    "en": "This message was removed by a Lead."
+  },
+  "メッセージを削除": {
+    "ko": "메시지 삭제",
+    "en": "Remove message"
+  },
+  "削除理由": {
+    "ko": "삭제 사유",
+    "en": "Reason for removal"
+  },
+  "削除できませんでした。再試行してください。": {
+    "ko": "삭제하지 못했습니다. 다시 시도해 주세요.",
+    "en": "Could not remove the message. Please try again."
+  },
+  "メッセージは2,000文字以内で入力してください。": {
+    "ko": "메시지는 2,000자 이내로 입력해 주세요.",
+    "en": "Enter a message of up to 2,000 characters."
+  },
+  "個人の連絡先や健康情報、認証情報は投稿しないでください。": {
+    "ko": "개인 연락처, 건강 정보, 인증 정보는 게시하지 마세요.",
+    "en": "Do not post personal contact details, health information or login credentials."
+  },
+  "削除理由に個人の連絡先や認証情報を入力しないでください。": {
+    "ko": "삭제 사유에 개인 연락처나 인증 정보를 입력하지 마세요.",
+    "en": "Do not include personal contact details or login credentials in the reason."
+  },
+  "メッセージ一覧": {
+    "ko": "메시지 목록",
+    "en": "Messages"
+  },
+  "新しいメッセージがあります": {
+    "ko": "새 메시지가 있습니다",
+    "en": "New messages are available"
+  },
+  "時刻は日本時間です。": {
+    "ko": "시간은 일본 시간 기준입니다.",
+    "en": "All times are in Japan time."
+  },
+  "チャットの利用状況を確認できませんでした。再試行してください。": {
+    "ko": "채팅 이용 상태를 확인하지 못했습니다. 다시 시도해 주세요.",
+    "en": "Could not check chat availability. Please try again."
+  },
+  "関係者": {
+    "ko": "관계자",
+    "en": "Member"
+  },
+  "本人の出席確認日時": {
+    "ko": "본인 출석 확인 일시",
+    "en": "Player check-in time"
+  },
+  "本人による出席チェック": {
+    "ko": "본인 출석 체크",
+    "en": "Player check-in"
+  },
+  "練習出席の変更": {
+    "ko": "훈련 출석 변경",
+    "en": "Training attendance change"
+  },
+  "チャットメッセージの削除": {
+    "ko": "채팅 메시지 삭제",
+    "en": "Chat message removal"
+  },
+  "練習出席": {
+    "ko": "훈련 출석",
+    "en": "Training attendance"
   }
 }
