@@ -5,7 +5,7 @@ import { JSDOM } from "jsdom";
 
 // 실제 채팅 화면을 실행합니다. RPC·Realtime 전송만 대체하여 공개 데이터나 운영 계정을 사용하지 않습니다.
 const compiled = (await build({
-  entryPoints: ["src/scripts/club-chat.ts"], bundle: true, write: false,
+  stdin: { contents: 'export { createClubChat } from "./src/scripts/club-chat"; export { createClubChatWidget } from "./src/scripts/club-chat-widget";', resolveDir: process.cwd() }, bundle: true, write: false,
   format: "iife", globalName: "ClubChat", platform: "browser",
   define: { "import.meta.env.BASE_URL": '"/"' }, loader: { ".css": "empty" },
 })).outputFiles[0].text;
@@ -71,7 +71,9 @@ function app(options = {}) {
       return { data: { subscription: { unsubscribe() { unsubscribed++; } } } };
     } },
   };
-  const controller = window.ClubChat.createClubChat({ client, userId, isCurrent: () => active });
+  const controller = options.widget
+    ? window.ClubChat.createClubChatWidget({ client, userId, isCurrent: () => active })
+    : window.ClubChat.createClubChat({ client, userId, isCurrent: () => active });
   window.document.querySelector("main").append(controller.element);
   const roomButtons = () => [...controller.element.querySelectorAll(".club-chat-room-button")];
   const selectedRoom = () => controller.element.querySelector('.club-chat-room-button[aria-current="true"]')?.dataset.room;
@@ -79,6 +81,8 @@ function app(options = {}) {
   const submit = () => composer()?.form?.querySelector('[type="submit"]');
   return { dom, window, controller, calls, channels, removed, roomButtons, selectedRoom, composer, submit, viewport,
     unsubscribed: () => unsubscribed,
+    open() { controller.open(); },
+    minimize() { controller.close(); },
     choose(room) { controller.element.querySelector(`.club-chat-room-button[data-room="${room}"]`)?.click(); },
     write(body) { composer().value = body; composer().dispatchEvent(new window.Event("input", { bubbles: true })); },
     send() { composer().form.dispatchEvent(new window.Event("submit", { bubbles: true, cancelable: true })); },
@@ -87,6 +91,99 @@ function app(options = {}) {
     close() { controller.dispose(); window.close(); },
   };
 }
+
+test("floating chat mounts lazily and preserves drafts, subscriptions and scroll when minimized", async () => {
+  const ctx = app({ widget: true, mobile: false });
+  try {
+    const launcher = ctx.controller.element.querySelector(".club-chat-launcher");
+    const panel = ctx.controller.element.querySelector(".club-chat-widget-panel");
+    assert.equal(ctx.calls.length, 0);
+    assert.equal(ctx.channels.length, 0);
+    assert.equal(ctx.composer(), null);
+    assert.equal(panel.hidden, true);
+    assert.equal(launcher.getAttribute("aria-expanded"), "false");
+    ctx.open();
+    await until(() => ctx.selectedRoom() === "players" && !ctx.composer().disabled);
+    assert.equal(panel.getAttribute("role"), "dialog");
+    assert.equal(panel.getAttribute("aria-modal"), "false");
+    assert.equal(ctx.controller.element.querySelector(".club-chat").dataset.widget, "true");
+    ctx.choose("players");
+    ctx.write("A draft preserved while working elsewhere");
+    const history = ctx.controller.element.querySelector(".club-chat-history");
+    Object.defineProperty(history, "scrollHeight", { configurable: true, value: 1000 });
+    Object.defineProperty(history, "clientHeight", { configurable: true, value: 300 });
+    history.scrollTop = 88;
+    const channel = ctx.channels.at(-1);
+    ctx.minimize();
+    assert.equal(panel.hidden, true);
+    assert.equal(ctx.window.document.activeElement, launcher);
+    Object.defineProperty(history, "scrollHeight", { configurable: true, value: 0 });
+    Object.defineProperty(history, "clientHeight", { configurable: true, value: 0 });
+    history.scrollTop = 0;
+    const reads = ctx.calls.filter(call => call.name === "office_chat_messages").length;
+    channel.listeners[0].callback({ new: { room: "players" } });
+    await until(() => ctx.calls.filter(call => call.name === "office_chat_messages").length > reads);
+    await until(() => !ctx.controller.element.querySelector('[aria-busy="true"]'));
+    Object.defineProperty(history, "scrollHeight", { configurable: true, value: 1000 });
+    Object.defineProperty(history, "clientHeight", { configurable: true, value: 300 });
+    ctx.open();
+    assert.equal(ctx.composer().value, "A draft preserved while working elsewhere");
+    assert.equal(history.scrollTop, 88);
+    assert.equal(ctx.channels.at(-1), channel);
+    assert.equal(ctx.removed.includes(channel), false);
+    assert.equal(launcher.getAttribute("aria-expanded"), "true");
+    panel.dispatchEvent(new ctx.window.KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true }));
+    assert.equal(panel.hidden, true);
+  } finally { ctx.close(); }
+});
+
+test("a minimized floating chat does not steal focus when a pending send succeeds", async () => {
+  const receipt = deferred();
+  const ctx = app({ widget: true, mobile: false, responses: { office_chat_send: () => receipt.promise } });
+  try {
+    ctx.open(); await until(() => !ctx.composer()?.disabled && ctx.selectedRoom() === "players");
+    ctx.choose("players"); ctx.write("Sending before minimizing"); ctx.send(); ctx.minimize();
+    receipt.resolve({ user_id: userId, room: "players", message: message("Sending before minimizing", { id: "2", sender_id: userId }) });
+    await until(() => !ctx.submit().disabled);
+    assert.equal(ctx.window.document.activeElement, ctx.controller.element.querySelector(".club-chat-launcher"));
+    assert.equal(ctx.controller.element.dataset.open, "false");
+    assert.equal(ctx.composer().value, "");
+  } finally { ctx.close(); }
+});
+
+for (const leaveComposer of [false, true]) {
+  test(`a floating send ${leaveComposer ? "preserves focus moved to another task" : "returns focus from Send to the composer"}`, async () => {
+    const receipt = deferred();
+    const ctx = app({ widget: true, mobile: false, responses: { office_chat_send: () => receipt.promise } });
+    try {
+      ctx.open(); await until(() => !ctx.composer()?.disabled && ctx.selectedRoom() === "players");
+      ctx.choose("players"); ctx.write("Pending while doing other work"); ctx.submit().focus(); ctx.send();
+      const otherField = ctx.window.document.createElement("input");
+      ctx.window.document.querySelector("main").append(otherField);
+      if (leaveComposer) otherField.focus();
+      receipt.resolve({ user_id: userId, room: "players", message: message("Pending while doing other work", { id: "2", sender_id: userId }) });
+      await until(() => !ctx.submit().disabled);
+      assert.equal(ctx.window.document.activeElement, leaveComposer ? otherField : ctx.composer());
+      assert.equal(ctx.controller.element.dataset.open, "true");
+    } finally { ctx.close(); }
+  });
+}
+
+test("disposing a floating chat discards delayed private responses and all mounted views", async () => {
+  const late = deferred();
+  const ctx = app({ widget: true, responses: { office_chat_messages: () => late.promise } });
+  try {
+    ctx.open(); await until(() => ctx.calls.some(call => call.name === "office_chat_messages"));
+    ctx.controller.dispose();
+    late.resolve({ user_id: userId, room: "players", messages: [message("OLD ACCOUNT PRIVATE RESPONSE")], has_more: false });
+    await new Promise(resolve => setTimeout(resolve, 10));
+    ctx.open();
+    assert.equal(ctx.window.document.querySelector(".club-chat-widget"), null);
+    assert.equal(ctx.controller.element.textContent, "");
+    assert.equal(ctx.unsubscribed(), 1);
+    assert.equal(ctx.channels.length, 0);
+  } finally { ctx.close(); }
+});
 
 test("room list navigation preserves the current conversation without fetching other-room previews", async () => {
   const ctx = app();
