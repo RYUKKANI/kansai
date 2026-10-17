@@ -4690,5 +4690,49 @@
   "アカウント情報を保存しました。実名確認は未完了です。": {
     "ko": "계정 정보를 저장했습니다. 실명 확인은 아직 완료되지 않았습니다.",
     "en": "Account details saved. Name verification remains incomplete."
+  },
+  "クリア": {
+    "ko": "초기화",
+    "en": "Clear"
+  },
+  "メンバーを検索": {
+    "ko": "멤버 검색",
+    "en": "Search members"
+  },
+  "ログインIDまたは実名で検索し、管理するアカウントを選択してください。": {
+    "ko": "로그인 아이디 또는 실명으로 검색한 뒤 관리할 계정을 선택하세요.",
+    "en": "Search by login ID or real name, then select an account to manage."
+  },
+  "ログインIDまたは実名を入力": {
+    "ko": "로그인 아이디 또는 실명 입력",
+    "en": "Enter a login ID or real name"
+  },
+  "ログインID・実名": {
+    "ko": "로그인 아이디 · 실명",
+    "en": "Login ID or real name"
+  },
+  "一致するアカウントがありません。ログインIDまたは実名を確認してください。": {
+    "ko": "일치하는 계정이 없습니다. 로그인 아이디 또는 실명을 확인하세요.",
+    "en": "No matching accounts. Check the login ID or real name."
+  },
+  "実名未登録": {
+    "ko": "실명 미등록",
+    "en": "Real name not registered"
+  },
+  "検索すると候補が表示されます。アカウントを選択するまで管理フォームは開きません。": {
+    "ko": "검색 결과에서 계정을 선택하면 해당 계정의 관리창이 열립니다.",
+    "en": "Select an account from the search results to open its management panel."
+  },
+  "検索結果": {
+    "ko": "검색 결과",
+    "en": "Search results"
+  },
+  "検索結果: {0}件": {
+    "ko": "검색 결과: {0}개",
+    "en": "Search results: {0}"
+  },
+  "検索結果に戻る": {
+    "ko": "검색 결과로 돌아가기",
+    "en": "Back to search results"
   }
 }

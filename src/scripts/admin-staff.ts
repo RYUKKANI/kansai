@@ -25,6 +25,7 @@ export interface StaffOfficeController {
   dispose: () => void;
   refresh: () => Promise<void>;
 }
+let officeInstance = 0;
 const roles: StaffRole[] = [...memberGrades];
 const roleText = memberGradeLabel;
 function element<K extends keyof HTMLElementTagNameMap>(
@@ -467,6 +468,13 @@ export async function renderStaffOffice(
   let disposed = false;
   let sequence = 0;
   let busy = false;
+  const instance = ++officeInstance;
+  // 검색어와 선택은 화면 상태이며 권한의 근거가 아닙니다. 저장 후 이름이 바뀌어도 UUID로 선택을 유지합니다.
+  let memberSearchQuery = "";
+  let hasMemberSearch = false;
+  let selectedMemberId = "";
+  let managementRevision = 0;
+  let syncMemberNavigation: (() => void) | null = null;
   // 대화창이 닫히거나 업무 화면·계정이 바뀌면 비밀번호 입력과 Auth 구독도 폐기합니다.
   const accountWindows: { dispose: () => void }[] = [];
   function disposeAccountWindows() {
@@ -486,6 +494,7 @@ export async function renderStaffOffice(
     form: HTMLFormElement,
     operation: () => Promise<unknown>,
     success: string,
+    isFormCurrent: () => boolean = current,
   ) {
     const localNotice = element("p", "", "staff-form-notice");
     localNotice.setAttribute("role", "status");
@@ -493,8 +502,9 @@ export async function renderStaffOffice(
     form.append(localNotice);
     form.addEventListener("submit", (event) => {
       event.preventDefault();
-      if (busy || !current() || !form.reportValidity()) return;
+      if (busy || !isFormCurrent() || !form.isConnected || !form.reportValidity()) return;
       busy = true;
+      syncMemberNavigation?.();
       const controls = [
         ...form.querySelectorAll<
           | HTMLInputElement
@@ -512,27 +522,28 @@ export async function renderStaffOffice(
       void (async () => {
         try {
           await operation();
-          if (!current()) return;
+          if (!isFormCurrent()) return;
           notice(success);
           // DB 확정 뒤 화면 재조회가 실패해도, 이미 저장한 변경을 실패라고 되돌려 안내하지 않습니다.
           try {
-            await load();
+            await load(page === "staff_applications");
             if (current()) await options.refresh();
           } catch {
             if (current()) notice(t("変更は保存されましたが、アカウント表示を更新できませんでした。画面を再読み込みしてください。"), true);
           }
         } catch (error) {
-          if (!current()) return;
+          if (!isFormCurrent()) return;
           localNotice.textContent = safeError(error);
           localNotice.dataset.error = "true";
           notice(safeError(error), true);
         } finally {
           busy = false;
+          syncMemberNavigation?.();
           controls.forEach((control, index) => {
             control.disabled = disabled[index] ?? false;
           });
           form.removeAttribute("aria-busy");
-          if (current() && localNotice.dataset.error === "true")
+          if (isFormCurrent() && form.isConnected && localNotice.dataset.error === "true")
             form.querySelector<HTMLElement>("button[type=submit]")?.focus();
         }
       })();
@@ -676,27 +687,188 @@ export async function renderStaffOffice(
     owner: boolean,
     players: Row[],
   ): HTMLElement {
-    const section = element("section", "", "staff-management");
-    section.append(
-      title(t("加入申請と関係者管理")),
-      note(
-        t(
-          "希望する所属は申請内容です。実際の所属等級は統括が承認時に設定します。自分自身の承認・本人確認・所属等級の変更はできません。",
-        ),
-      ),
-    );
-    if (!rows.length) section.append(note(t("表示できる申請はありません。")));
-    for (const member of rows) {
+    const section = element("section", "", "staff-management member-search");
+    const viewToken = sequence;
+    const isManagementCurrent = () => current() && sequence === viewToken && section.isConnected;
+    const members = rows.filter((member) => string(member.user_id));
+    const header = element("header", "", "member-search-header");
+    header.append(title(t("メンバー管理")), note(t("ログインIDまたは実名で検索し、管理するアカウントを選択してください。")));
+    const search = element("form", "", "member-search-form");
+    search.setAttribute("role", "search");
+    search.setAttribute("aria-label", t("メンバーを検索"));
+    const searchLabel = element("label", "", "staff-field member-search-field");
+    searchLabel.append(element("span", t("ログインID・実名")));
+    const input = element("input");
+    input.type = "search";
+    input.name = "member_query";
+    input.value = memberSearchQuery;
+    input.placeholder = t("ログインIDまたは実名を入力");
+    input.autocomplete = "off";
+    input.spellcheck = false;
+    input.maxLength = 150;
+    input.setAttribute("enterkeyhint", "search");
+    searchLabel.append(input);
+    const actions = element("div", "", "member-search-actions");
+    const searchButton = element("button", t("検索"), "staff-button member-search-submit");
+    searchButton.type = "submit";
+    searchButton.dataset.memberSearchAction = "search";
+    const clearButton = element("button", t("クリア"), "staff-button member-search-clear");
+    clearButton.type = "button";
+    clearButton.dataset.memberSearchAction = "clear";
+    actions.append(searchButton, clearButton);
+    search.append(searchLabel, actions);
+    const guidance = element("p", t("検索すると候補が表示されます。アカウントを選択するまで管理フォームは開きません。"), "member-search-guidance");
+    const results = element("section", "", "member-search-results");
+    const resultsHeading = element("div", "", "member-search-results-heading");
+    const resultsTitle = element("h3", t("検索結果"));
+    resultsTitle.id = `member-search-results-title-${instance}`;
+    results.setAttribute("aria-labelledby", resultsTitle.id);
+    const resultStatus = element("p", "", "member-search-status");
+    resultStatus.setAttribute("role", "status");
+    resultStatus.setAttribute("aria-live", "polite");
+    resultStatus.setAttribute("aria-atomic", "true");
+    resultsHeading.append(resultsTitle, resultStatus);
+    let matchingCount = 0;
+    const resultList = element("ul", "", "member-search-results-list");
+    const empty = element("p", t("一致するアカウントがありません。ログインIDまたは実名を確認してください。"), "member-search-guidance");
+    results.append(resultsHeading, resultList, empty);
+    const workspaceHost = element("div", "", "member-workspace-host");
+    section.append(header, search, guidance, results, workspaceHost);
+
+    // 검색은 정규화한 사본으로만 수행합니다. 실제 표시 이름·아이디는 RPC 원문을 유지하고,
+    // 이름이 같아도 선택과 모든 변경 요청은 변하지 않는 계정 UUID로만 연결합니다.
+    const normalized = (value: string) => value.normalize("NFC").trim().replace(/\s+/gu, " ").toLowerCase();
+    function resetWorkspace() {
+      // 닫힌 계정 폼의 지연 응답은 새로 선택한 계정의 알림·초점·재조회를 바꾸지 못합니다.
+      ++managementRevision;
+      disposeAccountWindows();
+      workspaceHost.replaceChildren();
+    }
+    function renderWorkspace(focus = false) {
+      resetWorkspace();
+      const member = members.find((value) => string(value.user_id) === selectedMemberId);
+      if (!member) {
+        selectedMemberId = "";
+        return;
+      }
+      const revision = managementRevision;
+      const target = selectedMemberId;
+      const isWorkspaceCurrent = () => current() && sequence === viewToken &&
+        managementRevision === revision && selectedMemberId === target;
+      const workspace = managementWorkspace(member, requests, owner, players, isWorkspaceCurrent, () => {
+        selectedMemberId = "";
+        resetWorkspace();
+        for (const button of resultList.querySelectorAll<HTMLButtonElement>("[data-member-target]"))
+          button.setAttribute("aria-pressed", "false");
+        const resultButton = [...resultList.querySelectorAll<HTMLButtonElement>("[data-member-target]")]
+          .find((button) => button.dataset.memberTarget === target);
+        (resultButton ?? input).focus();
+      });
+      workspaceHost.append(workspace);
+      syncNavigation();
+      if (focus) workspace.querySelector<HTMLElement>(".member-workspace-title")?.focus();
+    }
+    function syncNavigation() {
+      // 업무 저장의 결과를 확인하기 전에 다른 계정으로 이동하지 않게 합니다.
+      // 화면이 외부에서 폐기되는 경우에도 아래 선택 revision 검사가 지연 응답을 차단합니다.
+      const controls = [input, searchButton, clearButton,
+        ...resultList.querySelectorAll<HTMLButtonElement>("[data-member-target]"),
+        ...workspaceHost.querySelectorAll<HTMLButtonElement>("[data-member-search-action=close], .owner-account-trigger")];
+      for (const control of controls) control.disabled = busy;
+      resultStatus.textContent = busy ? t("保存中です。完了までお待ちください。") :
+        hasMemberSearch ? format("検索結果: {0}件", String(matchingCount)) : "";
+    }
+    syncMemberNavigation = syncNavigation;
+    function renderResults() {
+      const query = normalized(memberSearchQuery);
+      const matches = hasMemberSearch && query ? members.filter((member) =>
+        normalized(string(member.login_id ?? member.username)).includes(query) ||
+        normalized(string(member.real_name)).includes(query)) : [];
+      results.hidden = !hasMemberSearch;
+      guidance.hidden = hasMemberSearch;
+      matchingCount = matches.length;
+      resultList.replaceChildren();
+      empty.hidden = !hasMemberSearch || matches.length > 0;
+      for (const member of matches) {
+        const id = string(member.user_id);
+        const item = element("li", "", "member-result-item");
+        const button = element("button", "", "member-result");
+        button.type = "button";
+        button.dataset.memberTarget = id;
+        button.setAttribute("aria-pressed", String(id === selectedMemberId));
+        button.append(
+          element("span", string(member.real_name) || t("実名未登録"), "member-result-name"),
+          element("span", valueOrDash(member.login_id ?? member.username), "member-result-id"),
+          element("span", roleText(member.member_grade ?? member.role), "member-result-meta"),
+          status(state(member.approval_status), string(member.approval_status)),
+        );
+        button.addEventListener("click", () => {
+          if (busy || !isManagementCurrent()) return;
+          selectedMemberId = id;
+          for (const result of resultList.querySelectorAll<HTMLButtonElement>("[data-member-target]"))
+            result.setAttribute("aria-pressed", String(result.dataset.memberTarget === id));
+          renderWorkspace(true);
+        });
+        item.append(button);
+        resultList.append(item);
+      }
+      syncNavigation();
+    }
+    function newSearch(clear = false) {
+      if (busy || !isManagementCurrent()) return;
+      selectedMemberId = "";
+      resetWorkspace();
+      memberSearchQuery = clear ? "" : input.value.normalize("NFC").trim().replace(/\s+/gu, " ");
+      hasMemberSearch = Boolean(memberSearchQuery);
+      input.value = memberSearchQuery;
+      renderResults();
+      if (clear || !hasMemberSearch) input.focus();
+    }
+    search.addEventListener("submit", (event) => {
+      event.preventDefault();
+      newSearch();
+    });
+    clearButton.addEventListener("click", () => newSearch(true));
+    // 기존 UUID가 조회 결과에서 사라지면 오래된 권한·폼을 다시 열지 않습니다.
+    if (!members.some((member) => string(member.user_id) === selectedMemberId)) selectedMemberId = "";
+    renderResults();
+    renderWorkspace();
+    return section;
+  }
+  function managementWorkspace(
+    member: Row,
+    requests: Row[],
+    owner: boolean,
+    players: Row[],
+    isWorkspaceCurrent: () => boolean,
+    close: () => void,
+  ): HTMLElement {
+    const section = element("section", "", "member-workspace");
+    section.dataset.memberWorkspace = string(member.user_id);
+    const heading = element("h3", t("アカウント管理"), "member-workspace-title");
+    heading.id = `member-workspace-title-${instance}`;
+    heading.tabIndex = -1;
+    section.setAttribute("aria-labelledby", heading.id);
+    const header = element("header", "", "member-workspace-heading");
+    const closeButton = element("button", t("検索結果に戻る"), "staff-button member-workspace-close");
+    closeButton.type = "button";
+    closeButton.dataset.memberSearchAction = "close";
+    closeButton.addEventListener("click", () => {
+      if (!busy && isWorkspaceCurrent()) close();
+    });
+    header.append(heading, closeButton);
+    section.append(header, note(t("希望する所属は申請内容です。実際の所属等級は統括が承認時に設定します。自分自身の承認・本人確認・所属等級の変更はできません。")));
+    {
       const id = string(member.user_id);
       const self = id === userId;
       const incompleteProfile = member.profile_enrollment_pending === true ||
         member.identity_enrolled === false || !string(member.real_name).trim();
-      const card = element("article", "", "staff-card");
+      const card = element("article", "", "staff-card member-workspace-summary");
       card.dataset.staffId = id;
       card.dataset.nameVerificationSource = string(member.name_verification_source);
       const header = element("div", "", "staff-card-heading");
       header.append(
-        element("h3", valueOrDash(member.real_name)),
+        element("h4", valueOrDash(member.real_name)),
         status(state(member.approval_status), string(member.approval_status)),
       );
       card.append(
@@ -748,6 +920,7 @@ export async function renderStaffOffice(
                 p_reason: verifyReason.value.trim(),
               }),
             t("実名と関係者の確認を記録しました。"),
+            isWorkspaceCurrent,
           );
           card.append(verify);
         }
@@ -806,6 +979,7 @@ export async function renderStaffOffice(
               });
             },
             t("加入申請の審査結果を保存しました。"),
+            isWorkspaceCurrent,
           );
           card.append(approval);
         } else if (
@@ -842,6 +1016,7 @@ export async function renderStaffOffice(
             t(
               "権限とアクセスを更新しました。既存のセッションにも適用されます。",
             ),
+            isWorkspaceCurrent,
           );
           card.append(access);
         }
@@ -872,16 +1047,16 @@ export async function renderStaffOffice(
             p_user_id: id, p_player_id: choice.value || null, p_reason: reason.value.trim(),
           }));
           if (updated.user_id !== id || (updated.player_id ?? null) !== (choice.value || null)) throw { code: "response_unconfirmed" };
-        }, t("選手情報との紐付けを保存しました。"));
+        }, t("選手情報との紐付けを保存しました。"), isWorkspaceCurrent);
         card.append(link);
       }
       if (owner && id) {
         const accountWindow = renderOwnerAccountManagement({
-          client, userId, targetUserId: id, isCurrent: current, notice,
+          client, userId, targetUserId: id, isCurrent: isWorkspaceCurrent, notice,
           onOwnIdentityChanged: options.refresh,
           onChanged: async () => {
-            if (!current()) return;
-            await load();
+            if (!isWorkspaceCurrent()) return;
+            await load(true);
             if (current()) await options.refresh();
           },
         });
@@ -890,11 +1065,12 @@ export async function renderStaffOffice(
       }
       section.append(card);
     }
-    const corrections = element("section", "", "staff-name-requests");
-    corrections.append(title(t("実名訂正の申請")));
-    if (!requests.length)
+    const memberRequests = requests.filter((row) => string(row.user_id) === string(member.user_id));
+    const corrections = element("section", "", "staff-name-requests member-workspace-corrections");
+    corrections.append(element("h4", t("実名訂正の申請"), "staff-section-title"));
+    if (!memberRequests.length)
       corrections.append(note(t("審査待ちの実名訂正はありません。")));
-    for (const request of requests) {
+    for (const request of memberRequests) {
       const card = element("article", "", "staff-card");
       card.append(
         details([
@@ -945,6 +1121,7 @@ export async function renderStaffOffice(
           t(
             "実名訂正の審査結果を保存しました。過去の作業記録とアカウントのつながりは維持されます。",
           ),
+          isWorkspaceCurrent,
         );
         card.append(form);
       }
@@ -953,9 +1130,11 @@ export async function renderStaffOffice(
     section.append(corrections);
     return section;
   }
-  async function load() {
+  async function load(focusSelected = false) {
     const token = ++sequence;
     if (!current()) return;
+    ++managementRevision;
+    syncMemberNavigation = null;
     disposeAccountWindows();
     container.setAttribute("aria-busy", "true");
     container.replaceChildren(note(t("関係者情報を読み込んでいます。")));
@@ -967,8 +1146,10 @@ export async function renderStaffOffice(
       const approved =
         account.approval_status === "approved" && account.active === true;
       let view: HTMLElement;
-      if (!approved || page === "staff_account")
+      if (!approved || page === "staff_account") {
+        selectedMemberId = "";
         view = ownState(account, !approved);
+      }
       else if (page === "staff_directory")
         view = directory(records(await rpc("office_staff_directory")));
       else if (page === "staff_applications") {
@@ -1011,9 +1192,14 @@ export async function renderStaffOffice(
             ),
           );
       }
-      if (current() && token === sequence) container.replaceChildren(view);
+      if (current() && token === sequence) {
+        container.replaceChildren(view);
+        if (focusSelected && selectedMemberId)
+          view.querySelector<HTMLElement>(".member-workspace-title")?.focus();
+      }
     } catch (error) {
       if (!current() || token !== sequence) return;
+      selectedMemberId = "";
       const failure = element("section", "", "staff-card");
       const permission =
         error &&
@@ -1045,6 +1231,11 @@ export async function renderStaffOffice(
     dispose() {
       disposed = true;
       ++sequence;
+      ++managementRevision;
+      memberSearchQuery = "";
+      hasMemberSearch = false;
+      selectedMemberId = "";
+      syncMemberNavigation = null;
       disposeAccountWindows();
     },
     refresh: load,
