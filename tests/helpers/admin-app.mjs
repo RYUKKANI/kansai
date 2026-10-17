@@ -195,6 +195,8 @@ export async function app(
         content: Boolean(authResponses.content),
         publisher: Boolean(authResponses.publisher),
         staff_identity: Boolean(authResponses.staffIdentity),
+        club_chat: Boolean(authResponses.clubChat),
+        training_attendance: Boolean(authResponses.trainingAttendance),
       });
     if (url.pathname.includes("/rpc/") && authResponses.rpc) {
       const value = await authResponses.rpc(
