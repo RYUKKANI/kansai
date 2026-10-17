@@ -121,8 +121,8 @@ function send(window, form) {
   );
 }
 
-// 멤버 업무는 명시적으로 검색하고 UUID가 일치하는 결과를 선택한 다음에만 열립니다.
-// 기존 권한·저장 검사는 이 실제 진입 절차를 함께 통과하며, 검색 자체를 권한으로 취급하지 않습니다.
+// 멤버 업무는 전체 목록이나 검색 결과에서 UUID가 일치하는 계정을 선택한 다음에만 열립니다.
+// 기존 권한·저장 검사는 검색으로 대상을 좁히며, 검색 자체를 권한으로 취급하지 않습니다.
 function searchMembers(context, query) {
   const form = context.container.querySelector(".member-search-form");
   assert.ok(form, "Owner member search must be available");
@@ -407,16 +407,15 @@ test("server state controls management access even if caller-provided role claim
   }
 });
 
-test("Owner search creates only the selected account window and defers account details until opening", async () => {
+test("Owner can select from the initial member list while account details remain deferred until opening", async () => {
   const context = await app("staff_applications", {
     office_staff_applications: [owner, { ...owner, user_id: peerId }],
     office_staff_name_requests: [],
   });
   try {
-    assert.equal(context.container.querySelectorAll('[data-owner-account],dialog,[data-member-target]').length, 0);
-    searchMembers(context, owner.real_name);
     assert.equal(context.container.querySelectorAll('[data-member-target]').length, 2);
     assert.equal(context.container.querySelectorAll('[data-owner-account],dialog').length, 0);
+    assert.equal(context.container.querySelector('[data-member-workspace]'), null);
     context.container.querySelector(`[data-member-target="${peerId}"]`).click();
     assert.equal(context.container.querySelectorAll('[data-owner-account]').length, 1);
     assert.equal(context.container.querySelectorAll('dialog').length, 1);
@@ -947,7 +946,7 @@ for (const [lang, labels] of [
 
 // 검색은 조회 편의 기능입니다. 서버 권한 검사는 유지하면서 초기 화면·선택·폐기 경계를 따로 확인합니다.
 for (const lang of ["ja", "ko", "en"]) {
-  test(`member search starts without private management forms and requires an explicit search in ${lang}`, async () => {
+  test(`member list starts with all compact rows and explicit search filters them without auto-selecting in ${lang}`, async () => {
     const context = await app("staff_applications", { office_staff_applications: [owner, manualApplicant] }, { lang });
     try {
       const input = context.container.querySelector('input[type="search"][name="member_query"]');
@@ -955,33 +954,90 @@ for (const lang of ["ja", "ko", "en"]) {
       assert.ok(input.labels.length, "the search field needs a visible, associated label");
       assert.ok(context.container.querySelector('[data-member-search-action="search"]'));
       assert.equal(context.container.querySelectorAll("form").length, 1);
-      assert.equal(context.container.querySelectorAll('[data-member-target],[data-member-workspace],dialog,[data-owner-account]').length, 0);
-      assert.equal(context.container.textContent.includes(manualApplicant.real_name), false);
+      assert.deepEqual([...context.container.querySelectorAll('[data-member-target]')].map(node => node.dataset.memberTarget), [ownerId, peerId]);
+      assert.equal(context.container.querySelectorAll('[data-member-workspace],dialog,[data-owner-account]').length, 0);
+      assert.equal(context.container.textContent.includes(manualApplicant.real_name), true);
       assert.equal(context.container.textContent.includes(peerId), false);
+      assert.equal(context.container.querySelector('.member-search-results').hidden, false);
+      if (lang === "ja") {
+        assert.equal(context.container.querySelector('.member-search-results-heading h3').textContent, "メンバー一覧");
+        assert.equal(context.container.querySelector('.member-search-status').textContent, "全2件");
+      }
       input.value = "peer.staff";
       input.dispatchEvent(new context.window.Event("input", { bubbles: true }));
-      assert.equal(context.container.querySelectorAll('[data-member-target]').length, 0,
-        "typing alone must not enumerate accounts or auto-open a panel");
+      assert.equal(context.container.querySelectorAll('[data-member-target]').length, 2,
+        "typing alone leaves the current list unchanged until search is submitted");
       send(context.window, input.form);
       assert.equal(context.container.querySelectorAll('[data-member-target]').length, 1);
       assert.equal(context.container.querySelector('[data-member-workspace]'), null);
+      if (lang === "ja") {
+        assert.equal(context.container.querySelector('.member-search-results-heading h3').textContent, "検索結果");
+        assert.equal(context.container.querySelector('.member-search-status').textContent, "検索結果: 1件");
+      }
       assert.equal(context.calls.some(call => call.name === "office_owner_account"), false);
     } finally { context.controller.dispose(); context.dom.window.close(); }
   });
 }
 
-test("blank, whitespace, and unmatched searches never enumerate accounts or preserve an old panel", async () => {
+test("blank and whitespace searches restore the full list while unmatched search shows no rows and no old panel", async () => {
   const context = await app("staff_applications", { office_staff_applications: [owner, manualApplicant] });
   try {
     selectMember(context, "peer.staff");
     for (const query of ["", " \t\n ", "does-not-exist"]) {
       searchMembers(context, query);
-      assert.equal(context.container.querySelectorAll('[data-member-target],[data-member-workspace],dialog').length, 0);
+      assert.equal(context.container.querySelectorAll('[data-member-target]').length, query.trim() ? 0 : 2);
+      assert.equal(context.container.querySelectorAll('[data-member-workspace],dialog').length, 0);
       assert.equal(context.container.querySelectorAll('[data-staff-action]').length, 0);
       assert.equal(context.subscriptions(), 0);
     }
     assert.equal(context.calls.some(call => call.name === "office_owner_account"), false);
     assert.equal(context.notices.length, 0);
+  } finally { context.controller.dispose(); context.dom.window.close(); }
+});
+
+test("clearing either a filtered selection or unmatched search restores the full member list without opening another account", async () => {
+  const context = await app("staff_applications", { office_staff_applications: [owner, manualApplicant] });
+  try {
+    const panel = selectMember(context, "peer.staff");
+    assert.equal(context.container.querySelectorAll('[data-member-target]').length, 1);
+    assert.equal(context.subscriptions(), 1);
+    context.container.querySelector('[data-member-search-action="clear"]').click();
+    assert.equal(panel.isConnected, false);
+    for (let step = 0; step < 2; step++) {
+      assert.deepEqual([...context.container.querySelectorAll('[data-member-target]')].map(node => node.dataset.memberTarget), [ownerId, peerId]);
+      assert.equal(context.container.querySelectorAll('[data-member-workspace],dialog,[data-owner-account]').length, 0);
+      assert.equal(context.container.querySelector('[name="member_query"]').value, "");
+      assert.equal(context.container.querySelector('.member-search-results-heading h3').textContent, "メンバー一覧");
+      assert.equal(context.container.querySelector('.member-search-status').textContent, "全2件");
+      assert.equal(context.window.document.activeElement, context.container.querySelector('[name="member_query"]'));
+      assert.equal(context.subscriptions(), 0);
+      if (!step) {
+        searchMembers(context, "missing-account");
+        assert.equal(context.container.querySelectorAll('[data-member-target]').length, 0);
+        assert.match(context.container.textContent, /一致するアカウントがありません/);
+        context.container.querySelector('[data-member-search-action="clear"]').click();
+      }
+    }
+    assert.equal(context.calls.some(call => call.name === "office_owner_account"), false);
+  } finally { context.controller.dispose(); context.dom.window.close(); }
+});
+
+test("an empty member list has its own empty state and can be searched and cleared without creating a management panel", async () => {
+  const context = await app("staff_applications", { office_staff_applications: [] });
+  try {
+    assert.equal(context.container.querySelector('.member-search-results-heading h3').textContent, "メンバー一覧");
+    assert.equal(context.container.querySelector('.member-search-status').textContent, "全0件");
+    assert.match(context.container.textContent, /表示できるメンバーはいません/);
+    assert.equal(context.container.querySelectorAll('[data-member-target],[data-member-workspace],dialog,[data-owner-account]').length, 0);
+    searchMembers(context, "somebody");
+    assert.equal(context.container.querySelector('.member-search-results-heading h3').textContent, "検索結果");
+    assert.equal(context.container.querySelector('.member-search-status').textContent, "検索結果: 0件");
+    assert.match(context.container.textContent, /一致するアカウントがありません/);
+    context.container.querySelector('[data-member-search-action="clear"]').click();
+    assert.equal(context.container.querySelector('.member-search-results-heading h3').textContent, "メンバー一覧");
+    assert.match(context.container.textContent, /表示できるメンバーはいません/);
+    assert.equal(context.subscriptions(), 0);
+    assert.equal(context.calls.some(call => call.name === "office_owner_account"), false);
   } finally { context.controller.dispose(); context.dom.window.close(); }
 });
 
