@@ -29,6 +29,9 @@ function app(options = {}) {
     url: "https://kansaiunited.com/admin/", runScripts: "outside-only", pretendToBeVisual: true,
   });
   const { window } = dom;
+  if (options.mobile !== undefined) window.matchMedia = () => ({ matches: options.mobile });
+  const viewport = options.viewportHeight ? Object.assign(new window.EventTarget(), { height: options.viewportHeight }) : null;
+  if (viewport) Object.defineProperty(window, "visualViewport", { value: viewport });
   let nonce = 0;
   Object.defineProperty(window, "crypto", { value: { randomUUID: () =>
     `10000000-0000-4000-8000-${String(++nonce).padStart(12, "0")}` } });
@@ -70,12 +73,13 @@ function app(options = {}) {
   };
   const controller = window.ClubChat.createClubChat({ client, userId, isCurrent: () => active });
   window.document.querySelector("main").append(controller.element);
-  const select = () => controller.element.querySelector("select");
+  const roomButtons = () => [...controller.element.querySelectorAll(".club-chat-room-button")];
+  const selectedRoom = () => controller.element.querySelector('.club-chat-room-button[aria-current="true"]')?.dataset.room;
   const composer = () => controller.element.querySelector("textarea");
   const submit = () => composer()?.form?.querySelector('[type="submit"]');
-  return { dom, window, controller, calls, channels, removed, select, composer, submit,
+  return { dom, window, controller, calls, channels, removed, roomButtons, selectedRoom, composer, submit, viewport,
     unsubscribed: () => unsubscribed,
-    choose(room) { select().value = room; select().dispatchEvent(new window.Event("change", { bubbles: true })); },
+    choose(room) { controller.element.querySelector(`.club-chat-room-button[data-room="${room}"]`)?.click(); },
     write(body) { composer().value = body; composer().dispatchEvent(new window.Event("input", { bubbles: true })); },
     send() { composer().form.dispatchEvent(new window.Event("submit", { bubbles: true, cancelable: true })); },
     emit(event, session) { authListener?.(event, session); },
@@ -84,17 +88,142 @@ function app(options = {}) {
   };
 }
 
+test("room list navigation preserves the current conversation without fetching other-room previews", async () => {
+  const ctx = app();
+  try {
+    await ctx.controller.refresh();
+    await until(() => !ctx.controller.element.querySelector('[aria-busy="true"]'));
+    assert.equal(ctx.controller.element.dataset.view, "rooms");
+    assert.equal(ctx.controller.element.querySelector("select"), null);
+    assert.equal(ctx.calls.some(call => call.name === "office_chat_messages" && call.args.p_room === "office"), false);
+    const office = ctx.roomButtons().find(button => button.dataset.room === "office");
+    assert.equal(office.querySelector(".club-chat-room-preview").textContent, "統括 · スタッフ");
+    assert.equal(office.querySelector("time").hidden, true);
+    ctx.choose("players");
+    assert.equal(ctx.controller.element.dataset.view, "conversation");
+    assert.equal(ctx.window.document.activeElement, ctx.controller.element.querySelector(".club-chat-title"));
+    ctx.write("Keep this draft when going back");
+    const history = ctx.controller.element.querySelector(".club-chat-history");
+    Object.defineProperty(history, "scrollHeight", { configurable: true, value: 1000 });
+    Object.defineProperty(history, "clientHeight", { configurable: true, value: 300 });
+    history.scrollTop = 42;
+    const channel = ctx.channels.at(-1);
+    const reads = ctx.calls.filter(call => call.name === "office_chat_messages").length;
+    ctx.controller.element.querySelector(".club-chat-back").click();
+    assert.equal(ctx.controller.element.dataset.view, "rooms");
+    assert.equal(ctx.window.document.activeElement.dataset.room, "players");
+    // 실제 모바일의 display:none처럼 치수가 0이 되어도 배경 갱신이 복귀 위치를 지우지 않습니다.
+    Object.defineProperty(history, "scrollHeight", { configurable: true, value: 0 });
+    Object.defineProperty(history, "clientHeight", { configurable: true, value: 0 });
+    history.scrollTop = 0;
+    await ctx.controller.refresh();
+    Object.defineProperty(history, "scrollHeight", { configurable: true, value: 1000 });
+    Object.defineProperty(history, "clientHeight", { configurable: true, value: 300 });
+    ctx.choose("players");
+    assert.equal(ctx.composer().value, "Keep this draft when going back");
+    assert.equal(history.scrollTop, 42);
+    assert.equal(ctx.channels.at(-1), channel);
+    assert.equal(ctx.removed.includes(channel), false);
+    assert.equal(ctx.calls.filter(call => call.name === "office_chat_messages").length, reads + 1);
+    ctx.choose("office");
+    await until(() => ctx.controller.element.textContent.includes("Office private discussion"));
+    const oldRoom = ctx.roomButtons().find(button => button.dataset.room === "players");
+    assert.equal(oldRoom.querySelector(".club-chat-room-preview").textContent, "選手 · 統括");
+    assert.equal(oldRoom.querySelector("time").hidden, true);
+    assert.equal(ctx.composer().value, "");
+  } finally { ctx.close(); }
+});
+
+test("an initial room-list failure shows an actionable retry before opening a conversation", async () => {
+  let offline = true;
+  const ctx = app({ responses: { office_chat_rooms: () => offline
+    ? { data: null, error: { code: "FETCH_ERROR" } }
+    : { user_id: userId, role: "owner", rooms: [{ id: "players" }, { id: "office" }] },
+  } });
+  try {
+    await ctx.controller.refresh();
+    assert.equal(ctx.controller.element.dataset.view, "rooms");
+    const status = ctx.controller.element.querySelector(".club-chat-sidebar-status");
+    assert.equal(status.hidden, false);
+    assert.ok(status.querySelector("p").textContent);
+    assert.equal(ctx.roomButtons().length, 0);
+    offline = false;
+    status.querySelector("button").click();
+    await until(() => ctx.selectedRoom() === "players" && !ctx.composer().disabled);
+    assert.equal(status.hidden, true);
+    assert.equal(ctx.controller.element.dataset.view, "rooms");
+  } finally { ctx.close(); }
+});
+
+test("chat dates follow Japan midnight and multiline input waits for explicit send", async () => {
+  const ctx = app({ responses: { office_chat_messages: args => ({ user_id: userId, room: args.p_room, has_more: false,
+    messages: [
+      message("Before midnight", { id: "1", created_at: "2026-10-17T14:59:00Z" }),
+      message("After midnight", { id: "2", sender_id: userId, created_at: "2026-10-17T15:00:00Z" }),
+    ],
+  }) } });
+  try {
+    await ctx.controller.refresh(); ctx.choose("players");
+    assert.deepEqual([...ctx.controller.element.querySelectorAll(".club-chat-day time")].map(time => time.dateTime), ["2026-10-17", "2026-10-18"]);
+    assert.deepEqual([...ctx.controller.element.querySelectorAll(".club-chat-message-time")].map(time => time.textContent), ["23:59", "00:00"]);
+    const own = ctx.controller.element.querySelector('[data-own="true"]');
+    assert.ok(own.querySelector(".club-chat-bubble-row .club-chat-message-body"));
+    assert.ok(own.querySelector(".club-chat-bubble-row .club-chat-message-time"));
+    assert.equal(ctx.controller.element.querySelector('input[type="file"],.club-chat-unread,.club-chat-read-receipt'), null);
+    ctx.write("Line one\nLine two");
+    const enter = new ctx.window.KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true });
+    ctx.composer().dispatchEvent(enter);
+    assert.equal(enter.defaultPrevented, false);
+    assert.equal(ctx.calls.some(call => call.name === "office_chat_send"), false);
+    ctx.send(); await until(() => ctx.composer().value === "");
+    assert.equal(ctx.calls.find(call => call.name === "office_chat_send").args.p_body, "Line one\nLine two");
+  } finally { ctx.close(); }
+});
+
+test("visible viewport sizing follows keyboard resize and stops after disposal", async () => {
+  const ctx = app({ viewportHeight: 640 });
+  try {
+    assert.equal(ctx.controller.element.style.getPropertyValue("--club-chat-viewport-height"), "640px");
+    ctx.viewport.height = 400;
+    ctx.viewport.dispatchEvent(new ctx.window.Event("resize"));
+    assert.equal(ctx.controller.element.style.getPropertyValue("--club-chat-viewport-height"), "400px");
+    ctx.controller.dispose();
+    ctx.viewport.height = 320;
+    ctx.viewport.dispatchEvent(new ctx.window.Event("resize"));
+    assert.equal(ctx.controller.element.style.getPropertyValue("--club-chat-viewport-height"), "400px");
+  } finally { ctx.close(); }
+});
+
+for (const mobile of [false, true]) {
+  test(`${mobile ? "hidden mobile" : "visible desktop"} conversation receives focus appropriately after sending`, async () => {
+    const receipt = deferred();
+    const ctx = app({ mobile, responses: { office_chat_send: () => receipt.promise } });
+    try {
+      await ctx.controller.refresh();
+      if (mobile) ctx.choose("players");
+      ctx.write("A delivered message"); ctx.send();
+      if (mobile) ctx.controller.element.querySelector(".club-chat-back").click();
+      else ctx.submit().focus();
+      receipt.resolve({ user_id: userId, room: "players", message: message("A delivered message", { id: "2", sender_id: userId }) });
+      await until(() => !ctx.submit().disabled);
+      assert.equal(ctx.window.document.activeElement, mobile
+        ? ctx.controller.element.querySelector('.club-chat-room-button[data-room="players"]')
+        : ctx.composer());
+    } finally { ctx.close(); }
+  });
+}
+
 for (const [role, rooms] of [["owner", ["players", "office"]], ["staff", ["office"]], ["player", ["players"]]]) {
   test(`${role} sees only their permitted chat rooms and does not issue hidden-room queries`, async () => {
     const ctx = app({ role });
     try {
       await ctx.controller.refresh();
-      assert.deepEqual([...ctx.select().options].map(option => option.value).filter(Boolean), rooms);
+      assert.deepEqual(ctx.roomButtons().map(button => button.dataset.room), rooms);
       assert.equal(ctx.calls.filter(call => call.name === "office_chat_messages").every(call => rooms.includes(call.args.p_room)), true);
       if (role !== "owner") {
         const forbidden = role === "staff" ? "players" : "office";
-        const forged = ctx.window.document.createElement("option"); forged.value = forbidden;
-        ctx.select().append(forged); ctx.choose(forbidden);
+        const forged = ctx.roomButtons()[0]; forged.dataset.room = forbidden;
+        forged.click();
         await new Promise(resolve => setTimeout(resolve, 10));
         assert.equal(ctx.calls.some(call => call.name === "office_chat_messages" && call.args.p_room === forbidden), false);
       }
@@ -123,6 +252,8 @@ test("a pending send blocks duplicate submission and an uncertain retry reuses i
     await ctx.controller.refresh(); ctx.write("Keep this draft for retry"); ctx.send(); ctx.send();
     assert.equal(ctx.calls.filter(call => call.name === "office_chat_send").length, 1);
     assert.equal(ctx.submit().disabled, true);
+    assert.equal(ctx.roomButtons().find(button => button.dataset.room === "office").disabled, true);
+    assert.equal(ctx.roomButtons().find(button => button.dataset.room === "players").disabled, false);
     first.resolve({ data: null, error: { code: "FETCH_ERROR", message: "Network interrupted" } });
     await until(() => !ctx.submit().disabled);
     assert.equal(ctx.composer().value, "Keep this draft for retry");
@@ -265,8 +396,14 @@ test("Owner moderation keeps the original message until a confirmed tombstone an
   } } });
   try {
     await ctx.controller.refresh();
-    ctx.controller.element.querySelector(".club-chat-remove").click();
+    const trigger = ctx.controller.element.querySelector(".club-chat-remove");
+    assert.equal(trigger.textContent, "⋯");
+    assert.equal(trigger.getAttribute("aria-label"), "メッセージを削除");
+    assert.equal(trigger.title, "メッセージを削除");
+    assert.ok(trigger.closest(".club-chat-bubble-row"));
+    trigger.click();
     const form = ctx.controller.element.querySelector(".club-chat-removal");
+    assert.ok(form.parentElement.classList.contains("club-chat-message-content"));
     form.querySelector("input").value = "Club moderation policy";
     const submit = () => form.dispatchEvent(new ctx.window.Event("submit", { bubbles: true, cancelable: true }));
     submit(); submit();
@@ -336,7 +473,7 @@ test("room and role changes clear Owner removal drafts", async () => {
     ctx.controller.element.querySelector(".club-chat-remove").click();
     ctx.controller.element.querySelector(".club-chat-removal input").value = "Reason before role change";
     role = "staff"; await ctx.controller.refresh();
-    assert.equal(ctx.select().value, "office");
+    assert.equal(ctx.selectedRoom(), "office");
     assert.equal(ctx.controller.element.querySelector(".club-chat-removal,.club-chat-remove"), null);
   } finally { ctx.close(); }
 });
@@ -409,7 +546,7 @@ test("a transient room-list failure preserves the current-room draft and its unc
     assert.equal(ctx.composer().value, "Office draft whose delivery is uncertain");
     assert.equal(ctx.submit().disabled, true);
     offline = false; await ctx.controller.refresh();
-    assert.equal(ctx.select().value, "office");
+    assert.equal(ctx.selectedRoom(), "office");
     assert.equal(ctx.composer().value, "Office draft whose delivery is uncertain");
     ctx.send(); await until(() => ctx.composer().value === "");
     const writes = ctx.calls.filter(call => call.name === "office_chat_send");

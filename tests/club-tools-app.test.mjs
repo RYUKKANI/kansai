@@ -32,11 +32,15 @@ for (const lang of ["ja", "ko", "en"]) {
         const attendance = document.querySelector('[data-resource="training_attendance"]');
         assert.ok(chat && attendance);
         chat.click();
-        await eventually(() => Boolean(document.querySelector(".club-chat-room-select option")));
+        await eventually(() => Boolean(document.querySelector(".club-chat-room-button")));
         assert.equal(document.querySelector("#new-button").hidden, true);
         assert.equal(document.querySelector("#publication-status").hidden, true);
-        assert.deepEqual([...document.querySelectorAll(".club-chat-room-select option")].map(option => option.value),
+        assert.deepEqual([...document.querySelectorAll(".club-chat-room-button")].map(button => button.dataset.room),
           role === "owner" ? ["players", "office"] : [room]);
+        assert.equal(document.querySelector(".club-chat select"), null);
+        assert.equal(document.querySelector(".club-chat").dataset.view, "rooms");
+        document.querySelector(".club-chat-room-button").click();
+        assert.equal(document.querySelector(".club-chat").dataset.view, "conversation");
         attendance.click();
         await eventually(() => Boolean(document.querySelector('.training-attendance-day[datetime="2026-10-18"]')));
         assert.equal(document.querySelector(".club-chat"), null);
