@@ -211,7 +211,7 @@
   color: #334b69;
   font-weight: 600;
 }
-/* 멤버 관리는 검색 결과와 선택한 계정만 펼칩니다. 명부·내 계정·감사 기록의 기존 카드는 유지합니다. */
+/* 멤버 관리의 전체 목록을 먼저 표시하고 검색으로 좁힙니다. 선택한 계정의 폼만 아래에서 펼칩니다. */
 .member-search {
   gap: 1.5rem;
 }
@@ -329,8 +329,8 @@
 }
 .member-search-results-list {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.8rem;
+  grid-template-columns: 1fr;
+  gap: 0.5rem;
   list-style: none;
   margin: 0;
   padding: 0;
@@ -338,17 +338,26 @@
 .member-result-item {
   min-width: 0;
 }
+.member-list-columns,
 .member-result {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-content: start;
-  gap: 0.35rem 0.75rem;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, 0.65fr) minmax(5rem, 0.7fr) 1rem;
+  align-items: center;
+  gap: 0.35rem 1rem;
+}
+.member-list-columns {
+  padding: 0 1rem;
+  color: #62718a;
+  font-size: 0.78rem;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.member-result {
   width: 100%;
-  height: 100%;
-  min-height: 118px;
-  padding: 1rem 1.1rem;
+  min-height: 76px;
+  padding: 0.85rem 1rem;
   border: 1px solid #d3deeb;
-  border-radius: 12px;
+  border-radius: 9px;
   background: #fff;
   color: #172f53;
   font: inherit;
@@ -368,8 +377,16 @@
 .member-result-name,
 .member-result-id,
 .member-result-meta {
-  grid-column: 1;
   min-width: 0;
+}
+.member-result-name { grid-column: 1; }
+.member-result-id { grid-column: 2; }
+.member-result-meta { grid-column: 3; }
+.member-result-open {
+  grid-column: 5;
+  color: #53749a;
+  font-size: 1.5rem;
+  line-height: 1;
 }
 .member-result-name {
   color: #142f53;
@@ -388,9 +405,9 @@
   line-height: 1.6;
 }
 .member-result > .staff-status {
-  grid-column: 2;
-  grid-row: 1 / span 2;
-  align-self: start;
+  grid-column: 4;
+  grid-row: 1;
+  justify-self: start;
   max-width: 100%;
   line-height: 1.5;
 }
@@ -470,6 +487,7 @@
   outline-offset: 4px;
 }
 .member-search-results[hidden],
+.member-list-columns[hidden],
 .member-workspace[hidden],
 .member-search-guidance[hidden] {
   display: none;
@@ -565,7 +583,22 @@
     padding-inline: 0.6rem;
   }
   .member-result {
+    grid-template-columns: minmax(0, 1fr) auto;
     padding: 1rem;
+  }
+  .member-list-columns { display: none; }
+  .member-result-name,
+  .member-result-id,
+  .member-result-meta { grid-column: 1; }
+  .member-result > .staff-status {
+    grid-column: 2;
+    grid-row: 1 / span 2;
+    align-self: start;
+  }
+  .member-result-open {
+    grid-column: 2;
+    grid-row: 3;
+    justify-self: end;
   }
   .member-workspace-heading {
     align-items: start;
